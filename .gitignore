@@ -9,5 +9,8 @@
 
 /ipch
 /bin_*
+/build
+/dist
 /common/includes/version_rev.h
 /.vs
+/CMakeUserPresets.json

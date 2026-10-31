@@ -124,6 +124,18 @@ Compiling
 Compiling is pretty straightforward using VS2022 (included project files).
 Older versions of Visual Studio are not officially supported, but may still work.
 
+CMake can build the x86 and x64 filters with both MSVC and Clang (the Visual Studio ClangCL toolset):
+
+    cmake -S . -B build -DLAV_BUILD_ALL=ON
+    cmake --build build --config Release
+
+Binaries are written to `dist\msvc\Win32`, `dist\msvc\x64`, `dist\clang\Win32`, and `dist\clang\x64`.
+A single variant can be configured with the Visual Studio generator (`-A Win32` or `-A x64`, and `-T ClangCL` for Clang).
+
+The Inno Setup 7 installer packages the MSVC x86 and x64 outputs. Install Inno Setup 7, then:
+
+    cmake --build build --config Release --target installer
+
 It does, however, require that you build your own FFmpeg.
 FFmpeg is included as part of the repository in a submodule, pointing to a custom
 fork of FFmpeg with various patches for improved compatibility with LAV and DirectShow.
