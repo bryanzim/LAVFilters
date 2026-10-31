@@ -60,8 +60,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         /clang:-Wno-deprecated-declarations)
 endif()
 
+set(LAV_FFMPEG_BUILD_DIR "" CACHE PATH
+    "Out-of-tree FFmpeg build directory that contains config.h and libavutil/avconfig.h")
+
 add_library(lav_common INTERFACE)
 target_link_libraries(lav_common INTERFACE lav_platform)
+if(LAV_FFMPEG_BUILD_DIR)
+    # Generated headers (config.h, avconfig.h) live in the build tree.
+    target_include_directories(lav_common INTERFACE "${LAV_FFMPEG_BUILD_DIR}")
+endif()
 target_include_directories(lav_common INTERFACE
     "${LAV_ROOT}/include"
     "${LAV_ROOT}/common/includes"
@@ -106,7 +113,9 @@ set(LAV_FFMPEG_BIN_DIR "${LAV_ROOT}/${LAV_ARCH_BIN}" CACHE PATH
     "Directory containing the FFmpeg runtime DLLs")
 
 set(LAV_FFMPEG_HEADERS_READY FALSE)
-if(EXISTS "${LAV_ROOT}/ffmpeg/libavutil/avconfig.h")
+if(LAV_FFMPEG_BUILD_DIR AND EXISTS "${LAV_FFMPEG_BUILD_DIR}/libavutil/avconfig.h")
+    set(LAV_FFMPEG_HEADERS_READY TRUE)
+elseif(EXISTS "${LAV_ROOT}/ffmpeg/libavutil/avconfig.h")
     set(LAV_FFMPEG_HEADERS_READY TRUE)
 endif()
 
@@ -125,7 +134,7 @@ endforeach()
 
 set(ffmpeg_message "")
 if(NOT LAV_FFMPEG_HEADERS_READY)
-    set(ffmpeg_message "FFmpeg has not been configured yet (ffmpeg/libavutil/avconfig.h is missing). Run build_ffmpeg.sh or build_ffmpeg_msvc.sh for this architecture before building the filters.")
+    set(ffmpeg_message "FFmpeg has not been configured yet (libavutil/avconfig.h is missing). Build the matching FFmpeg variant (cmake --build <build> --target ffmpeg-msvc-x64, or the x86 / clang targets) or run build_ffmpeg_msvc.sh.")
 elseif(NOT LAV_FFMPEG_FOUND)
     set(ffmpeg_message "FFmpeg import libraries were not found in ${LAV_FFMPEG_LIB_DIR}. Build FFmpeg with build_ffmpeg.sh (or build_ffmpeg_msvc.sh) for this architecture first, or set LAV_FFMPEG_LIB_DIR.")
 endif()

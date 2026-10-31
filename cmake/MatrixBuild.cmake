@@ -42,12 +42,14 @@ endif()
 
 message(STATUS "LAV matrix generator: ${LAV_VS_GENERATOR}")
 
+include("${CMAKE_CURRENT_LIST_DIR}/FFmpegBuild.cmake")
+
 if(POLICY CMP0225)
     cmake_policy(SET CMP0225 NEW)
 endif()
 include(ExternalProject)
 
-function(lav_add_variant target_name compiler_tag platform toolset)
+function(lav_add_variant target_name compiler_tag platform toolset ffmpeg_target)
     set(generator_args
         SOURCE_DIR "${CMAKE_SOURCE_DIR}"
         BINARY_DIR "${CMAKE_BINARY_DIR}/${target_name}"
@@ -57,12 +59,26 @@ function(lav_add_variant target_name compiler_tag platform toolset)
         list(APPEND generator_args CMAKE_GENERATOR_TOOLSET "${toolset}")
     endif()
 
+    if(platform STREQUAL "Win32")
+        set(vc_arch "x86")
+    else()
+        set(vc_arch "x64")
+    endif()
+    set(ffmpeg_build "${LAV_FFMPEG_${compiler_tag}_${vc_arch}_BUILD}")
+    set(ffmpeg_prefix "${LAV_FFMPEG_${compiler_tag}_${vc_arch}_PREFIX}")
+    file(TO_CMAKE_PATH "${ffmpeg_build}" ffmpeg_build)
+    file(TO_CMAKE_PATH "${ffmpeg_prefix}" ffmpeg_prefix)
+
     ExternalProject_Add(${target_name}
         ${generator_args}
+        DEPENDS ${ffmpeg_target}
         CMAKE_ARGS
             -DLAV_BUILD_ALL=OFF
             -DLAV_COMPILER_TAG=${compiler_tag}
             -DLAV_REQUIRE_FFMPEG=${LAV_REQUIRE_FFMPEG}
+            -DLAV_FFMPEG_LIB_DIR=${ffmpeg_prefix}/lib
+            -DLAV_FFMPEG_BIN_DIR=${ffmpeg_prefix}
+            -DLAV_FFMPEG_BUILD_DIR=${ffmpeg_build}
         BUILD_COMMAND "${CMAKE_COMMAND}" --build "<BINARY_DIR>" --config Release --parallel
         INSTALL_COMMAND ""
         BUILD_ALWAYS TRUE
@@ -70,10 +86,10 @@ function(lav_add_variant target_name compiler_tag platform toolset)
         USES_TERMINAL_BUILD TRUE)
 endfunction()
 
-lav_add_variant(lav-msvc-x86  msvc  Win32 "")
-lav_add_variant(lav-msvc-x64  msvc  x64   "")
-lav_add_variant(lav-clang-x86 clang Win32 ClangCL)
-lav_add_variant(lav-clang-x64 clang x64   ClangCL)
+lav_add_variant(lav-msvc-x86  msvc  Win32 ""      ffmpeg-msvc-x86)
+lav_add_variant(lav-msvc-x64  msvc  x64   ""      ffmpeg-msvc-x64)
+lav_add_variant(lav-clang-x86 clang Win32 ClangCL ffmpeg-clang-x86)
+lav_add_variant(lav-clang-x64 clang x64   ClangCL ffmpeg-clang-x64)
 
 add_custom_target(lav-all
     DEPENDS lav-msvc-x86 lav-msvc-x64 lav-clang-x86 lav-clang-x64)

@@ -124,23 +124,18 @@ Compiling
 Compiling is pretty straightforward using VS2022 (included project files).
 Older versions of Visual Studio are not officially supported, but may still work.
 
-CMake can build the x86 and x64 filters with both MSVC and Clang (the Visual Studio ClangCL toolset):
+CMake can build the x86 and x64 filters with both MSVC and Clang (the Visual Studio ClangCL toolset). The same build also configures and builds FFmpeg four times, once for each of those compilers and architectures. That step needs MSYS2 (`C:\msys64\usr\bin\bash.exe`), NASM, and the Visual Studio C++ tools, including ClangCL.
 
     cmake -S . -B build -DLAV_BUILD_ALL=ON
     cmake --build build --config Release
 
-Binaries are written to `dist\msvc\Win32`, `dist\msvc\x64`, `dist\clang\Win32`, and `dist\clang\x64`.
-A single variant can be configured with the Visual Studio generator (`-A Win32` or `-A x64`, and `-T ClangCL` for Clang).
+Binaries are written to `dist\msvc\Win32`, `dist\msvc\x64`, `dist\clang\Win32`, and `dist\clang\x64`. Each directory receives that variant's FFmpeg DLLs and the matching LAV Filters. A single variant can be configured with the Visual Studio generator (`-A Win32` or `-A x64`, and `-T ClangCL` for Clang). One FFmpeg variant can be built on its own, for example `cmake --build build --target ffmpeg-clang-x64`.
 
 The Inno Setup 7 installer packages the MSVC x86 and x64 outputs. Install Inno Setup 7, then:
 
     cmake --build build --config Release --target installer
 
-It does, however, require that you build your own FFmpeg.
-FFmpeg is included as part of the repository in a submodule, pointing to a custom
-fork of FFmpeg with various patches for improved compatibility with LAV and DirectShow.
-
-A script is provided to compile FFmpeg using MSYS2 with MINGW/GCC or MSVC.
+FFmpeg is included as a submodule, pointing to a custom fork with patches for LAV and DirectShow. The CMake matrix builds the MSVC and Clang copies. `build_ffmpeg.sh` (MinGW GCC) and `build_ffmpeg_msvc.sh` remain available for a single architecture.
 
 The custom fork of FFmpeg can be found here:
 https://gitea.1f0.de/LAV/FFmpeg
