@@ -144,7 +144,10 @@ void CDecMSDKMVC::DestroyDecoder(bool bFull)
         CAutoLock const lock(&m_BufferCritSec);
         for (int i = 0; i < ASYNC_QUEUE_SIZE; ++i)
         {
-            ReleaseBuffer(&m_pOutputQueue[i]->surface);
+            if (m_pOutputQueue[i])
+            {
+                ReleaseBuffer(&m_pOutputQueue[i]->surface);
+            }
         }
         memset(m_pOutputQueue, 0, sizeof(m_pOutputQueue));
 
@@ -879,7 +882,10 @@ STDMETHODIMP CDecMSDKMVC::Flush()
 
         for (int i = 0; i < ASYNC_QUEUE_SIZE; ++i)
         {
-            ReleaseBuffer(&m_pOutputQueue[i]->surface);
+            if (m_pOutputQueue[i])
+            {
+                ReleaseBuffer(&m_pOutputQueue[i]->surface);
+            }
         }
         memset(m_pOutputQueue, 0, sizeof(m_pOutputQueue));
     }

@@ -55,8 +55,8 @@ mkdir -p "$BUILD_U" "$PREFIX_U/lib"
 cd "$BUILD_U"
 
 CC_ARGS=""
-# Release matches build_ffmpeg_msvc.sh: dynamic CRT inside the FFmpeg DLLs.
-EXTRA_CFLAGS="-D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -Zo -GS- -MD -I${SOURCE_ROOT}/thirdparty/${INC}/include"
+# Dynamic CRT. -GS keeps stack cookies on in the shipped FFmpeg DLLs.
+EXTRA_CFLAGS="-D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -Zo -GS -MD -I${SOURCE_ROOT}/thirdparty/${INC}/include"
 EXTRA_LDFLAGS="-NODEFAULTLIB:libcmt -LIBPATH:${SOURCE_ROOT}/thirdparty/${INC}/lib"
 
 ZCC="cl"
@@ -102,12 +102,20 @@ ZLIB_SRC_WIN="${SOURCE_ROOT}/build/zlib-1.3.1"
 ZLIB_SRC_U=$(to_unix "$ZLIB_SRC_WIN")
 ZLIB_OUT_WIN="${BUILD_DIR}/zlib"
 ZLIB_OUT_U=$(to_unix "$ZLIB_OUT_WIN")
+# Published SHA-256 of zlib-1.3.1.tar.gz from the v1.3.1 release tarball.
+ZLIB_SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
 if [ ! -f "$ZLIB_SRC_U/zlib.h" ]; then
     ZLIB_TGZ_U=$(to_unix "${SOURCE_ROOT}/build/zlib-1.3.1.tar.gz")
     mkdir -p "$(dirname "$ZLIB_TGZ_U")"
     if [ ! -f "$ZLIB_TGZ_U" ]; then
         curl -fsSL -o "$ZLIB_TGZ_U" \
             "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+    fi
+    actual=$(sha256sum "$ZLIB_TGZ_U" | awk '{print $1}')
+    if [ "$actual" != "$ZLIB_SHA256" ]; then
+        echo "zlib-1.3.1.tar.gz checksum mismatch" >&2
+        rm -f "$ZLIB_TGZ_U"
+        exit 1
     fi
     tar -C "$(dirname "$ZLIB_TGZ_U")" -xzf "$ZLIB_TGZ_U"
 fi
@@ -141,9 +149,27 @@ FFMPEG_REPO=$(cygpath -m "$ROOT_U/ffmpeg")
 FFMPEG_PATCH=$(cygpath -m "$ROOT_U/cmake/patches/0001-clang-cl-hevc-intrinsic-targets.patch")
 PATCH_LOCK="$ROOT_U/build/.ffmpeg-patch.lock"
 mkdir -p "$(dirname "$PATCH_LOCK")"
+# A killed build skips the EXIT trap and leaves this directory behind.
+# The pid file lets the next build drop the lock when that process is gone.
 while ! mkdir "$PATCH_LOCK" 2>/dev/null; do
+    if [ -f "$PATCH_LOCK/pid" ]; then
+        owner=$(cat "$PATCH_LOCK/pid" 2>/dev/null || true)
+        if [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; then
+            sleep 1
+            continue
+        fi
+        rm -rf "$PATCH_LOCK"
+        continue
+    fi
+    now=$(date +%s)
+    mtime=$(stat -c %Y "$PATCH_LOCK" 2>/dev/null || echo "$now")
+    if [ $((now - mtime)) -ge 30 ]; then
+        rm -rf "$PATCH_LOCK"
+        continue
+    fi
     sleep 1
 done
+echo $$ > "$PATCH_LOCK/pid"
 # Always put the checkout back, including when configure or make fails,
 # so Explorer does not keep a modified ffmpeg folder.
 restore_ffmpeg_patch() {
@@ -151,7 +177,7 @@ restore_ffmpeg_patch() {
     if git -C "$FFMPEG_REPO" apply --reverse --check "$FFMPEG_PATCH" >/dev/null 2>&1; then
         git -C "$FFMPEG_REPO" apply --reverse "$FFMPEG_PATCH" || true
     fi
-    rmdir "$PATCH_LOCK" 2>/dev/null || true
+    rm -rf "$PATCH_LOCK"
     exit "$status"
 }
 trap restore_ffmpeg_patch EXIT
@@ -212,6 +238,13 @@ if [ -f ffbuild/config.mak ]; then
     fi
     if [ "$COMPILER" = "msvc" ]; then
         sed -i 's/ -W3 / /' ffbuild/config.mak
+    fi
+    # Trees configured before stack cookies were enabled still have -GS-.
+    # Drop it and rebuild those objects, or the shipped DLLs stay unprotected.
+    if grep -q -- '-GS-' ffbuild/config.mak; then
+        sed -i 's/-GS-/-GS/g' ffbuild/config.mak
+        # mscl.o is the host compiler driver. cl warns D9024 if that object is relinked.
+        find . -name '*.o' ! -path './ffbuild/mscl.o' -delete
     fi
 fi
 

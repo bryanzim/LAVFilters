@@ -259,7 +259,7 @@ STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
         }
     }
 
-    return S_OK;
+    return hr;
 }
 
 STDMETHODIMP CDecodeManager::Flush()

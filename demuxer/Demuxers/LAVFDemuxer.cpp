@@ -258,10 +258,18 @@ STDMETHODIMP CLAVFDemuxer::OpenInputStream(AVIOContext *byteContext, LPCOLESTR p
         fileName[6U] = 0;
     }
 
+    // mms:// becomes mmsh://. That inserts one character, so the buffer has to grow.
     if (_strnicmp("mms:", fileName, 4) == 0)
     {
-        memmove(fileName + 1, fileName, strlen(fileName));
-        memcpy(fileName, "mmsh", 4);
+        size_t const oldLen = strlen(fileName);
+        char *rewritten = (char *)CoTaskMemAlloc(oldLen + 2);
+        if (rewritten != nullptr)
+        {
+            memcpy(rewritten, "mmsh:", 5);
+            memcpy(rewritten + 5, fileName + 4, oldLen - 3);
+            CoTaskMemFree(fileName);
+            fileName = rewritten;
+        }
     }
 
     // replace "icyx" protocol by http
@@ -894,13 +902,15 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
 }
             }
 
-            if (st->codecpar->codec_id == AV_CODEC_ID_TTF || st->codecpar->codec_id == AV_CODEC_ID_OTF)
+            if ((st->codecpar->codec_id == AV_CODEC_ID_TTF || st->codecpar->codec_id == AV_CODEC_ID_OTF) &&
+                st->codecpar->extradata != nullptr && st->codecpar->extradata_size > 0)
             {
                 if (!m_pFontInstaller)
                 {
                     m_pFontInstaller = new CFontInstaller();
                 }
-                m_pFontInstaller->InstallFont(st->codecpar->extradata, st->codecpar->extradata_size);
+                m_pFontInstaller->InstallFont(st->codecpar->extradata,
+                                              static_cast<UINT>(st->codecpar->extradata_size));
             }
         }
         else if (st->disposition & AV_DISPOSITION_ATTACHED_PIC && st->attached_pic.data && st->attached_pic.size > 0)
@@ -3034,24 +3044,17 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
             pg_sequences.sort();
             pg_sequences.unique();
 
-            size_t const size = pg_sequences.size() * 4;
-            char *offsets = new char[size];
-            offsets[0U] = 0;
-
-            // Append all offsets to the string
+            std::string offsets;
             for (auto it = pg_sequences.begin(); it != pg_sequences.end(); ++it)
             {
-                size_t len = strlen(offsets);
-                if (len > 0)
+                if (!offsets.empty())
                 {
-                    offsets[len] = ',';
-                    len++;
+                    offsets.push_back(',');
                 }
-                strcpy_s(offsets + len, size - len, it->c_str());
+                offsets += *it;
             }
 
-            av_dict_set(&m_avFormat->metadata, "pg_offset_sequences", offsets, 0);
-            delete[] offsets;
+            av_dict_set(&m_avFormat->metadata, "pg_offset_sequences", offsets.c_str(), 0);
         }
     }
 

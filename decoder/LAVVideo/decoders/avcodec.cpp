@@ -950,8 +950,9 @@ STDMETHODIMP CDecAvcodec::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         AVPacket *avpkt = av_packet_alloc();
 
         // set data pointers
-        if (FAILED(FillAVPacketData(avpkt, buffer, buflen, pSample, true)))
+        if (avpkt == nullptr || FAILED(FillAVPacketData(avpkt, buffer, buflen, pSample, true)))
         {
+            av_packet_free(&avpkt);
             return E_OUTOFMEMORY;
         }
 
@@ -1060,8 +1061,9 @@ STDMETHODIMP CDecAvcodec::ParsePacket(const BYTE *buffer, int buflen, REFERENCE_
             AVPacket *avpkt = av_packet_alloc();
 
             // set data pointers
-            if (FAILED(FillAVPacketData(avpkt, pOutBuffer, pOutLen, pSample, false)))
+            if (avpkt == nullptr || FAILED(FillAVPacketData(avpkt, pOutBuffer, pOutLen, pSample, false)))
             {
+                av_packet_free(&avpkt);
                 return E_OUTOFMEMORY;
             }
 

@@ -427,27 +427,36 @@ void CLAVSubtitleProvider::ProcessSubtitleRect(AVSubtitleRect *rect, REFERENCE_T
   if (rtStart != AV_NOPTS_VALUE && rtStart == rtStop) { return;
 }
 
+  if (rect->w <= 0 || rect->h <= 0 || rect->w > 16384 || rect->h > 16384) {
+    return;
+  }
+
   int const hpad = rect->x & 1;
   int const vpad = rect->y & 1;
 
   int width = rect->w + hpad;
   if (width & 1) { width++;
-}
+  }
 
   int height = rect->h + vpad;
   if (height & 1) { height++;
-}
+  }
 
   int const rgbStride = FFALIGN(width, 16);
+  if (rgbStride <= 0 || height <= 0 ||
+      static_cast<size_t>(rgbStride) > (SIZE_MAX / 4) / static_cast<size_t>(height)) {
+    return;
+  }
+  size_t const bytes = static_cast<size_t>(rgbStride) * static_cast<size_t>(height) * 4;
 
-  BYTE *rgbSub = (BYTE *)CoTaskMemAlloc(rgbStride * height * 4);
+  BYTE *rgbSub = (BYTE *)CoTaskMemAlloc(bytes);
   if (!rgbSub) { return;
-}
+  }
   BYTE *rgbSubStart = rgbSub;
   const BYTE *palSub = rect->data[0U];
   const BYTE *palette = rect->data[1U];
 
-  memset(rgbSub, 0, rgbStride * height * 4);
+  memset(rgbSub, 0, bytes);
 
   rgbSub += (rgbStride * vpad + hpad) * 4;
 

@@ -77,67 +77,125 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
     GUID majortype = m_mt.majortype;
     GUID const subtype = m_mt.subtype;
 
+    auto drop = [&]() { len = 0; };
+
     if (majortype == MEDIATYPE_MPEG2_PACK || majortype == MEDIATYPE_DVD_ENCRYPTED_PACK)
     {
-        if (len > 0 && *(DWORD *)p == 0xba010000)
+        if (len >= 4 && *(DWORD *)p == 0xba010000)
         { // MEDIATYPE_*_PACK
+            if (len < 14)
+            {
+                drop();
+                return;
+            }
             len -= 14;
             p += 14;
-            if (int const stuffing = (p[-1] & 7))
+            int const stuffing = p[-1] & 7;
+            if (len < stuffing)
             {
-                len -= stuffing;
-                p += stuffing;
+                drop();
+                return;
             }
+            len -= stuffing;
+            p += stuffing;
             majortype = MEDIATYPE_MPEG2_PES;
         }
     }
 
     if (majortype == MEDIATYPE_MPEG2_PES)
     {
-        if (len > 0 && *(DWORD *)p == 0xbb010000)
+        if (len >= 4 && *(DWORD *)p == 0xbb010000)
         {
+            if (len < 6)
+            {
+                drop();
+                return;
+            }
             len -= 4;
             p += 4;
             int const hdrlen = ((p[0U] << 8) | p[1U]) + 2;
+            if (hdrlen < 2 || len < hdrlen)
+            {
+                drop();
+                return;
+            }
             len -= hdrlen;
             p += hdrlen;
         }
 
-        if (len > 4 && ((*(DWORD *)p & 0xf0ffffff) == 0xe0010000 || (*(DWORD *)p & 0xe0ffffff) == 0xc0010000 ||
+        if (len >= 4 && ((*(DWORD *)p & 0xf0ffffff) == 0xe0010000 || (*(DWORD *)p & 0xe0ffffff) == 0xc0010000 ||
                         (*(DWORD *)p & 0xbdffffff) == 0xbd010000))
         { // PES
             bool const ps1 = (*(DWORD *)p & 0xbdffffff) == 0xbd010000;
 
             len -= 4;
             p += 4;
+            if (len < 2)
+            {
+                drop();
+                return;
+            }
             size_t expected = ((p[0U] << 8) | p[1U]);
             len -= 2;
             p += 2;
             BYTE *p0 = p;
 
-            for (int i = 0; i < 16 && *p == 0xff; i++, len--, p++)
+            for (int i = 0; i < 16 && len > 0 && *p == 0xff; ++i, --len, ++p)
             {
                 ;
+            }
+            if (len <= 0)
+            {
+                drop();
+                return;
             }
 
             if ((*p & 0xc0) == 0x80)
             { // mpeg2
+                if (len < 3)
+                {
+                    drop();
+                    return;
+                }
                 len -= 2;
                 p += 2;
-                len -= *p + 1;
-                p += *p + 1;
+                long const pesHdr = static_cast<long>(*p) + 1;
+                if (len < pesHdr)
+                {
+                    drop();
+                    return;
+                }
+                len -= pesHdr;
+                p += pesHdr;
             }
             else
             { // mpeg1
                 if ((*p & 0xc0) == 0x40)
                 {
+                    if (len < 2)
+                    {
+                        drop();
+                        return;
+                    }
                     len -= 2;
                     p += 2;
+                    if (len <= 0)
+                    {
+                        drop();
+                        return;
+                    }
                 }
 
                 if ((*p & 0x30) == 0x30 || (*p & 0x30) == 0x20)
                 {
-                    bool pts = !!(*p & 0x20), dts = !!(*p & 0x10);
+                    bool const pts = (*p & 0x20) != 0;
+                    bool const dts = (*p & 0x10) != 0;
+                    long const advance = dts ? 10 : 5;
+                    if (len < advance)
+                    {
+                        drop();
+                        return;
+                    }
                     if (pts)
                     {
                         len -= 5;
@@ -152,6 +210,11 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
                 }
                 else
                 {
+                    if (len < 1)
+                    {
+                        drop();
+                        return;
+                    }
                     len--;
                     p++;
                 }
@@ -159,16 +222,31 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
 
             if (ps1)
             {
+                if (len < 1)
+                {
+                    drop();
+                    return;
+                }
                 len--;
                 p++;
                 if (subtype == MEDIASUBTYPE_DVD_LPCM_AUDIO)
                 {
+                    if (len < 6)
+                    {
+                        drop();
+                        return;
+                    }
                     len -= 6;
                     p += 6;
                 }
                 else if (subtype == MEDIASUBTYPE_DOLBY_AC3 || subtype == FOURCCMap(0x2000) ||
                          subtype == MEDIASUBTYPE_DTS || subtype == FOURCCMap(0x2001))
                 {
+                    if (len < 3)
+                    {
+                        drop();
+                        return;
+                    }
                     len -= 3;
                     p += 3;
                 }
@@ -176,8 +254,16 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
 
             if (expected > 0)
             {
-                expected -= (p - p0);
-                len = min((long)expected, len);
+                size_t const consumed = static_cast<size_t>(p - p0);
+                if (consumed > expected)
+                {
+                    len = 0;
+                }
+                else
+                {
+                    expected -= consumed;
+                    len = min(static_cast<long>(expected), len);
+                }
             }
         }
 

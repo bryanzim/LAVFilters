@@ -87,25 +87,39 @@ template <class T> class GrowableArray
 
     HRESULT Append(const T *other, DWORD dwSize)
     {
-        HRESULT hr = S_OK;
         DWORD const old = GetCount();
-        hr = SetSize(old + dwSize);
-        if (SUCCEEDED(hr)) {
+        if (dwSize > ~old)
+        {
+            return E_OUTOFMEMORY;
+        }
+        HRESULT const hr = SetSize(old + dwSize);
+        if (FAILED(hr))
+        {
+            return hr;
+        }
+        if (dwSize > 0)
+        {
             memcpy(m_pArray + old, other, dwSize);
-}
-
+        }
         return S_OK;
     }
 
     HRESULT AppendZero(DWORD dwSize)
     {
-        HRESULT hr = S_OK;
-        DWORD old = GetCount();
-        hr = SetSize(old + dwSize);
-        if (SUCCEEDED(hr)) {
+        DWORD const old = GetCount();
+        if (dwSize > ~old)
+        {
+            return E_OUTOFMEMORY;
+        }
+        HRESULT const hr = SetSize(old + dwSize);
+        if (FAILED(hr))
+        {
+            return hr;
+        }
+        if (dwSize > 0)
+        {
             memset(m_pArray + old, 0, dwSize);
-}
-
+        }
         return S_OK;
     }
 

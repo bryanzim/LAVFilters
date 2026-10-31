@@ -73,12 +73,20 @@ HRESULT CStreamParser::Parse(const GUID &gSubtype, Packet *pPacket)
     }
     else if (m_gSubtype == MEDIASUBTYPE_HDMV_LPCM_AUDIO)
     {
-        pPacket->RemoveHead(4);
+        if (pPacket->RemoveHead(4) < 0)
+        {
+            SAFE_DELETE(pPacket);
+            return S_FALSE;
+        }
         Queue(pPacket);
     }
     else if (m_gSubtype == MEDIASUBTYPE_DVD_LPCM_AUDIO)
     {
-        pPacket->RemoveHead(3);
+        if (pPacket->RemoveHead(3) < 0)
+        {
+            SAFE_DELETE(pPacket);
+            return S_FALSE;
+        }
         Queue(pPacket);
     }
     else if (pPacket->dwFlags & LAV_PACKET_MOV_TEXT)
@@ -277,13 +285,14 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
 
             Packet *p = *it;
             BYTE *pData = p->GetData();
+            bool const aud = pData != nullptr && p->GetDataSize() >= 5 && (pData[4U] & 0x1f) == 0x09;
 
-            if ((pData[4U] & 0x1f) == 0x09)
+            if (aud)
             {
                 m_bHasAccessUnitDelimiters = true;
             }
 
-            if ((pData[4U] & 0x1f) == 0x09 || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME))
+            if (aud || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME))
             {
                 pPacket = p;
                 if (p->rtStart == Packet::INVALID_TIME && rtStart != Packet::INVALID_TIME)
@@ -419,7 +428,11 @@ HRESULT CStreamParser::ParseMOVText(Packet *pPacket)
         unsigned const size = (ptr[0U] << 8) | ptr[1U];
         if (size <= avail - 2)
         {
-            pPacket->RemoveHead(2);
+            if (pPacket->RemoveHead(2) < 0)
+            {
+                SAFE_DELETE(pPacket);
+                return S_FALSE;
+            }
             pPacket->SetDataSize(size);
             return Queue(pPacket);
         }
@@ -430,6 +443,11 @@ HRESULT CStreamParser::ParseMOVText(Packet *pPacket)
 
 HRESULT CStreamParser::ParseAAC(Packet *pPacket)
 {
+    if (pPacket->GetDataSize() < AAC_ADTS_HEADER_SIZE)
+    {
+        return Queue(pPacket);
+    }
+
     BYTE *pData = pPacket->GetData();
 
     GetBitContext gb;
@@ -440,8 +458,13 @@ HRESULT CStreamParser::ParseAAC(Packet *pPacket)
         skip_bits1(&gb);              /* id */
         skip_bits(&gb, 2);            /* layer */
         int const crc_abs = get_bits1(&gb); /* protection_absent */
+        int const header = AAC_ADTS_HEADER_SIZE + 2 * !crc_abs;
 
-        pPacket->RemoveHead(AAC_ADTS_HEADER_SIZE + 2 * !crc_abs);
+        if (pPacket->GetDataSize() < header || pPacket->RemoveHead(header) < 0)
+        {
+            SAFE_DELETE(pPacket);
+            return S_FALSE;
+        }
     }
     return Queue(pPacket);
 }

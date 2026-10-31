@@ -15,6 +15,9 @@
 #ifndef LAV_BIN64
 #define LAV_BIN64 "dist\msvc\x64"
 #endif
+#ifndef LAV_SETUP_SUFFIX
+#define LAV_SETUP_SUFFIX ""
+#endif
 
 ; Include version info
 #define ISPP_INCLUDED
@@ -43,11 +46,11 @@ AppVersion                = {#=LAV_VERSION_STRING}
 VersionInfoVersion        = {#=LAV_VERSION_MAJOR}.{#=LAV_VERSION_MINOR}.{#=LAV_VERSION_REVISION}.{#=LAV_VERSION_BUILD}
 VersionInfoCompany        = 1f0.de
 VersionInfoCopyright      = GPLv2
-OutputBaseFilename        = LAVFilters-{#=LAV_VERSION_STRING}
+OutputBaseFilename        = LAVFilters-{#=LAV_VERSION_STRING}{#LAV_SETUP_SUFFIX}
 OutputDir                 = .
 Compression               = lzma2/ultra64
 SolidCompression          = yes
-MinVersion                = 0,6.0
+MinVersion                = 6.1
 PrivilegesRequired        = admin
 CreateAppDir              = yes
 DefaultDirName            = {pf}\LAV Filters
@@ -65,7 +68,7 @@ SignedUninstaller         = yes
 [Messages]
 WelcomeLabel1=[name/ver]
 WelcomeLabel2=This will install [name] on your computer.%n%nIt is recommended that you close all other applications before continuing.
-WinVersionTooLowError=This software only works on Windows XP SP3 and newer.
+WinVersionTooLowError=This software only works on Windows 7 and newer.
 
 [Types]
 Name: default; Description: Default
@@ -118,8 +121,8 @@ Source: CHANGELOG.txt;                 DestDir: {app};     Flags: ignoreversion 
 
 ; Optional H.264 MVC 3D software decoder. Inno Setup 7 downloads and extracts the
 ; archives itself, so the Inno Download Plugin and 7za.exe are not required.
-Source: "https://files.1f0.de/lavf/plugins/libmfxsw32-v3.7z"; DestDir: "{app}\x86"; Flags: external download extractarchive ignoreversion recursesubdirs; Components: mvc3d and lavvideo32; ExternalSize: 20000000
-Source: "https://files.1f0.de/lavf/plugins/libmfxsw64-v3.7z"; DestDir: "{app}\x64"; Flags: external download extractarchive ignoreversion recursesubdirs; Components: mvc3d and lavvideo64; ExternalSize: 22000000
+Source: "https://files.1f0.de/lavf/plugins/libmfxsw32-v3.7z"; DestDir: "{app}\x86"; DestName: "libmfxsw32-v3.7z"; Flags: external download extractarchive ignoreversion recursesubdirs; Components: mvc3d and lavvideo32; ExternalSize: 20000000
+Source: "https://files.1f0.de/lavf/plugins/libmfxsw64-v3.7z"; DestDir: "{app}\x64"; DestName: "libmfxsw64-v3.7z"; Flags: external download extractarchive ignoreversion recursesubdirs; Components: mvc3d and lavvideo64; ExternalSize: 22000000
 
 [UninstallDelete]
 Type: files; Name: {app}\x86\libmfxsw32.dll

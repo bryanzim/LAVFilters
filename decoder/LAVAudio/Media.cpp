@@ -478,7 +478,29 @@ void CLAVAudio::CreateDVDLPCMHeader(BYTE *const pBuf, const WAVEFORMATEX *const 
 
 HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const size_t extralen)
 {
+    if (extra == nullptr || extralen < 6)
+    {
+        return VFW_E_UNSUPPORTED_AUDIO;
+    }
+
+    const uint8_t *const end = extra + extralen;
     const uint8_t *fmt = extra + 4;
+    auto need = [&](size_t count) -> bool {
+        return fmt <= end && static_cast<size_t>(end - fmt) >= count;
+    };
+    auto skip = [&](size_t count) -> bool {
+        if (!need(count))
+        {
+            return false;
+        }
+        fmt += count;
+        return true;
+    };
+
+    if (!need(2))
+    {
+        return VFW_E_UNSUPPORTED_AUDIO;
+    }
     uint16_t const version = AV_RB16(fmt);
     fmt += 2;
     if (version == 3)
@@ -486,64 +508,89 @@ HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const size_t extralen
         DbgLog((LOG_TRACE, 10, L"RealAudio Header version 3 unsupported"));
         return VFW_E_UNSUPPORTED_AUDIO;
     }
-    else if (version == 4 || version == 5 && extralen > 50)
+    if (version != 4 && version != 5)
     {
-        // main format block
-        fmt += 2; // word - unused (always 0)
-        fmt += 4; // byte[4] - .ra4/.ra5 signature
-        fmt += 4; // dword - unknown
-        fmt += 2; // word - Version2
-        fmt += 4; // dword - header size
-        m_raData.flavor = AV_RB16(fmt);
-        fmt += 2; // word - codec flavor
-        m_raData.coded_frame_size = AV_RB32(fmt);
-        fmt += 4;  // dword - coded frame size
-        fmt += 12; // byte[12] - unknown
-        m_raData.sub_packet_h = AV_RB16(fmt);
-        fmt += 2; // word - sub packet h
-        m_raData.audio_framesize = m_pAVCtx->block_align = AV_RB16(fmt);
-        fmt += 2; // word - frame size
-        m_raData.sub_packet_size = AV_RB16(fmt);
-        fmt += 2; // word - subpacket size
-        fmt += 2; // word - unknown
-        // 6 Unknown bytes in ver 5
-        if (version == 5) {
-            fmt += 6;
-}
-        // Audio format block
-        fmt += 8;
-        // Tag info in v4
-        if (version == 4)
-        {
-            int len = *fmt++;
-            m_raData.deint_id = AV_RB32(fmt);
-            fmt += len;
-            len = *fmt++;
-            fmt += len;
-        }
-        else if (version == 5)
-        {
-            m_raData.deint_id = AV_RB32(fmt);
-            fmt += 4;
-            fmt += 4;
-        }
-        fmt += 3;
-        if (version == 5) {
-            fmt++;
-}
+        DbgLog((LOG_TRACE, 10, L"Unknown RealAudio Header version: %d", version));
+        return VFW_E_UNSUPPORTED_AUDIO;
+    }
 
-        size_t const ra_extralen = min((size_t)((extra + extralen) - (fmt + 4)), AV_RB32(fmt));
-        if (ra_extralen > 0)
+    // word unused, signature, unknown dword, Version2, header size
+    if (!skip(2 + 4 + 4 + 2 + 4) || !need(2 + 4 + 12 + 2 + 2 + 2 + 2))
+    {
+        return VFW_E_UNSUPPORTED_AUDIO;
+    }
+
+    m_raData.flavor = AV_RB16(fmt);
+    fmt += 2;
+    m_raData.coded_frame_size = AV_RB32(fmt);
+    fmt += 4;
+    fmt += 12;
+    m_raData.sub_packet_h = AV_RB16(fmt);
+    fmt += 2;
+    m_raData.audio_framesize = m_pAVCtx->block_align = AV_RB16(fmt);
+    fmt += 2;
+    m_raData.sub_packet_size = AV_RB16(fmt);
+    fmt += 2;
+    fmt += 2;
+    if (version == 5 && !skip(6))
+    {
+        return VFW_E_UNSUPPORTED_AUDIO;
+    }
+    if (!skip(8))
+    {
+        return VFW_E_UNSUPPORTED_AUDIO;
+    }
+
+    if (version == 4)
+    {
+        if (!need(1))
         {
-            m_pAVCtx->extradata_size = (int)ra_extralen;
-            m_pAVCtx->extradata = (uint8_t *)av_mallocz(ra_extralen + AV_INPUT_BUFFER_PADDING_SIZE);
-            memcpy(m_pAVCtx->extradata, fmt + 4, ra_extralen);
+            return VFW_E_UNSUPPORTED_AUDIO;
+        }
+        int const len = *fmt++;
+        if (len < 4 || !skip(static_cast<size_t>(len)))
+        {
+            return VFW_E_UNSUPPORTED_AUDIO;
+        }
+        m_raData.deint_id = AV_RB32(fmt - len);
+        if (!need(1))
+        {
+            return VFW_E_UNSUPPORTED_AUDIO;
+        }
+        int const len2 = *fmt++;
+        if (!skip(static_cast<size_t>(len2)))
+        {
+            return VFW_E_UNSUPPORTED_AUDIO;
         }
     }
     else
     {
-        DbgLog((LOG_TRACE, 10, L"Unknown RealAudio Header version: %d", version));
+        if (!need(8))
+        {
+            return VFW_E_UNSUPPORTED_AUDIO;
+        }
+        m_raData.deint_id = AV_RB32(fmt);
+        fmt += 8;
+    }
+
+    if (!skip(3) || (version == 5 && !skip(1)) || !need(4))
+    {
         return VFW_E_UNSUPPORTED_AUDIO;
+    }
+
+    uint32_t const claimed = AV_RB32(fmt);
+    size_t const avail = static_cast<size_t>(end - (fmt + 4));
+    size_t const ra_extralen = min(avail, static_cast<size_t>(claimed));
+    if (ra_extralen > 0)
+    {
+        m_pAVCtx->extradata_size = static_cast<int>(ra_extralen);
+        m_pAVCtx->extradata = static_cast<uint8_t *>(av_mallocz(ra_extralen + AV_INPUT_BUFFER_PADDING_SIZE));
+        if (m_pAVCtx->extradata == nullptr)
+        {
+            m_pAVCtx->extradata_size = 0;
+            return E_OUTOFMEMORY;
+        }
+        memcpy(m_pAVCtx->extradata, fmt + 4, ra_extralen);
     }
 
     return S_OK;

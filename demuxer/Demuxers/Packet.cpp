@@ -103,8 +103,12 @@ int Packet::AppendData(const void *ptr, int len)
 
 int Packet::RemoveHead(int count)
 {
+    if (m_Packet == nullptr || count < 0 || count > m_Packet->size)
+    {
+        return -1;
+    }
     m_Packet->data += count;
-    m_Packet->size -= (int)count;
+    m_Packet->size -= count;
     return 0;
 }
 
