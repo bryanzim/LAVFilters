@@ -66,14 +66,17 @@ class CDecodeManager : protected CCritSec
     }
     STDMETHODIMP GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
     {
-        if (m_pDecoder == NULL)
+        if (m_pDecoder == nullptr)
         {
-            if (pPix)
+            if (pPix) {
                 *pPix = LAVPixFmt_None;
-            if (pBpp)
+}
+            if (pBpp) {
                 *pBpp = 8;
-            if (pPixSoftware)
+}
+            if (pPixSoftware) {
                 *pPixSoftware = LAVPixFmt_None;
+}
 
             return S_FALSE;
         }

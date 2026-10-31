@@ -25,7 +25,7 @@ typedef struct ExtendedChannelMap_s
 {
     int idx;
     int factor;
-} ExtendedChannelMap[8];
+} ExtendedChannelMap[8U];
 
 inline void ExtChMapSet(ExtendedChannelMap *map, int ch, int idx, int factor)
 {

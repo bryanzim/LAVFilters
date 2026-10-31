@@ -35,8 +35,8 @@ DEFINE_GUID(IID_MediaSideDataHDR, 0x53820dbc, 0xa7b8, 0x49c4, 0xb1, 0x7b, 0xe5, 
 struct MediaSideDataHDR
 {
     // coordinates of the primaries, in G-B-R order
-    double display_primaries_x[3];
-    double display_primaries_y[3];
+    double display_primaries_x[3U];
+    double display_primaries_y[3U];
     // white point
     double white_point_x;
     double white_point_y;
@@ -97,7 +97,7 @@ struct MediaSideDataHDR10Plus
         unsigned int semiminor_axis_external_ellipse;
         unsigned int overlap_process_option;
 
-        double maxscl[3];
+        double maxscl[3U];
         double average_maxrgb;
 
         unsigned int num_distribution_maxrgb_percentiles;
@@ -105,7 +105,7 @@ struct MediaSideDataHDR10Plus
         {
             unsigned int percentage;
             double percentile;
-        } distribution_maxrgb_percentiles[15];
+        } distribution_maxrgb_percentiles[15U];
 
         double fraction_bright_pixels;
 
@@ -115,23 +115,23 @@ struct MediaSideDataHDR10Plus
         double knee_point_y;
 
         unsigned int num_bezier_curve_anchors;
-        double bezier_curve_anchors[15];
+        double bezier_curve_anchors[15U];
 
         unsigned int color_saturation_mapping_flag;
         double color_saturation_weight;
-    } windows[3];
+    } windows[3U];
 
     double targeted_system_display_maximum_luminance;
 
     unsigned int targeted_system_display_actual_peak_luminance_flag;
     unsigned int num_rows_targeted_system_display_actual_peak_luminance;
     unsigned int num_cols_targeted_system_display_actual_peak_luminance;
-    double targeted_system_display_actual_peak_luminance[25][25];
+    double targeted_system_display_actual_peak_luminance[25U][25U];
 
     unsigned int mastering_display_actual_peak_luminance_flag;
     unsigned int num_rows_mastering_display_actual_peak_luminance;
     unsigned int num_cols_mastering_display_actual_peak_luminance;
-    double mastering_display_actual_peak_luminance[25][25];
+    double mastering_display_actual_peak_luminance[25U][25U];
 };
 #pragma pack(pop)
 
@@ -187,13 +187,13 @@ struct MediaSideDataDOVIMetadata
 
             /* polynomial */
             uint8_t poly_order[LAV_DOVI_MAX_PIECES];   /* [1, 2] */
-            int64_t poly_coef[LAV_DOVI_MAX_PIECES][3]; /* x^0, x^1, x^2 */
+            int64_t poly_coef[LAV_DOVI_MAX_PIECES][3U]; /* x^0, x^1, x^2 */
 
             /* mmr */
             uint8_t mmr_order[LAV_DOVI_MAX_PIECES]; /* [1, 3] */
             int64_t mmr_constant[LAV_DOVI_MAX_PIECES];
-            int64_t mmr_coef[LAV_DOVI_MAX_PIECES][3 /* order - 1 */][7];
-        } curves[3]; /* per component */
+            int64_t mmr_coef[LAV_DOVI_MAX_PIECES][3 /* order - 1 */][7U];
+        } curves[3U]; /* per component */
 
         /* Non-linear inverse quantization */
         uint8_t nlq_method_idc; // -1 none, 0 linear dz
@@ -207,7 +207,7 @@ struct MediaSideDataDOVIMetadata
             /* linear dz */
             uint64_t linear_deadzone_slope;
             uint64_t linear_deadzone_threshold;
-        } nlq[3]; /* per component */
+        } nlq[3U]; /* per component */
     } Mapping;
 
     struct
@@ -223,9 +223,9 @@ struct MediaSideDataDOVIMetadata
          * crosstalk. (See the definition of the ICtCp colorspace for more
          * information.)
          */
-        double ycc_to_rgb_matrix[9]; /* before PQ linearization */
-        double ycc_to_rgb_offset[3]; /* input offset of neutral value */
-        double rgb_to_lms_matrix[9]; /* after PQ linearization */
+        double ycc_to_rgb_matrix[9U]; /* before PQ linearization */
+        double ycc_to_rgb_offset[3U]; /* input offset of neutral value */
+        double rgb_to_lms_matrix[9U]; /* after PQ linearization */
 
         /**
          * Extra signal metadata (see Dolby patents for more info).
@@ -305,8 +305,8 @@ struct MediaSideDataDOVIMetadata
                 uint16_t ms_weight;
                 uint16_t target_mid_contrast;
                 uint16_t clip_trim;
-                uint8_t saturation_vector_field[6];
-                uint8_t hue_vector_field[6];
+                uint8_t saturation_vector_field[6U];
+                uint8_t hue_vector_field[6U];
             } Level8;
             struct
             {
@@ -315,8 +315,8 @@ struct MediaSideDataDOVIMetadata
                 double white_point_x;
                 double white_point_y;
                 /* primaries are in R-G-B order */
-                double display_primaries_x[3];
-                double display_primaries_y[3];
+                double display_primaries_x[3U];
+                double display_primaries_y[3U];
             } Level9;
             struct
             {
@@ -328,8 +328,8 @@ struct MediaSideDataDOVIMetadata
                 double white_point_x;
                 double white_point_y;
                 /* primaries are in R-G-B order */
-                double display_primaries_x[3];
-                double display_primaries_y[3];
+                double display_primaries_x[3U];
+                double display_primaries_y[3U];
             } Level10;
             struct
             {
@@ -343,7 +343,7 @@ struct MediaSideDataDOVIMetadata
                 uint8_t dm_mode;
                 uint8_t dm_version_index;
             } Level254;
-            uint8_t Reserved[128]; /* reserve space for a fixed size of the extension block */
+            uint8_t Reserved[128U]; /* reserve space for a fixed size of the extension block */
         };
     } Extensions[LAV_DOVI_MAX_EXTENSIONS];
 };
@@ -365,7 +365,7 @@ struct MediaSideData3DOffset
     // Offset Value, can be positive or negative
     // positive values offset closer to the viewer (move right on the left view, left on the right view)
     // negative values offset further away from the viewer (move left on the left view, right on the right view)
-    int offset[32];
+    int offset[32U];
 };
 #pragma pack(pop)
 

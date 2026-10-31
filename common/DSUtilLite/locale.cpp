@@ -528,14 +528,14 @@ std::string ISO6391ToLanguage(LPCSTR code)
 {
     CHAR tmp[2 + 1];
     strncpy_s(tmp, code, 2);
-    tmp[2] = 0;
+    tmp[2U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if (s_isolangs[i].iso6391 && !strcmp(s_isolangs[i].iso6391, tmp))
         {
             std::string ret = std::string(s_isolangs[i].name);
-            size_t i = ret.find(';');
+            size_t const i = ret.find(';');
             if (i != std::string::npos)
             {
                 ret = ret.substr(0, i);
@@ -550,15 +550,15 @@ std::string ISO6392ToLanguage(LPCSTR code)
 {
     CHAR tmp[3 + 1];
     strncpy_s(tmp, code, 3);
-    tmp[3] = 0;
+    tmp[3U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if ((s_isolangs[i].iso6392 && !strcmp(s_isolangs[i].iso6392, tmp)) ||
             (s_isolangs[i].iso6392_2 && !strcmp(s_isolangs[i].iso6392_2, tmp)))
         {
             std::string ret = std::string(s_isolangs[i].name);
-            size_t i = ret.find(';');
+            size_t const i = ret.find(';');
             if (i != std::string::npos)
             {
                 ret = ret.substr(0, i);
@@ -586,9 +586,9 @@ static std::string ISO6392Check(LPCSTR lang)
 {
     CHAR tmp[3 + 1];
     strncpy_s(tmp, lang, 3);
-    tmp[3] = 0;
+    tmp[3U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if ((s_isolangs[i].iso6392 && !strcmp(s_isolangs[i].iso6392, tmp)) ||
             (s_isolangs[i].iso6392_2 && !strcmp(s_isolangs[i].iso6392_2, tmp)))
@@ -601,7 +601,7 @@ static std::string ISO6392Check(LPCSTR lang)
 
 static std::string LanguageToISO6392(LPCSTR code)
 {
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if ((s_isolangs[i].name && !_stricmp(s_isolangs[i].name, code)))
         {
@@ -627,17 +627,18 @@ std::string ProbeForISO6392(LPCSTR lang)
         isoLang = LanguageToISO6392(lang);
         if (isoLang.empty())
         {
-            std::regex ogmRegex("\\[([[:alpha:]]{3})\\]");
+            std::regex const ogmRegex("\\[([[:alpha:]]{3})\\]");
             std::cmatch res;
-            bool found = std::regex_search(lang, res, ogmRegex);
-            if (found && !res[1].str().empty())
+            bool const found = std::regex_search(lang, res, ogmRegex);
+            if (found && !res[1U].str().empty())
             {
-                isoLang = ISO6392Check(res[1].str().c_str());
+                isoLang = ISO6392Check(res[1U].str().c_str());
             }
         }
     }
-    if (isoLang.empty())
+    if (isoLang.empty()) {
         isoLang = std::string(lang);
+}
     return isoLang;
 }
 
@@ -645,9 +646,9 @@ LCID ISO6391ToLcid(LPCSTR code)
 {
     CHAR tmp[2 + 1];
     strncpy_s(tmp, code, 2);
-    tmp[2] = 0;
+    tmp[2U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if (s_isolangs[i].iso6391 && !strcmp(s_isolangs[i].iso6391, tmp))
         {
@@ -661,9 +662,9 @@ LCID ISO6392ToLcid(LPCSTR code)
 {
     CHAR tmp[3 + 1];
     strncpy_s(tmp, code, 3);
-    tmp[3] = 0;
+    tmp[3U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if ((s_isolangs[i].iso6392 && !strcmp(s_isolangs[i].iso6392, tmp)) ||
             (s_isolangs[i].iso6392_2 && !strcmp(s_isolangs[i].iso6392_2, tmp)))
@@ -678,9 +679,9 @@ std::string ISO6391To6392(LPCSTR code)
 {
     CHAR tmp[2 + 1];
     strncpy_s(tmp, code, 2);
-    tmp[2] = 0;
+    tmp[2U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if (s_isolangs[i].iso6391 && !strcmp(s_isolangs[i].iso6391, tmp))
         {
@@ -694,9 +695,9 @@ std::string ISO6392To6391(LPCSTR code)
 {
     CHAR tmp[3 + 1];
     strncpy_s(tmp, code, 3);
-    tmp[3] = 0;
+    tmp[3U] = 0;
     _strlwr_s(tmp);
-    for (size_t i = 0, j = countof(s_isolangs); i < j; i++)
+    for (size_t i = 0, j = countof(s_isolangs); i < j; ++i)
     {
         if ((s_isolangs[i].iso6392 && !strcmp(s_isolangs[i].iso6392, tmp)) ||
             (s_isolangs[i].iso6392_2 && !strcmp(s_isolangs[i].iso6392_2, tmp)))

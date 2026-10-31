@@ -128,7 +128,7 @@ struct DIRACINFOHEADER
 {
     VIDEOINFOHEADER2 hdr;
     DWORD cbSequenceHeader;
-    DWORD dwSequenceHeader[1];
+    DWORD dwSequenceHeader[1U];
 };
 
 // MP4
@@ -398,7 +398,7 @@ typedef struct tagVORBISFORMAT2
     DWORD Channels;
     DWORD SamplesPerSec;
     DWORD BitsPerSample;
-    DWORD HeaderSize[3]; // 0: Identification, 1: Comment, 2: Setup
+    DWORD HeaderSize[3U]; // 0: Identification, 1: Comment, 2: Setup
 } VORBISFORMAT2, *PVORBISFORMAT2, FAR *LPVORBISFORMAT2;
 
 //
@@ -445,8 +445,8 @@ DEFINE_GUID(MEDIASUBTYPE_WEBVTT, 0xc886d215, 0xf485, 0x40bb, 0x8d, 0xb6, 0xfa, 0
 typedef struct
 {
     DWORD dwOffset;
-    CHAR IsoLang[4];      // three letter lang code + terminating zero
-    WCHAR TrackName[256]; // 256 chars ought to be enough for everyone :)
+    CHAR IsoLang[4U];      // three letter lang code + terminating zero
+    WCHAR TrackName[256U]; // 256 chars ought to be enough for everyone :)
 } SUBTITLEINFO;
 #pragma pack(pop)
 

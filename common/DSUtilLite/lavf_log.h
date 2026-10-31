@@ -26,8 +26,9 @@ inline void lavf_log_callback(void *ptr, int level, const char *fmt, va_list vl)
     static int count;
     static char line[LOG_BUF_LEN] = {0}, prev[LOG_BUF_LEN] = {0};
 
-    if (level > AV_LOG_VERBOSE)
+    if (level > AV_LOG_VERBOSE) {
         return;
+}
 
     av_log_format_line(ptr, level, fmt, vl, line, sizeof(line), &print_prefix);
 
@@ -41,7 +42,7 @@ inline void lavf_log_callback(void *ptr, int level, const char *fmt, va_list vl)
         DbgLog((LOG_CUSTOM1, level, L"    Last message repeated %d times", count));
         count = 0;
     }
-    size_t len = strnlen_s(line, LOG_BUF_LEN);
+    size_t const len = strnlen_s(line, LOG_BUF_LEN);
     if (len > 0 && line[len - 1] == '\n')
     {
         line[len - 1] = 0;

@@ -24,9 +24,9 @@
 #include <Shlwapi.h>
 
 CDecodeManager::CDecodeManager(CLAVVideo *pLAVVideo)
-    : m_pLAVVideo(pLAVVideo)
+    : m_pLAVVideo{pLAVVideo}
 {
-    WCHAR fileName[1024];
+    WCHAR fileName[1024U];
     GetModuleFileName(nullptr, fileName, 1024);
     m_processName = PathFindFileName(fileName);
 }
@@ -38,7 +38,7 @@ CDecodeManager::~CDecodeManager(void)
 
 STDMETHODIMP CDecodeManager::Close()
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
     SAFE_DELETE(m_pDecoder);
     FreeSideDataCache();
 
@@ -64,16 +64,17 @@ STDMETHODIMP CDecodeManager::Close()
 ILAVDecoder *CDecodeManager::CreateHWAccelDecoder(LAVHWAccel hwAccel)
 {
     ILAVDecoder *pDecoder = nullptr;
-    if (hwAccel == HWAccel_CUDA)
+    if (hwAccel == HWAccel_CUDA) {
         pDecoder = CreateDecoderCUVID();
-    else if (hwAccel == HWAccel_QuickSync)
+    } else if (hwAccel == HWAccel_QuickSync) {
         pDecoder = CreateDecoderQuickSync();
-    else if (hwAccel == HWAccel_DXVA2CopyBack)
+    } else if (hwAccel == HWAccel_DXVA2CopyBack) {
         pDecoder = CreateDecoderDXVA2();
-    else if (hwAccel == HWAccel_DXVA2Native)
+    } else if (hwAccel == HWAccel_DXVA2Native) {
         pDecoder = CreateDecoderDXVA2Native();
-    else if (hwAccel == HWAccel_D3D11)
+    } else if (hwAccel == HWAccel_D3D11) {
         pDecoder = CreateDecoderD3D11();
+}
 
     return pDecoder;
 }
@@ -85,17 +86,19 @@ STDMETHODIMP CDecodeManager::CreateSideDataCache(const MediaSideDataFFMpeg* pSid
     if (pSideData && pSideData->side_data_elems > 0)
     {
         m_SideDataCache.side_data = (AVPacketSideData *)av_calloc(pSideData->side_data_elems, sizeof(*m_SideDataCache.side_data));
-        if (m_SideDataCache.side_data == nullptr)
+        if (m_SideDataCache.side_data == nullptr) {
             return E_OUTOFMEMORY;
+}
 
-        for (int i = 0; i < pSideData->side_data_elems; i++)
+        for (int i = 0; i < pSideData->side_data_elems; ++i)
         {
             const AVPacketSideData *src_sd = &pSideData->side_data[i];
             AVPacketSideData *dst_sd = &m_SideDataCache.side_data[i];
 
             dst_sd->data = (uint8_t *)av_memdup(src_sd->data, src_sd->size);
-            if (!dst_sd->data)
+            if (!dst_sd->data) {
                 return E_OUTOFMEMORY;
+}
 
             dst_sd->type = src_sd->type;
             dst_sd->size = src_sd->size;
@@ -113,7 +116,7 @@ void CDecodeManager::FreeSideDataCache()
 
 STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID codec, const MediaSideDataFFMpeg *pSideData)
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
 
     DbgLog(
         (LOG_TRACE, 10, L"CDecodeThread::CreateDecoder(): Creating new decoder for codec %S", avcodec_get_name(codec)));
@@ -131,8 +134,9 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
     CreateSideDataCache(pSideData);
 
     // disable HW for DVD decoding
-    if (m_pLAVVideo->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_DVD)
+    if (m_pLAVVideo->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_DVD) {
         bHWDecBlackList = true;
+}
 
     // Try reusing the current HW decoder
     if (m_pDecoder && m_bHWDecoder && !bHWDecBlackList && !m_bHWDecoderFailed && HWFORMAT_ENABLED && HWRESOLUTION_ENABLED)
@@ -143,7 +147,7 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
     }
     SAFE_DELETE(m_pDecoder);
 
-    LAVHWAccel hwAccel = m_pLAVVideo->GetHWAccel();
+    LAVHWAccel const hwAccel = m_pLAVVideo->GetHWAccel();
     if (!bHWDecBlackList && hwAccel != HWAccel_None && !m_bHWDecoderFailed && HWFORMAT_ENABLED && HWRESOLUTION_ENABLED)
     {
         DbgLog((LOG_TRACE, 10, L"-> Trying Hardware Codec %d", hwAccel));
@@ -167,8 +171,9 @@ softwaredec:
         {
             m_pDecoder = CreateDecoderMSDKMVC();
         }
-        else
+        else {
             m_pDecoder = CreateDecoderAVCodec();
+}
     }
     DbgLog((LOG_TRACE, 10, L"-> Created Codec '%s'", m_pDecoder->GetDecoderName()));
 
@@ -214,11 +219,12 @@ done:
 
 STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
     HRESULT hr = S_OK;
 
-    if (!m_pDecoder)
+    if (!m_pDecoder) {
         return E_UNEXPECTED;
+}
 
     hr = m_pDecoder->Decode(pSample);
 
@@ -242,7 +248,7 @@ STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
             // renderer about no longer delivering DXVA surfaces
         }
 
-        CMediaType &mt = m_pLAVVideo->GetInputMediaType();
+        CMediaType  const&mt = m_pLAVVideo->GetInputMediaType();
         hr = CreateDecoder(&mt, m_Codec, &m_SideDataCache);
 
         if (SUCCEEDED(hr))
@@ -256,37 +262,40 @@ STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
 
 STDMETHODIMP CDecodeManager::Flush()
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder)
+    if (!m_pDecoder) {
         return E_UNEXPECTED;
+}
 
     return m_pDecoder->Flush();
 }
 
 STDMETHODIMP CDecodeManager::EndOfStream()
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder)
+    if (!m_pDecoder) {
         return E_UNEXPECTED;
+}
 
     return m_pDecoder->EndOfStream();
 }
 
 STDMETHODIMP CDecodeManager::InitAllocator(IMemAllocator **ppAlloc)
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder)
+    if (!m_pDecoder) {
         return E_UNEXPECTED;
+}
 
     return m_pDecoder->InitAllocator(ppAlloc);
 }
 
 STDMETHODIMP CDecodeManager::PostConnect(IPin *pPin)
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
     HRESULT hr = S_OK;
     if (m_pDecoder)
     {
@@ -294,7 +303,7 @@ STDMETHODIMP CDecodeManager::PostConnect(IPin *pPin)
         if (FAILED(hr))
         {
             m_bHWDecoderFailed = TRUE;
-            CMediaType &mt = m_pLAVVideo->GetInputMediaType();
+            CMediaType  const&mt = m_pLAVVideo->GetInputMediaType();
             hr = CreateDecoder(&mt, m_Codec, &m_SideDataCache);
         }
     }
@@ -303,10 +312,11 @@ STDMETHODIMP CDecodeManager::PostConnect(IPin *pPin)
 
 STDMETHODIMP CDecodeManager::BreakConnect()
 {
-    CAutoLock decoderLock(this);
+    CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder)
+    if (!m_pDecoder) {
         return E_UNEXPECTED;
+}
 
     return m_pDecoder->BreakConnect();
 }

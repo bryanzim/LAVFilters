@@ -36,8 +36,9 @@ template <class T> class FloatingAverage
             m_Samples = (T *)realloc(m_Samples, iNumSamples * sizeof(T));
             m_NumSamplesAlloc = iNumSamples;
         }
-        if (iNumSamples > m_NumSamples)
+        if (iNumSamples > m_NumSamples) {
             memset(m_Samples + m_NumSamples, 0, sizeof(T) * (iNumSamples - m_NumSamples));
+}
         m_NumSamples = iNumSamples;
     }
 
@@ -62,7 +63,7 @@ template <class T> class FloatingAverage
 
     T Minimum() const
     {
-        T min = m_Samples[0];
+        T min = m_Samples[0U];
         for (unsigned int i = 1; i < m_NumSamples; ++i)
         {
             if (m_Samples[i] < min)
@@ -73,18 +74,19 @@ template <class T> class FloatingAverage
 
     T AbsMinimum() const
     {
-        T min = m_Samples[0];
+        T min = m_Samples[0U];
         for (unsigned int i = 1; i < m_NumSamples; ++i)
         {
-            if (abs(m_Samples[i]) < abs(min))
+            if (abs(m_Samples[i]) < abs(min)) {
                 min = m_Samples[i];
+}
         }
         return min;
     }
 
     T Maximum() const
     {
-        T max = m_Samples[0];
+        T max = m_Samples[0U];
         for (unsigned int i = 1; i < m_NumSamples; ++i)
         {
             if (m_Samples[i] > max)
@@ -95,11 +97,12 @@ template <class T> class FloatingAverage
 
     T AbsMaximum() const
     {
-        T max = m_Samples[0];
+        T max = m_Samples[0U];
         for (unsigned int i = 1; i < m_NumSamples; ++i)
         {
-            if (abs(m_Samples[i]) > abs(max))
+            if (abs(m_Samples[i]) > abs(max)) {
                 max = m_Samples[i];
+}
         }
         return max;
     }

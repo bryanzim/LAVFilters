@@ -58,7 +58,7 @@ HRESULT CLAVAudioSettingsProp::OnApplyChanges()
     BOOL bFlag;
 
     // DRC
-    int iDRCLevel = (int)SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_GETPOS, 0, 0);
+    int const iDRCLevel = (int)SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_GETPOS, 0, 0);
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DRC, BM_GETCHECK, 0, 0);
     hr = m_pAudioSettings->SetDRC(bFlag, iDRCLevel);
 
@@ -122,9 +122,9 @@ HRESULT CLAVAudioSettingsProp::OnApplyChanges()
     m_pAudioSettings->SetSampleConvertDithering(bFlag);
 
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DELAY_ENABLED, BM_GETCHECK, 0, 0);
-    WCHAR buffer[100];
+    WCHAR buffer[100U];
     SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_GETTEXT, 100, (LPARAM)&buffer);
-    int delay = _wtoi(buffer);
+    int const delay = _wtoi(buffer);
     m_pAudioSettings->SetAudioDelay(bFlag, delay);
 
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0);
@@ -160,7 +160,7 @@ HRESULT CLAVAudioSettingsProp::OnActivate()
         SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_SETTICFREQ, 10, 0);
         SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_SETPOS, 1, m_iDRCLevel);
 
-        WCHAR buffer[10];
+        WCHAR buffer[10U];
         _snwprintf_s(buffer, _TRUNCATE, L"%d%%", m_iDRCLevel);
         SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
 
@@ -216,7 +216,7 @@ HRESULT CLAVAudioSettingsProp::OnActivate()
 
         SendDlgItemMessage(m_Dlg, IDC_DELAYSPIN, UDM_SETRANGE32, -1000 * 60 * 60 * 24, 1000 * 60 * 60 * 24);
 
-        WCHAR stringBuffer[100];
+        WCHAR stringBuffer[100U];
         swprintf_s(stringBuffer, L"%d", m_iAudioDelay);
         SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_SETTEXT, 0, (LPARAM)stringBuffer);
 
@@ -230,8 +230,9 @@ HRESULT CLAVAudioSettingsProp::LoadData()
 {
     HRESULT hr = S_OK;
     hr = m_pAudioSettings->GetDRC(&m_bDRCEnabled, &m_iDRCLevel);
-    for (unsigned i = 0; i < Bitstream_NB; ++i)
+    for (unsigned i = 0; i < Bitstream_NB; ++i) {
         m_bBitstreaming[i] = m_pAudioSettings->GetBitstreamConfig((LAVBitstreamCodec)i) != 0;
+}
     m_bDTSHDFraming = m_pAudioSettings->GetDTSHDFraming();
     m_bBitstreamingFallback = m_pAudioSettings->GetBitstreamingFallback();
     m_bAutoAVSync = m_pAudioSettings->GetAutoAVSync();
@@ -240,8 +241,9 @@ HRESULT CLAVAudioSettingsProp::LoadData()
     m_bExpandMono = m_pAudioSettings->GetExpandMono();
     m_bExpand61 = m_pAudioSettings->GetExpand61();
 
-    for (unsigned i = 0; i < SampleFormat_NB; ++i)
+    for (unsigned i = 0; i < SampleFormat_NB; ++i) {
         m_bSampleFormats[i] = m_pAudioSettings->GetSampleFormat((LAVAudioSampleFormat)i) != 0;
+}
     m_bDither = m_pAudioSettings->GetSampleConvertDithering();
 
     m_pAudioSettings->GetAudioDelay(&m_bAudioDelay, &m_iAudioDelay);
@@ -268,146 +270,168 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
         }
         else if (LOWORD(wParam) == IDC_BS_AC3 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bBitstreaming[Bitstream_AC3])
+            bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bBitstreaming[Bitstream_AC3]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_BS_EAC3 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bBitstreaming[Bitstream_EAC3])
+            bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bBitstreaming[Bitstream_EAC3]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_BS_TRUEHD && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bBitstreaming[Bitstream_TRUEHD])
+            bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bBitstreaming[Bitstream_TRUEHD]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_BS_DTS && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bBitstreaming[Bitstream_DTS])
+            bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bBitstreaming[Bitstream_DTS]) {
                 SetDirty();
+}
             EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD), bFlag);
         }
         else if (LOWORD(wParam) == IDC_BS_DTSHD && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bBitstreaming[Bitstream_DTSHD])
+            bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bBitstreaming[Bitstream_DTSHD]) {
                 SetDirty();
+}
             EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD_FRAMING), bFlag);
         }
         else if (LOWORD(wParam) == IDC_BS_DTSHD_FRAMING && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bDTSHDFraming)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bDTSHDFraming) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_BS_FALLBACK && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bBitstreamingFallback)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bBitstreamingFallback) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_AUTO_AVSYNC && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bAutoAVSync)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bAutoAVSync) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_STANDARD_CH_LAYOUT && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bOutputStdLayout)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bOutputStdLayout) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUTPUT51_LEGACY && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bOutput51Legacy)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bOutput51Legacy) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_EXPAND_MONO && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bExpandMono)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bExpandMono) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_EXPAND61 && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bExpand61)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bExpand61) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUT_S16 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bSampleFormats[SampleFormat_16])
+            bool const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bSampleFormats[SampleFormat_16]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUT_S24 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bSampleFormats[SampleFormat_24])
+            bool const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bSampleFormats[SampleFormat_24]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUT_S32 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bSampleFormats[SampleFormat_32])
+            bool const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bSampleFormats[SampleFormat_32]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUT_FP32 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bSampleFormats[SampleFormat_FP32])
+            bool const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bSampleFormats[SampleFormat_FP32]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUT_U8 && HIWORD(wParam) == BN_CLICKED)
         {
-            bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_bSampleFormats[SampleFormat_U8])
+            bool const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_bSampleFormats[SampleFormat_U8]) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_OUT_S16_DITHER && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bDither)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bDither) {
                 SetDirty();
+}
         }
         else if (LOWORD(wParam) == IDC_DELAY_ENABLED && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
-            if (bFlag != m_bAudioDelay)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            if (bFlag != m_bAudioDelay) {
                 SetDirty();
+}
             EnableWindow(GetDlgItem(m_Dlg, IDC_DELAYSPIN), bFlag);
             EnableWindow(GetDlgItem(m_Dlg, IDC_DELAY), bFlag);
         }
         else if (LOWORD(wParam) == IDC_DELAY && HIWORD(wParam) == EN_CHANGE)
         {
-            WCHAR buffer[100];
+            WCHAR buffer[100U];
             SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)&buffer);
-            int delay = _wtoi(buffer);
-            size_t len = wcslen(buffer);
-            if (delay == 0 && (buffer[0] != L'0' || len > 1))
+            int const delay = _wtoi(buffer);
+            size_t const len = wcslen(buffer);
+            if (delay == 0 && (buffer[0U] != L'0' || len > 1))
             {
                 SendDlgItemMessage(m_Dlg, LOWORD(wParam), EM_UNDO, 0, 0);
             }
             else
             {
                 swprintf_s(buffer, L"%d", delay);
-                if (wcslen(buffer) != len)
+                if (wcslen(buffer) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_SETTEXT, 0, (LPARAM)buffer);
-                if (delay != m_iAudioDelay)
+}
+                if (delay != m_iAudioDelay) {
                     SetDirty();
+}
             }
         }
         else if (LOWORD(wParam) == IDC_TRAYICON && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
-            if (bFlag != m_TrayIcon)
+            BOOL const bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+            if (bFlag != m_TrayIcon) {
                 SetDirty();
+}
         }
 
         break;
@@ -417,7 +441,7 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
         {
             SetDirty();
         }
-        WCHAR buffer[10];
+        WCHAR buffer[10U];
         _snwprintf_s(buffer, _TRUNCATE, L"%d%%", (int)lValue);
         SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
         break;
@@ -461,10 +485,11 @@ static DWORD dwSpkLayouts[] = {
 static DWORD get_speaker_index(DWORD dwLayout)
 {
     int i = 0;
-    for (i = 0; i < countof(dwSpkLayouts); i++)
+    for (i = 0; i < countof(dwSpkLayouts); ++i)
     {
-        if (dwSpkLayouts[i] == dwLayout)
+        if (dwSpkLayouts[i] == dwLayout) {
             return i;
+}
     }
     return (DWORD)-1;
 }
@@ -472,41 +497,45 @@ static DWORD get_speaker_index(DWORD dwLayout)
 HRESULT CLAVAudioMixingProp::OnApplyChanges()
 {
     ASSERT(m_pAudioSettings != nullptr);
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
     DWORD dwVal = 0;
     BOOL bVal = FALSE;
 
     dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_OUTPUT_SPEAKERS, CB_GETCURSEL, 0, 0);
-    if (dwVal >= 0 && dwVal < countof(dwSpkLayouts))
+    if (dwVal >= 0 && dwVal < countof(dwSpkLayouts)) {
         m_pAudioSettings->SetMixingLayout(dwSpkLayouts[dwVal]);
+}
 
     bVal = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXING, BM_GETCHECK, 0, 0);
     m_pAudioSettings->SetMixingEnabled(bVal);
 
     DWORD dwMixingFlags = 0;
     bVal = (BOOL)SendDlgItemMessage(m_Dlg, IDC_UNTOUCHED_STEREO, BM_GETCHECK, 0, 0);
-    if (bVal)
+    if (bVal) {
         dwMixingFlags |= LAV_MIXING_FLAG_UNTOUCHED_STEREO;
+}
 
     bVal = (BOOL)SendDlgItemMessage(m_Dlg, IDC_NORMALIZE_MATRIX, BM_GETCHECK, 0, 0);
-    if (bVal)
+    if (bVal) {
         dwMixingFlags |= LAV_MIXING_FLAG_NORMALIZE_MATRIX;
+}
 
     bVal = (BOOL)SendDlgItemMessage(m_Dlg, IDC_CLIP_PROTECTION, BM_GETCHECK, 0, 0);
-    if (bVal)
+    if (bVal) {
         dwMixingFlags |= LAV_MIXING_FLAG_CLIP_PROTECTION;
+}
 
     m_pAudioSettings->SetMixingFlags(dwMixingFlags);
 
-    BOOL bNormal = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXMODE_NORMAL, BM_GETCHECK, 0, 0);
-    BOOL bDolby = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DOLBY, BM_GETCHECK, 0, 0);
-    BOOL bDPL2 = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DPL2, BM_GETCHECK, 0, 0);
+    BOOL const bNormal = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXMODE_NORMAL, BM_GETCHECK, 0, 0);
+    BOOL const bDolby = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DOLBY, BM_GETCHECK, 0, 0);
+    BOOL const bDPL2 = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DPL2, BM_GETCHECK, 0, 0);
     m_pAudioSettings->SetMixingMode(bDolby ? MatrixEncoding_Dolby
                                            : (bDPL2 ? MatrixEncoding_DPLII : MatrixEncoding_None));
 
-    DWORD dwMixCenter = (DWORD)SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_CENTER, TBM_GETPOS, 0, 0);
-    DWORD dwMixSurround = (DWORD)SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_SURROUND, TBM_GETPOS, 0, 0);
-    DWORD dwMixLFE = (DWORD)SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_LFE, TBM_GETPOS, 0, 0);
+    DWORD const dwMixCenter = (DWORD)SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_CENTER, TBM_GETPOS, 0, 0);
+    DWORD const dwMixSurround = (DWORD)SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_SURROUND, TBM_GETPOS, 0, 0);
+    DWORD const dwMixLFE = (DWORD)SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_LFE, TBM_GETPOS, 0, 0);
     m_pAudioSettings->SetMixingLevels(dwMixCenter, dwMixSurround, dwMixLFE);
 
     LoadData();
@@ -588,7 +617,7 @@ HRESULT CLAVAudioMixingProp::OnActivate()
         SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_SURROUND, TBM_SETPOS, 1, m_dwMixSurround);
         SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_LFE, TBM_SETPOS, 1, m_dwMixLFE);
 
-        WCHAR buffer[10];
+        WCHAR buffer[10U];
         _snwprintf_s(buffer, _TRUNCATE, L"%.2f", (double)m_dwMixCenter / 10000.0);
         SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_CENTER_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
         _snwprintf_s(buffer, _TRUNCATE, L"%.2f", (double)m_dwMixSurround / 10000.0);
@@ -602,7 +631,7 @@ HRESULT CLAVAudioMixingProp::OnActivate()
 
 HRESULT CLAVAudioMixingProp::LoadData()
 {
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
 
     m_dwSpeakerLayout = m_pAudioSettings->GetMixingLayout();
     m_bMixing = m_pAudioSettings->GetMixingEnabled();
@@ -692,7 +721,7 @@ INT_PTR CLAVAudioMixingProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPara
             {
                 SetDirty();
             }
-            WCHAR buffer[10];
+            WCHAR buffer[10U];
             _snwprintf_s(buffer, _TRUNCATE, L"%.2f", (double)lValue / 10000.0);
             SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_CENTER_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
         }
@@ -703,7 +732,7 @@ INT_PTR CLAVAudioMixingProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPara
             {
                 SetDirty();
             }
-            WCHAR buffer[10];
+            WCHAR buffer[10U];
             _snwprintf_s(buffer, _TRUNCATE, L"%.2f", (double)lValue / 10000.0);
             SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_SURROUND_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
         }
@@ -714,7 +743,7 @@ INT_PTR CLAVAudioMixingProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPara
             {
                 SetDirty();
             }
-            WCHAR buffer[10];
+            WCHAR buffer[10U];
             _snwprintf_s(buffer, _TRUNCATE, L"%.2f", (double)lValue / 10000.0);
             SendDlgItemMessage(m_Dlg, IDC_MIX_LEVEL_LFE_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
         }
@@ -755,13 +784,13 @@ HRESULT CLAVAudioFormatsProp::OnDisconnect()
 HRESULT CLAVAudioFormatsProp::OnApplyChanges()
 {
     ASSERT(m_pAudioSettings != nullptr);
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
 
     HWND hlv = GetDlgItem(m_Dlg, IDC_CODECS);
 
     // Get checked state
     BOOL bFlag;
-    for (int nItem = 0; nItem < ListView_GetItemCount(hlv); nItem++)
+    for (int nItem = 0; nItem < ListView_GetItemCount(hlv); ++nItem)
     {
         bFlag = ListView_GetCheckState(hlv, nItem);
         m_pAudioSettings->SetFormatConfiguration((LAVAudioCodec)nItem, bFlag);
@@ -791,7 +820,7 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
     ListView_SetExtendedListViewStyle(hlv, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
     int nCol = 1;
-    LVCOLUMN lvc = {LVCF_WIDTH, 0, 20, 0};
+    LVCOLUMN lvc = {LVCF_WIDTH, 0, 20, nullptr};
     ListView_InsertColumn(hlv, 0, &lvc);
     ListView_AddCol(hlv, nCol, 75, L"Codec", false);
     ListView_AddCol(hlv, nCol, 350, L"Description", false);
@@ -814,10 +843,10 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
         ListView_InsertItem(hlv, &lvi);
 
         // Set sub item texts
-        ATL::CA2W name(config->name);
+        ATL::CA2W const name(config->name);
         ListView_SetItemText(hlv, nItem, 1, (LPWSTR)name);
 
-        ATL::CA2W desc(config->description);
+        ATL::CA2W const desc(config->description);
         ListView_SetItemText(hlv, nItem, 2, (LPWSTR)desc);
     }
 
@@ -825,7 +854,7 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
     if (SUCCEEDED(hr))
     {
         // Set checked state
-        for (nItem = 0; nItem < ListView_GetItemCount(hlv); nItem++)
+        for (nItem = 0; nItem < ListView_GetItemCount(hlv); ++nItem)
         {
             ListView_SetCheckState(hlv, nItem, m_bFormats[nItem]);
         }
@@ -836,9 +865,10 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
 
 HRESULT CLAVAudioFormatsProp::LoadData()
 {
-    HRESULT hr = S_OK;
-    for (unsigned i = 0; i < Codec_AudioNB; ++i)
+    HRESULT const hr = S_OK;
+    for (unsigned i = 0; i < Codec_AudioNB; ++i) {
         m_bFormats[i] = m_pAudioSettings->GetFormatConfiguration((LAVAudioCodec)i) != 0;
+}
     return hr;
 }
 
@@ -854,7 +884,7 @@ INT_PTR CLAVAudioFormatsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPar
             {
             case LVN_ITEMCHANGED:
                 LPNMLISTVIEW nmlv = (LPNMLISTVIEW)lParam;
-                bool check = ListView_GetCheckState(hdr->hwndFrom, nmlv->iItem) ? true : false;
+                bool const check = ListView_GetCheckState(hdr->hwndFrom, nmlv->iItem) ? true : false;
                 if (check != m_bFormats[nmlv->iItem])
                 {
                     SetDirty();
@@ -925,7 +955,7 @@ HRESULT CLAVAudioStatusProp::OnActivate()
                                           &dwDecodeChannelMask);
     if (SUCCEEDED(hr))
     {
-        WCHAR buffer[100];
+        WCHAR buffer[100U];
         _snwprintf_s(buffer, _TRUNCATE, L"%d / 0x%x", nDecodeChannels, dwDecodeChannelMask);
         SendDlgItemMessage(m_Dlg, IDC_INPUT_CHANNEL, WM_SETTEXT, 0, (LPARAM)buffer);
 
@@ -946,7 +976,7 @@ HRESULT CLAVAudioStatusProp::OnActivate()
     hr = m_pAudioStatus->GetOutputDetails(&outputFormat, &nOutputChannels, &nOutputSampleRate, &dwOutputChannelMask);
     if (SUCCEEDED(hr))
     {
-        WCHAR buffer[100];
+        WCHAR buffer[100U];
 
         if (hr == S_OK)
         {
@@ -974,7 +1004,7 @@ HRESULT CLAVAudioStatusProp::OnActivate()
     SetTimer(m_Dlg, 1, 250, nullptr);
     m_pAudioStatus->EnableVolumeStats();
 
-    WCHAR chBuffer[5];
+    WCHAR chBuffer[5U];
     if (dwOutputChannelMask == 0 && nOutputChannels != 0)
     {
         // 0x4 is only front center, 0x3 is front left+right
@@ -1004,7 +1034,7 @@ void CLAVAudioStatusProp::UpdateVolumeDisplay()
         float fDB = 0.0f;
         if (SUCCEEDED(m_pAudioStatus->GetChannelVolumeAverage(i, &fDB)))
         {
-            int value = (int)fDB + 50;
+            int const value = (int)fDB + 50;
             SendDlgItemMessage(m_Dlg, iddVolumeControls[i], PBM_SETPOS, value, 0);
         }
         else

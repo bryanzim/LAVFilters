@@ -127,7 +127,7 @@ __forceinline static int yuv420yuy2_convert_pixels(const uint8_t *&srcY, const u
     if (dithertype == LAVDither_Random)
     {
         /* Load random dithering coeffs from the dithers buffer */
-        int offset = (pos % (DITHER_STEPS * 8 * 2)) * 2;
+        int const offset = (pos % (DITHER_STEPS * 8 * 2)) * 2;
         xmm6 = _mm_load_si128((const __m128i *)(dithers + 0 + offset));
         xmm7 = _mm_load_si128((const __m128i *)(dithers + 8 + offset));
     }
@@ -209,8 +209,9 @@ static int __stdcall yuv420yuy2_process_lines(const uint8_t *srcY, const uint8_t
 
     for (; line < lastLine; line += 2)
     {
-        if (dithertype == LAVDither_Random)
+        if (dithertype == LAVDither_Random) {
             lineDither = dithers + (line * 16 * DITHER_STEPS);
+}
 
         y = srcY + line * srcStrideY;
 
@@ -228,8 +229,9 @@ static int __stdcall yuv420yuy2_process_lines(const uint8_t *srcY, const uint8_t
 
     // Process last line
     // This needs special handling because of the chroma offset of YUV420
-    if (dithertype == LAVDither_Random)
+    if (dithertype == LAVDither_Random) {
         lineDither = dithers + ((height - 2) * 16 * DITHER_STEPS);
+}
 
     y = srcY + (height - 1) * srcStrideY;
     u = srcU + ((height >> 1) - 1) * srcStrideUV;
@@ -258,25 +260,25 @@ static int __stdcall yuv420yuy2_dispatch(LAVPixelFormat inputFormat, int bpp, co
         return yuv420yuy2_process_lines<LAVPixFmt_NV12, 0, uyvy, dithertype>(
             srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
     case LAVPixFmt_YUV420bX:
-        if (bpp == 9)
+        if (bpp == 9) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 1, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
-        else if (bpp == 10)
+        } else if (bpp == 10) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 2, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
         /*else if (bpp == 11)
           return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 3, uyvy, dithertype>(srcY, srcU, srcV, dst, width, height,
           srcStrideY, srcStrideUV, dstStride, dithers);*/
-        else if (bpp == 12)
+        } else if (bpp == 12) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 4, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
         /*else if (bpp == 13)
           return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 5, uyvy, dithertype>(srcY, srcU, srcV, dst, width, height,
           srcStrideY, srcStrideUV, dstStride, dithers);*/
-        else if (bpp == 14)
+        } else if (bpp == 14) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 6, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
-        else
+        } else
             ASSERT(0);
         break;
     default: ASSERT(0);
@@ -286,18 +288,18 @@ static int __stdcall yuv420yuy2_dispatch(LAVPixelFormat inputFormat, int bpp, co
 
 template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv420_yuy2)
 {
-    LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
+    LAVDitherMode const ditherMode = m_pSettings->GetDitherMode();
     const uint16_t *dithers =
         (ditherMode == LAVDither_Random) ? GetRandomDitherCoeffs(height, DITHER_STEPS * 2, bpp - 8 + 2, 0) : nullptr;
     if (ditherMode == LAVDither_Random && dithers != nullptr)
     {
-        yuv420yuy2_dispatch<uyvy, 1>(inputFormat, bpp, src[0], src[1], src[2], dst[0], width, height, srcStride[0],
-                                     srcStride[1], dstStride[0], dithers);
+        yuv420yuy2_dispatch<uyvy, 1>(inputFormat, bpp, src[0U], src[1U], src[2U], dst[0U], width, height, srcStride[0U],
+                                     srcStride[1U], dstStride[0U], dithers);
     }
     else
     {
-        yuv420yuy2_dispatch<uyvy, 0>(inputFormat, bpp, src[0], src[1], src[2], dst[0], width, height, srcStride[0],
-                                     srcStride[1], dstStride[0], nullptr);
+        yuv420yuy2_dispatch<uyvy, 0>(inputFormat, bpp, src[0U], src[1U], src[2U], dst[0U], width, height, srcStride[0U],
+                                     srcStride[1U], dstStride[0U], nullptr);
     }
 
     return S_OK;

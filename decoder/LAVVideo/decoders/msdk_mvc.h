@@ -62,12 +62,15 @@ class CDecMSDKMVC : public CDecBase
     STDMETHODIMP EndOfStream();
     STDMETHODIMP GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
     {
-        if (pPix)
+        if (pPix) {
             *pPix = LAVPixFmt_NV12;
-        if (pBpp)
+}
+        if (pBpp) {
             *pBpp = 8;
-        if (pPixSoftware)
+}
+        if (pPixSoftware) {
             *pPixSoftware = LAVPixFmt_NV12;
+}
         return S_OK;
     }
     STDMETHODIMP_(BOOL) IsInterlaced(BOOL bAllowGuess) { return FALSE; }
@@ -110,7 +113,7 @@ class CDecMSDKMVC : public CDecBase
     BOOL m_bDecodeReady = FALSE;
     mfxVideoParam m_mfxVideoParams = {0};
 
-    mfxExtBuffer *m_mfxExtParam[1] = {0};
+    mfxExtBuffer *m_mfxExtParam[1U] = {nullptr};
     mfxExtMVCSeqDesc m_mfxExtMVCSeq = {0};
 
     CCritSec m_BufferCritSec;
@@ -119,7 +122,7 @@ class CDecMSDKMVC : public CDecBase
     GrowableArray<BYTE> m_buff;
     int m_nMP4NALUSize = 0;
 
-    MVCBuffer *m_pOutputQueue[ASYNC_QUEUE_SIZE] = {0};
+    MVCBuffer *m_pOutputQueue[ASYNC_QUEUE_SIZE] = {nullptr};
     int m_nOutputQueuePosition = 0;
 
     std::deque<MVCGOP> m_GOPs;

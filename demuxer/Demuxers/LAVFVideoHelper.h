@@ -58,7 +58,7 @@ const AVCodecTag mp_bmp_tags[] = {
 };
 // clang-format on
 
-const struct AVCodecTag *const mp_bmp_taglists[] = {avformat_get_riff_video_tags(), mp_bmp_tags, 0};
+const struct AVCodecTag *const mp_bmp_taglists[] = {avformat_get_riff_video_tags(), mp_bmp_tags, nullptr};
 
 class CLAVFVideoHelper
 {

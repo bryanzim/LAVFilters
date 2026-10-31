@@ -42,7 +42,7 @@ template <class T> class GrowableArray
     // Allocate: Reserves memory for the array, but does not increase the count.
     HRESULT Allocate(DWORD alloc)
     {
-        HRESULT hr = S_OK;
+        HRESULT const hr = S_OK;
         if (alloc > m_allocated || !m_pArray)
         {
             T *pNew = (T *)realloc(m_pArray, sizeof(T) * alloc);
@@ -88,10 +88,11 @@ template <class T> class GrowableArray
     HRESULT Append(const T *other, DWORD dwSize)
     {
         HRESULT hr = S_OK;
-        DWORD old = GetCount();
+        DWORD const old = GetCount();
         hr = SetSize(old + dwSize);
-        if (SUCCEEDED(hr))
+        if (SUCCEEDED(hr)) {
             memcpy(m_pArray + old, other, dwSize);
+}
 
         return S_OK;
     }
@@ -101,8 +102,9 @@ template <class T> class GrowableArray
         HRESULT hr = S_OK;
         DWORD old = GetCount();
         hr = SetSize(old + dwSize);
-        if (SUCCEEDED(hr))
+        if (SUCCEEDED(hr)) {
             memset(m_pArray + old, 0, dwSize);
+}
 
         return S_OK;
     }
@@ -111,9 +113,9 @@ template <class T> class GrowableArray
     {
         ASSERT(dwSize <= m_count);
 
-        if (dwSize == m_count)
+        if (dwSize == m_count) {
             Clear();
-        else
+        } else
         {
             memmove(m_pArray, m_pArray + dwSize, m_count - dwSize);
             m_count -= dwSize;

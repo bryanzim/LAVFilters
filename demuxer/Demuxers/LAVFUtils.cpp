@@ -49,8 +49,9 @@ const char *get_stream_language(const AVStream *pStream)
         lang = dictEntry->value;
     }
     // Don't bother with undetermined languages (fallback value in some containers)
-    if (lang && strncmp(lang, "und", 3))
+    if (lang && strncmp(lang, "und", 3)) {
         return lang;
+}
     return nullptr;
 }
 
@@ -83,7 +84,7 @@ struct s_id_map nice_codec_names[] = {
 // Uppercase the given string
 static std::string tolower(const char *str)
 {
-    size_t len = strlen(str);
+    size_t const len = strlen(str);
     std::string ret(len, char());
     for (size_t i = 0; i < len; ++i)
     {
@@ -94,7 +95,7 @@ static std::string tolower(const char *str)
 
 std::string get_codec_name(const AVCodecParameters *par)
 {
-    AVCodecID id = par->codec_id;
+    AVCodecID const id = par->codec_id;
 
     // Grab the codec
     const AVCodec *p = avcodec_find_decoder(id);
@@ -131,7 +132,7 @@ std::string get_codec_name(const AVCodecParameters *par)
         codec_name << nice_name << " " << tolower(profile);
         if (par->level && par->level != AV_LEVEL_UNKNOWN && par->level < 1000)
         {
-            char l_buf[5];
+            char l_buf[5U];
             sprintf_s(l_buf, "%.1f", par->level / 10.0);
             codec_name << " L" << l_buf;
         }
@@ -141,7 +142,7 @@ std::string get_codec_name(const AVCodecParameters *par)
         codec_name << nice_name << " " << tolower(profile);
         if (par->level && par->level != AV_LEVEL_UNKNOWN && par->level < 1000)
         {
-            char l_buf[5];
+            char l_buf[5U];
             sprintf_s(l_buf, "%.1f", par->level / 30.0);
             codec_name << " L" << l_buf;
         }
@@ -177,20 +178,23 @@ std::string get_codec_name(const AVCodecParameters *par)
     else if (nice_name)
     {
         codec_name << nice_name;
-        if (profile)
+        if (profile) {
             codec_name << " " << tolower(profile);
+}
     }
     else if (desc && desc->name)
     {
         codec_name << desc->name;
-        if (profile)
+        if (profile) {
             codec_name << " " << tolower(profile);
+}
     }
     else if (p && p->name)
     {
         codec_name << p->name;
-        if (profile)
+        if (profile) {
             codec_name << " " << tolower(profile);
+}
     }
     else
     {
@@ -237,7 +241,7 @@ static std::string format_flags(int flags)
 
 static bool show_sample_fmt(const AVCodecParameters *par)
 {
-    AVCodecID codec_id = par->codec_id;
+    AVCodecID const codec_id = par->codec_id;
 
     // PCM Codecs
     if (codec_id >= 0x10000 && codec_id < 0x12000)
@@ -253,8 +257,9 @@ static bool show_sample_fmt(const AVCodecParameters *par)
     }
 
     // Lossless DTS
-    if (codec_id == AV_CODEC_ID_DTS && par->profile == AV_PROFILE_DTS_HD_MA)
+    if (codec_id == AV_CODEC_ID_DTS && par->profile == AV_PROFILE_DTS_HD_MA) {
         return true;
+}
 
     return false;
 }
@@ -269,8 +274,9 @@ const char *lavf_get_stream_title(const AVStream *pStream)
     else if (AVDictionaryEntry *dictEntry = av_dict_get(pStream->metadata, "handler_name", nullptr, 0))
     {
         title = dictEntry->value;
-        if (title && strstr(title, "Handle") != nullptr)
+        if (title && strstr(title, "Handle") != nullptr) {
             title = nullptr;
+}
     }
 
     return title;
@@ -280,7 +286,7 @@ std::string lavf_get_stream_description(const AVStream *pStream, bool bIsVideoEL
 {
     AVCodecParameters *par = pStream->codecpar;
 
-    std::string codec_name = get_codec_name(par);
+    std::string const codec_name = get_codec_name(par);
 
     const char *lang = get_stream_language(pStream);
     std::string sLanguage;
@@ -297,19 +303,21 @@ std::string lavf_get_stream_description(const AVStream *pStream, bool bIsVideoEL
     const char *title = lavf_get_stream_title(pStream);
 
     // Empty titles are rather useless
-    if (title && strlen(title) == 0)
+    if (title && strlen(title) == 0) {
         title = nullptr;
+}
 
-    int64_t bitrate = get_bit_rate(par);
+    int64_t const bitrate = get_bit_rate(par);
 
     std::ostringstream buf;
     switch (par->codec_type)
     {
     case AVMEDIA_TYPE_VIDEO:
-        if (bIsVideoELStream)
+        if (bIsVideoELStream) {
             buf << "EL: ";
-        else
+        } else {
             buf << "V: ";
+}
         // Title/Language
         if (title && lang)
         {
@@ -344,10 +352,11 @@ std::string lavf_get_stream_description(const AVStream *pStream, bool bIsVideoEL
         if (par->codec_id == AV_CODEC_ID_H264 && par->profile == AV_PROFILE_H264_STEREO_HIGH)
         {
             AVDictionaryEntry *entry = av_dict_get(pStream->metadata, "stereo_mode", nullptr, 0);
-            if (entry && strcmp(entry->value, "mvc_lr") == 0)
+            if (entry && strcmp(entry->value, "mvc_lr") == 0) {
                 buf << ", lr";
-            else if (entry && strcmp(entry->value, "mvc_rl") == 0)
+            } else if (entry && strcmp(entry->value, "mvc_rl") == 0) {
                 buf << ", rl";
+}
         }
         // Closing tag
         if (title || lang)
@@ -382,7 +391,7 @@ std::string lavf_get_stream_description(const AVStream *pStream, bool bIsVideoEL
         if (par->ch_layout.nb_channels)
         {
             // Get channel layout
-            char channel[64] = {0};
+            char channel[64U] = {0};
             av_channel_layout_describe(&par->ch_layout, channel, sizeof(channel));
             buf << ", " << channel;
         }
@@ -448,15 +457,15 @@ bool GetH264MVCStreamIndices(AVFormatContext *fmt, int *nBaseIndex, int *nExtens
     bool bResult = true;
     *nBaseIndex = -1;
     *nExtensionIndex = -1;
-    for (unsigned int i = 0; i < fmt->nb_streams; i++)
+    for (unsigned int i = 0; i < fmt->nb_streams; ++i)
     {
         AVStream *st = fmt->streams[i];
 
         if (st->codecpar->codec_id == AV_CODEC_ID_H264_MVC && st->codecpar->extradata_size > 0)
         {
-            if (*nExtensionIndex == -1)
+            if (*nExtensionIndex == -1) {
                 *nExtensionIndex = i;
-            else
+            } else
             {
                 DbgLog((LOG_TRACE, 10, L" -> Multiple H264 MVC extension streams, unsupported."));
                 bResult = false;
@@ -467,9 +476,9 @@ bool GetH264MVCStreamIndices(AVFormatContext *fmt, int *nBaseIndex, int *nExtens
             if ((st->codecpar->width == 1920 && st->codecpar->height == 1080) ||
                 (st->codecpar->width == 1280 && st->codecpar->height == 720))
             {
-                if (*nBaseIndex == -1)
+                if (*nBaseIndex == -1) {
                     *nBaseIndex = i;
-                else
+                } else
                 {
                     AVProgram *pBaseProgram = av_find_program_from_stream(fmt, nullptr, *nBaseIndex);
                     AVProgram *pNewProgram = av_find_program_from_stream(fmt, nullptr, i);

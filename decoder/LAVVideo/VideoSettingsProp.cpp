@@ -43,11 +43,13 @@ HRESULT CLAVVideoSettingsProp::OnConnect(IUnknown *pUnk)
     }
     ASSERT(m_pVideoSettings == nullptr);
     HRESULT hr = pUnk->QueryInterface(&m_pVideoSettings);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
         return hr;
+}
     hr = pUnk->QueryInterface(&m_pVideoStatus);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
         return hr;
+}
     return S_OK;
 }
 
@@ -62,7 +64,7 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
 {
     ASSERT(m_pVideoSettings != nullptr);
     ASSERT(m_pVideoStatus != nullptr);
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
     BOOL bFlag;
     DWORD dwVal;
 
@@ -101,12 +103,12 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
         m_pVideoSettings->SetPixelFormat((LAVOutPixFmts)i, m_bPixFmts[i]);
     }
 
-    BOOL bRGBAuto = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_AUTO, BM_GETCHECK, 0, 0);
-    BOOL bRGBTV = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_TV, BM_GETCHECK, 0, 0);
-    BOOL bRGBPC = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_PC, BM_GETCHECK, 0, 0);
+    BOOL const bRGBAuto = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_AUTO, BM_GETCHECK, 0, 0);
+    BOOL const bRGBTV = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_TV, BM_GETCHECK, 0, 0);
+    BOOL const bRGBPC = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_PC, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetRGBOutputRange(bRGBAuto ? 0 : bRGBTV ? 1 : 2);
 
-    LRESULT retVal = SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETCURSEL, 0, 0);
+    LRESULT const retVal = SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETCURSEL, 0, 0);
     dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETITEMDATA, retVal, 0);
     m_pVideoSettings->SetHWAccel((LAVHWAccel)dwVal);
 
@@ -136,33 +138,37 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
 
     DWORD dwHWResFlags = 0;
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWRES_SD, BM_GETCHECK, 0, 0);
-    if (bFlag)
+    if (bFlag) {
         dwHWResFlags |= LAVHWResFlag_SD;
+}
 
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWRES_HD, BM_GETCHECK, 0, 0);
-    if (bFlag)
+    if (bFlag) {
         dwHWResFlags |= LAVHWResFlag_HD;
+}
 
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWRES_UHD, BM_GETCHECK, 0, 0);
-    if (bFlag)
+    if (bFlag) {
         dwHWResFlags |= LAVHWResFlag_UHD;
+}
 
     m_pVideoSettings->SetHWAccelResolutionFlags(dwHWResFlags);
 
     dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_HWACCEL_DEVICE_SELECT, CB_GETCURSEL, 0, 0);
-    if (dwVal == 0)
+    if (dwVal == 0) {
         dwVal = LAVHWACCEL_DEVICE_DEFAULT;
-    else
+    } else {
         dwVal--;
+}
     m_pVideoSettings->SetHWAccelDeviceIndex(m_pVideoSettings->GetHWAccel(), dwVal, 0);
 
-    BOOL bHWAccelCUVIDDXVA = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWACCEL_CUVID_DXVA, BM_GETCHECK, 0, 0);
+    BOOL const bHWAccelCUVIDDXVA = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWACCEL_CUVID_DXVA, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetHWAccelDeintHQ(bHWAccelCUVIDDXVA);
 
-    BOOL bHWDeint = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_ENABLE, BM_GETCHECK, 0, 0);
+    BOOL const bHWDeint = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_ENABLE, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetHWAccelDeintMode(bHWDeint ? HWDeintMode_Hardware : HWDeintMode_Weave);
 
-    BOOL bFilm = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_OUT_FILM, BM_GETCHECK, 0, 0);
+    BOOL const bFilm = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_OUT_FILM, BM_GETCHECK, 0, 0);
     // BOOL bVideo = (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_OUT_VIDEO, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetHWAccelDeintOutput(bFilm ? DeintOutput_FramePer2Field : DeintOutput_FramePerField);
 
@@ -173,8 +179,8 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
     // BOOL bVideo = (BOOL)SendDlgItemMessage(m_Dlg, IDC_SWDEINT_OUT_VIDEO, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetSWDeintOutput(bFlag ? DeintOutput_FramePer2Field : DeintOutput_FramePerField);
 
-    BOOL bOrdered = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DITHER_ORDERED, BM_GETCHECK, 0, 0);
-    BOOL bRandom = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DITHER_RANDOM, BM_GETCHECK, 0, 0);
+    BOOL const bOrdered = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DITHER_ORDERED, BM_GETCHECK, 0, 0);
+    BOOL const bRandom = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DITHER_RANDOM, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetDitherMode(bOrdered ? LAVDither_Ordered : LAVDither_Random);
 
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0);
@@ -188,9 +194,10 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
 static void AddComboBoxEntryWithData(HWND hwnd, int nIDDlgItem, WCHAR *pszText, UINT Data)
 {
     // add the entry
-    LRESULT ret = SendDlgItemMessage(hwnd, nIDDlgItem, CB_ADDSTRING, 0, (LPARAM)pszText);
-    if (ret < 0)
+    LRESULT const ret = SendDlgItemMessage(hwnd, nIDDlgItem, CB_ADDSTRING, 0, (LPARAM)pszText);
+    if (ret < 0) {
         return;
+}
 
     // set its data
     SendDlgItemMessage(hwnd, nIDDlgItem, CB_SETITEMDATA, ret, Data);
@@ -198,10 +205,10 @@ static void AddComboBoxEntryWithData(HWND hwnd, int nIDDlgItem, WCHAR *pszText, 
 
 static void SelectComboBoxItemByValue(HWND hwnd, int nIDDlgItem, UINT Data)
 {
-    LRESULT count = SendDlgItemMessage(hwnd, nIDDlgItem, CB_GETCOUNT, 0, 0);
-    for (int i = 0; i < count; i++)
+    LRESULT const count = SendDlgItemMessage(hwnd, nIDDlgItem, CB_GETCOUNT, 0, 0);
+    for (int i = 0; i < count; ++i)
     {
-        LRESULT ItemData = SendDlgItemMessage(hwnd, nIDDlgItem, CB_GETITEMDATA, i, 0);
+        LRESULT const ItemData = SendDlgItemMessage(hwnd, nIDDlgItem, CB_GETITEMDATA, i, 0);
         if (ItemData == Data)
         {
             SendDlgItemMessage(hwnd, nIDDlgItem, CB_SETCURSEL, i, 0);
@@ -225,7 +232,7 @@ HRESULT CLAVVideoSettingsProp::OnActivate()
     const WCHAR *version = TEXT(LAV_VIDEO) L" " TEXT(LAV_VERSION_STR);
     SendDlgItemMessage(m_Dlg, IDC_LAVVIDEO_FOOTER, WM_SETTEXT, 0, (LPARAM)version);
 
-    WCHAR stringBuffer[512] = L"Auto";
+    WCHAR stringBuffer[512U] = L"Auto";
 
     // Init the Combo Box
     SendDlgItemMessage(m_Dlg, IDC_THREADS, CB_RESETCONTENT, 0, 0);
@@ -409,18 +416,18 @@ HRESULT CLAVVideoSettingsProp::OnActivate()
 
 HRESULT CLAVVideoSettingsProp::UpdateHWOptions()
 {
-    LRESULT lValue = SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETCURSEL, 0, 0);
-    LAVHWAccel hwAccel = (LAVHWAccel)SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETITEMDATA, lValue, 0);
+    LRESULT const lValue = SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETCURSEL, 0, 0);
+    LAVHWAccel const hwAccel = (LAVHWAccel)SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETITEMDATA, lValue, 0);
 
-    DWORD dwSupport = m_pVideoSettings->CheckHWAccelSupport(hwAccel);
-    BOOL bEnabled = (hwAccel != HWAccel_None) && dwSupport;
-    BOOL bHWDeint = bEnabled && (hwAccel == HWAccel_CUDA || hwAccel == HWAccel_QuickSync);
-    BOOL bHWDeintEnabled = bHWDeint && (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_ENABLE, BM_GETCHECK, 0, 0);
-    BOOL bCUDAOnly = bEnabled && (hwAccel == HWAccel_CUDA);
-    BOOL bDVD = bEnabled && (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWACCEL_MPEG2, BM_GETCHECK, 0, 0);
-    BOOL bHEVC = bEnabled && (hwAccel != HWAccel_QuickSync);
-    BOOL bVP9 = bEnabled && (hwAccel != HWAccel_QuickSync);
-    BOOL bAV1 = bEnabled && (hwAccel != HWAccel_QuickSync) && (hwAccel != HWAccel_CUDA);
+    DWORD const dwSupport = m_pVideoSettings->CheckHWAccelSupport(hwAccel);
+    BOOL const bEnabled = (hwAccel != HWAccel_None) && dwSupport;
+    BOOL const bHWDeint = bEnabled && (hwAccel == HWAccel_CUDA || hwAccel == HWAccel_QuickSync);
+    BOOL const bHWDeintEnabled = bHWDeint && (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_ENABLE, BM_GETCHECK, 0, 0);
+    BOOL const bCUDAOnly = bEnabled && (hwAccel == HWAccel_CUDA);
+    BOOL const bDVD = bEnabled && (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWACCEL_MPEG2, BM_GETCHECK, 0, 0);
+    BOOL const bHEVC = bEnabled && (hwAccel != HWAccel_QuickSync);
+    BOOL const bVP9 = bEnabled && (hwAccel != HWAccel_QuickSync);
+    BOOL const bAV1 = bEnabled && (hwAccel != HWAccel_QuickSync) && (hwAccel != HWAccel_CUDA);
 
     ShowWindow(GetDlgItem(m_Dlg, IDC_HWACCEL_CUVID_DXVA),
                (hwAccel == HWAccel_CUDA && !IsWindows10OrNewer()) ? SW_SHOW : SW_HIDE);
@@ -463,10 +470,10 @@ HRESULT CLAVVideoSettingsProp::UpdateHWOptions()
                        (hwAccel == HWAccel_D3D11) ? (LPARAM)L"Automatic (Native)" : (LPARAM)L"Automatic");
 
     DWORD dwnDevices = m_pVideoSettings->GetHWAccelNumDevices(hwAccel);
-    for (DWORD dwDevice = 0; dwDevice < dwnDevices; dwDevice++)
+    for (DWORD dwDevice = 0; dwDevice < dwnDevices; ++dwDevice)
     {
         BSTR bstrDeviceName = nullptr;
-        HRESULT hr = m_pVideoSettings->GetHWAccelDeviceInfo(hwAccel, dwDevice, &bstrDeviceName, NULL);
+        HRESULT const hr = m_pVideoSettings->GetHWAccelDeviceInfo(hwAccel, dwDevice, &bstrDeviceName, nullptr);
         if (SUCCEEDED(hr))
         {
             SendDlgItemMessage(m_Dlg, IDC_HWACCEL_DEVICE_SELECT, CB_ADDSTRING, 0, (LPARAM)bstrDeviceName);
@@ -489,17 +496,19 @@ HRESULT CLAVVideoSettingsProp::UpdateHWOptions()
     {
         DWORD dwDeviceId = 0;
         m_HWDeviceIndex = m_pVideoSettings->GetHWAccelDeviceIndex(hwAccel, &dwDeviceId);
-        if (m_HWDeviceIndex == LAVHWACCEL_DEVICE_DEFAULT)
+        if (m_HWDeviceIndex == LAVHWACCEL_DEVICE_DEFAULT) {
             m_HWDeviceIndex = 0;
-        else
+        } else {
             m_HWDeviceIndex++;
+}
 
-        if (hwAccel == HWAccel_DXVA2CopyBack)
+        if (hwAccel == HWAccel_DXVA2CopyBack) {
             SendDlgItemMessage(m_Dlg, IDC_LBL_HWACCEL_DEVICE_HINT, WM_SETTEXT, 0, (LPARAM)hwHintDXVA2Display);
-        else if (hwAccel == HWAccel_D3D11)
+        } else if (hwAccel == HWAccel_D3D11) {
             SendDlgItemMessage(m_Dlg, IDC_LBL_HWACCEL_DEVICE_HINT, WM_SETTEXT, 0, (LPARAM)hwHintD3D11DeviceHint);
-        else
+        } else {
             SendDlgItemMessage(m_Dlg, IDC_LBL_HWACCEL_DEVICE_HINT, WM_SETTEXT, 0, (LPARAM)L"");
+}
     }
 
     EnableWindow(GetDlgItem(m_Dlg, IDC_LBL_HWACCEL_DEVICE_SELECT), (dwnDevices > 0));
@@ -512,7 +521,7 @@ HRESULT CLAVVideoSettingsProp::UpdateHWOptions()
 
 HRESULT CLAVVideoSettingsProp::UpdateYADIFOptions()
 {
-    DWORD dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_SWDEINT_MODE, CB_GETCURSEL, 0, 0);
+    DWORD const dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_SWDEINT_MODE, CB_GETCURSEL, 0, 0);
 
     EnableWindow(GetDlgItem(m_Dlg, IDC_LBL_SWDEINT_MODE), (dwVal != SWDeintMode_None));
     EnableWindow(GetDlgItem(m_Dlg, IDC_SWDEINT_OUT_FILM), (dwVal != SWDeintMode_None));
@@ -523,7 +532,7 @@ HRESULT CLAVVideoSettingsProp::UpdateYADIFOptions()
 
 HRESULT CLAVVideoSettingsProp::LoadData()
 {
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
 
     m_dwNumThreads = m_pVideoSettings->GetNumThreads();
     m_StreamAR = m_pVideoSettings->GetStreamAR();
@@ -983,13 +992,13 @@ HRESULT CLAVVideoFormatsProp::OnDisconnect()
 HRESULT CLAVVideoFormatsProp::OnApplyChanges()
 {
     ASSERT(m_pVideoSettings != nullptr);
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
 
     HWND hlv = GetDlgItem(m_Dlg, IDC_CODECS);
 
     // Get checked state
     BOOL bFlag;
-    for (int nItem = 0; nItem < ListView_GetItemCount(hlv); nItem++)
+    for (int nItem = 0; nItem < ListView_GetItemCount(hlv); ++nItem)
     {
         bFlag = ListView_GetCheckState(hlv, nItem);
         m_pVideoSettings->SetFormatConfiguration((LAVVideoCodec)nItem, bFlag);
@@ -1025,7 +1034,7 @@ HRESULT CLAVVideoFormatsProp::OnActivate()
     ListView_SetExtendedListViewStyle(hlv, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
     int nCol = 1;
-    LVCOLUMN lvc = {LVCF_WIDTH, 0, 20, 0};
+    LVCOLUMN lvc = {LVCF_WIDTH, 0, 20, nullptr};
     ListView_InsertColumn(hlv, 0, &lvc);
     ListView_AddCol(hlv, nCol, 85, L"Codec", false);
     ListView_AddCol(hlv, nCol, 400, L"Description", false);
@@ -1048,10 +1057,10 @@ HRESULT CLAVVideoFormatsProp::OnActivate()
         ListView_InsertItem(hlv, &lvi);
 
         // Set sub item texts
-        ATL::CA2W name(config->name);
+        ATL::CA2W const name(config->name);
         ListView_SetItemText(hlv, nItem, 1, (LPWSTR)name);
 
-        ATL::CA2W desc(config->description);
+        ATL::CA2W const desc(config->description);
         ListView_SetItemText(hlv, nItem, 2, (LPWSTR)desc);
     }
 
@@ -1059,7 +1068,7 @@ HRESULT CLAVVideoFormatsProp::OnActivate()
     if (SUCCEEDED(hr))
     {
         // Set checked state
-        for (nItem = 0; nItem < ListView_GetItemCount(hlv); nItem++)
+        for (nItem = 0; nItem < ListView_GetItemCount(hlv); ++nItem)
         {
             ListView_SetCheckState(hlv, nItem, m_bFormats[nItem]);
         }
@@ -1073,10 +1082,11 @@ HRESULT CLAVVideoFormatsProp::OnActivate()
 
 HRESULT CLAVVideoFormatsProp::LoadData()
 {
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
 
-    for (unsigned i = 0; i < Codec_VideoNB; ++i)
+    for (unsigned i = 0; i < Codec_VideoNB; ++i) {
         m_bFormats[i] = m_pVideoSettings->GetFormatConfiguration((LAVVideoCodec)i) != 0;
+}
 
     m_bWMVDMO = m_pVideoSettings->GetUseMSWMV9Decoder();
     m_bDVD = m_pVideoSettings->GetDVDVideoSupport();
@@ -1091,7 +1101,7 @@ INT_PTR CLAVVideoFormatsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPar
     case WM_COMMAND:
         if (LOWORD(wParam) == IDC_CODECS_MSWMVDMO && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bValue = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            BOOL const bValue = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
             if (bValue != m_bWMVDMO)
             {
                 SetDirty();
@@ -1099,7 +1109,7 @@ INT_PTR CLAVVideoFormatsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPar
         }
         else if (LOWORD(wParam) == IDC_DVD_VIDEO && HIWORD(wParam) == BN_CLICKED)
         {
-            BOOL bValue = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+            BOOL const bValue = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
             if (bValue != m_bDVD)
             {
                 SetDirty();
@@ -1114,7 +1124,7 @@ INT_PTR CLAVVideoFormatsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPar
             {
             case LVN_ITEMCHANGED:
                 LPNMLISTVIEW nmlv = (LPNMLISTVIEW)lParam;
-                BOOL check = ListView_GetCheckState(hdr->hwndFrom, nmlv->iItem);
+                BOOL const check = ListView_GetCheckState(hdr->hwndFrom, nmlv->iItem);
                 if (check != m_bFormats[nmlv->iItem])
                 {
                     SetDirty();

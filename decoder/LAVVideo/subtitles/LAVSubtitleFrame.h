@@ -49,12 +49,12 @@ class CLAVSubRect : public IUnknown
     }
     STDMETHODIMP_(ULONG) AddRef()
     {
-        ULONG lRef = InterlockedIncrement(&m_cRef);
+        ULONG const const lRef = InterlockedIncrement(&m_cRef);
         return max(ULONG(lRef), 1ul);
     }
     STDMETHODIMP_(ULONG) Release()
     {
-        ULONG lRef = InterlockedDecrement(&m_cRef);
+        ULONG const const lRef = InterlockedDecrement(&m_cRef);
         if (lRef == 0)
         {
             m_cRef++;

@@ -75,8 +75,8 @@ typedef struct LAVPixFmtDesc
 {
     int codedbytes;     ///< coded byte per pixel in one plane (for packed and multibyte formats)
     int planes;         ///< number of planes
-    int planeWidth[4];  ///< log2 width factor
-    int planeHeight[4]; ///< log2 height factor
+    int planeWidth[4U];  ///< log2 width factor
+    int planeHeight[4U]; ///< log2 height factor
 } LAVPixFmtDesc;
 
 /**
@@ -91,8 +91,8 @@ AVPixelFormat getFFPixelFormatFromLAV(LAVPixelFormat pixFmt, int bpp);
 
 typedef struct LAVDirectBuffer
 {
-    BYTE *data[4];       ///< pointer to the picture planes
-    ptrdiff_t stride[4]; ///< stride of the planes (in bytes)
+    BYTE *data[4U];       ///< pointer to the picture planes
+    ptrdiff_t stride[4U]; ///< stride of the planes (in bytes)
 
     UINT Width, Height;  ///< width/height of the locked texture
 } LAVDirectBuffer;
@@ -121,9 +121,9 @@ typedef struct LAVFrame
     int width;  ///< width of the frame (in pixel)
     int height; ///< height of the frame (in pixel)
 
-    BYTE *data[4];       ///< pointer to the picture planes
-    BYTE *stereo[4];     ///< pointer to the second view picture planes
-    ptrdiff_t stride[4]; ///< stride of the planes (in bytes)
+    BYTE *data[4U];       ///< pointer to the picture planes
+    BYTE *stereo[4U];     ///< pointer to the second view picture planes
+    ptrdiff_t stride[4U]; ///< stride of the planes (in bytes)
 
     LAVPixelFormat format; ///< pixel format of the frame
     LAVPixelFormat sw_format;

@@ -52,8 +52,9 @@ static void str_replace(string &s, const string &search, const string &replace)
     for (string::size_type pos = 0;; pos += replace.length())
     {
         pos = s.find(search, pos);
-        if (pos == string::npos)
+        if (pos == string::npos) {
             break;
+}
 
         s.erase(pos, search.length());
         s.insert(pos, replace);
@@ -70,8 +71,9 @@ static string GetCueParam(string line, bool firstWord = false)
     idx = line.find_first_of(delims, idx);
     // Find beginning of param
     idx = line.find_first_not_of(delims, idx);
-    if (idx == string::npos)
+    if (idx == string::npos) {
         return string();
+}
     string param = line.substr(idx);
     // trim spaces off the end
     param = param.substr(0, param.find_last_not_of(delims) + 1);
@@ -81,8 +83,9 @@ static string GetCueParam(string line, bool firstWord = false)
     if (firstWord)
     {
         idx = param.find_first_of(delims);
-        if (idx != string::npos)
+        if (idx != string::npos) {
             param = param.substr(0, idx);
+}
     }
     return param;
 }
@@ -91,10 +94,11 @@ static REFERENCE_TIME ParseCueIndex(string line)
 {
     int index, m, s, f, ret;
     ret = sscanf_s(line.c_str(), " INDEX %d %d:%d:%d", &index, &m, &s, &f);
-    if (ret == 4)
+    if (ret == 4) {
         return (m * 60i64 + s) * 10000000i64 + (f * 10000000i64 / 75);
-    else
+    } else {
         return 0;
+}
 }
 
 CCueSheet::CCueSheet()
@@ -145,8 +149,8 @@ HRESULT CCueSheet::Parse(string cueSheet)
                 state = ParserState::TRACK;
                 trackCount++;
 
-                string id = GetCueParam(line, true);
-                Track track{trackCount - 1, id, "Title " + id, 0, ""};
+                string const id = GetCueParam(line, true);
+                Track const track{trackCount - 1, id, "Title " + id, 0, ""};
                 m_Tracks.push_back(track);
             }
             else if (state == ParserState::TRACK)
@@ -174,8 +178,9 @@ HRESULT CCueSheet::Parse(string cueSheet)
 std::string CCueSheet::FormatTrack(Track &track)
 {
     string trackFormat = track.Id + ". ";
-    if (!track.Performer.empty())
+    if (!track.Performer.empty()) {
         trackFormat += track.Performer + " - ";
+}
     trackFormat += track.Title;
     return trackFormat;
 }

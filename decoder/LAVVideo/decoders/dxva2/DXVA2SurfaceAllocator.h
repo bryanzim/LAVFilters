@@ -84,12 +84,12 @@ class CDXVA2SurfaceAllocator
     void Free();
     STDMETHODIMP_(BOOL) DecommitInProgress()
     {
-        CAutoLock cal(this);
+        CAutoLock const const cal(this);
         return m_bDecommitInProgress;
     }
     STDMETHODIMP_(BOOL) IsCommited()
     {
-        CAutoLock cal(this);
+        CAutoLock const const cal(this);
         return m_bCommitted;
     }
 

@@ -84,8 +84,9 @@ void DbgSetLogFile(LPCTSTR szFile)
 
     if (hOutput != INVALID_HANDLE_VALUE)
     {
-        if (InterlockedCompareExchangePointer(&m_hOutput, hOutput, INVALID_HANDLE_VALUE) != INVALID_HANDLE_VALUE)
+        if (InterlockedCompareExchangePointer(&m_hOutput, hOutput, INVALID_HANDLE_VALUE) != INVALID_HANDLE_VALUE) {
             CloseHandle(hOutput);
+}
     }
 
     InterlockedIncrement(&hOutputCounter);
@@ -93,7 +94,7 @@ void DbgSetLogFile(LPCTSTR szFile)
 
 void DbgSetLogFileDesktop(LPCTSTR szFile)
 {
-    TCHAR szLogPath[512];
+    TCHAR szLogPath[512U];
     SHGetFolderPath(nullptr, CSIDL_DESKTOPDIRECTORY, nullptr, 0, szLogPath);
     PathAppend(szLogPath, szFile);
     DbgSetLogFile(szLogPath);
@@ -101,7 +102,7 @@ void DbgSetLogFileDesktop(LPCTSTR szFile)
 
 void DbgCloseLogFile()
 {
-    LONG count = InterlockedDecrement(&hOutputCounter);
+    LONG const count = InterlockedDecrement(&hOutputCounter);
     if (count == 0 && m_hOutput != INVALID_HANDLE_VALUE)
     {
         FlushFileBuffers(m_hOutput);
@@ -113,15 +114,16 @@ void DbgCloseLogFile()
 
 void split(const std::string &text, const std::string &separators, std::list<std::string> &words)
 {
-    size_t n = text.length();
+    size_t const n = text.length();
     size_t start, stop;
 
     start = text.find_first_not_of(separators);
     while ((start >= 0) && (start < n))
     {
         stop = text.find_first_of(separators, start);
-        if ((stop < 0) || (stop > n))
+        if ((stop < 0) || (stop > n)) {
             stop = n;
+}
         words.push_back(text.substr(start, stop - start));
         start = text.find_first_not_of(separators, stop + 1);
     }
@@ -133,7 +135,7 @@ IBaseFilter *FindFilter(const GUID &clsid, IFilterGraph *pFG)
     IEnumFilters *pEnumFilters = nullptr;
     if (pFG && SUCCEEDED(pFG->EnumFilters(&pEnumFilters)))
     {
-        for (IBaseFilter *pBF = nullptr; S_OK == pEnumFilters->Next(1, &pBF, 0);)
+        for (IBaseFilter *pBF = nullptr; S_OK == pEnumFilters->Next(1, &pBF, nullptr);)
         {
             GUID clsid2;
             if (SUCCEEDED(pBF->GetClassID(&clsid2)) && clsid == clsid2)
@@ -190,8 +192,9 @@ BOOL FilterInGraphWithInputSubtype(const GUID &clsid, IFilterGraph *pFG, const G
             }
             SafeRelease(&pPin);
 
-            if (bFound)
+            if (bFound) {
                 break;
+}
         }
 
         SafeRelease(&pPinEnum);
@@ -203,7 +206,7 @@ BOOL FilterInGraphWithInputSubtype(const GUID &clsid, IFilterGraph *pFG, const G
 
 std::wstring WStringFromGUID(const GUID &guid)
 {
-    WCHAR null[128] = {0}, buff[128];
+    WCHAR null[128U] = {0}, buff[128U];
     StringFromGUID2(GUID_NULL, null, 127);
     return std::wstring(StringFromGUID2(guid, buff, 127) > 0 ? buff : null);
 }
@@ -211,7 +214,7 @@ std::wstring WStringFromGUID(const GUID &guid)
 int SafeMultiByteToWideChar(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr, int cbMultiByte, LPWSTR lpWideCharStr,
                             int cchWideChar)
 {
-    int len = MultiByteToWideChar(CodePage, dwFlags, lpMultiByteStr, cbMultiByte, lpWideCharStr, cchWideChar);
+    int const len = MultiByteToWideChar(CodePage, dwFlags, lpMultiByteStr, cbMultiByte, lpWideCharStr, cchWideChar);
     if (cchWideChar)
     {
         if (len == cchWideChar || (len == 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER))
@@ -220,7 +223,7 @@ int SafeMultiByteToWideChar(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr,
         }
         else if (len == 0)
         {
-            DWORD dwErr = GetLastError();
+            DWORD const dwErr = GetLastError();
             if (dwErr == ERROR_NO_UNICODE_TRANSLATION && CodePage == CP_UTF8)
             {
                 return SafeMultiByteToWideChar(CP_ACP, dwFlags, lpMultiByteStr, cbMultiByte, lpWideCharStr,
@@ -231,7 +234,7 @@ int SafeMultiByteToWideChar(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr,
                 return SafeMultiByteToWideChar(CP_UTF8, (dwFlags & ~MB_ERR_INVALID_CHARS), lpMultiByteStr, cbMultiByte,
                                                lpWideCharStr, cchWideChar);
             }
-            lpWideCharStr[0] = 0;
+            lpWideCharStr[0U] = 0;
         }
     }
     return len;
@@ -240,7 +243,7 @@ int SafeMultiByteToWideChar(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr,
 int SafeWideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWSTR lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr,
                             int cbMultiByte, LPCSTR lpDefaultChar, LPBOOL lpUsedDefaultChar)
 {
-    int len = WideCharToMultiByte(CodePage, dwFlags, lpWideCharStr, cchWideChar, lpMultiByteStr, cbMultiByte,
+    int const len = WideCharToMultiByte(CodePage, dwFlags, lpWideCharStr, cchWideChar, lpMultiByteStr, cbMultiByte,
                                   lpDefaultChar, lpUsedDefaultChar);
     if (cbMultiByte)
     {
@@ -250,7 +253,7 @@ int SafeWideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWSTR lpWideCharStr,
         }
         else if (len == 0)
         {
-            lpMultiByteStr[0] = 0;
+            lpMultiByteStr[0U] = 0;
         }
     }
     return len;
@@ -258,7 +261,7 @@ int SafeWideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWSTR lpWideCharStr,
 
 LPWSTR CoTaskGetWideCharFromMultiByte(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr, int cbMultiByte)
 {
-    int len = MultiByteToWideChar(CodePage, dwFlags, lpMultiByteStr, cbMultiByte, nullptr, 0);
+    int const len = MultiByteToWideChar(CodePage, dwFlags, lpMultiByteStr, cbMultiByte, nullptr, 0);
     if (len)
     {
         LPWSTR pszWideString = (LPWSTR)CoTaskMemAlloc(len * sizeof(WCHAR));
@@ -268,7 +271,7 @@ LPWSTR CoTaskGetWideCharFromMultiByte(UINT CodePage, DWORD dwFlags, LPCSTR lpMul
     }
     else
     {
-        DWORD dwErr = GetLastError();
+        DWORD const dwErr = GetLastError();
         if (dwErr == ERROR_NO_UNICODE_TRANSLATION && CodePage == CP_UTF8)
         {
             return CoTaskGetWideCharFromMultiByte(CP_ACP, dwFlags, lpMultiByteStr, cbMultiByte);
@@ -279,12 +282,12 @@ LPWSTR CoTaskGetWideCharFromMultiByte(UINT CodePage, DWORD dwFlags, LPCSTR lpMul
                                                   cbMultiByte);
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 LPSTR CoTaskGetMultiByteFromWideChar(UINT CodePage, DWORD dwFlags, LPCWSTR lpMultiByteStr, int cbMultiByte)
 {
-    int len = WideCharToMultiByte(CodePage, dwFlags, lpMultiByteStr, cbMultiByte, nullptr, 0, nullptr, nullptr);
+    int const len = WideCharToMultiByte(CodePage, dwFlags, lpMultiByteStr, cbMultiByte, nullptr, 0, nullptr, nullptr);
     if (len)
     {
         LPSTR pszMBString = (LPSTR)CoTaskMemAlloc(len * sizeof(char));
@@ -292,18 +295,20 @@ LPSTR CoTaskGetMultiByteFromWideChar(UINT CodePage, DWORD dwFlags, LPCWSTR lpMul
 
         return pszMBString;
     }
-    return NULL;
+    return nullptr;
 }
 
 BSTR ConvertCharToBSTR(const char *sz)
 {
-    bool acp = false;
-    if (!sz || strlen(sz) == 0)
+    bool const acp = false;
+    if (!sz || strlen(sz) == 0) {
         return nullptr;
+}
 
     WCHAR *wide = CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, sz, -1);
-    if (!wide)
+    if (!wide) {
         return nullptr;
+}
 
     BSTR bstr = SysAllocString(wide);
     CoTaskMemFree(wide);
@@ -330,8 +335,9 @@ HRESULT NukeDownstream(IFilterGraph *pGraph, IPin *pPin)
     if (pPin)
     {
         IPin *pPinTo = nullptr;
-        if (FAILED(pPin->QueryDirection(&dir)))
+        if (FAILED(pPin->QueryDirection(&dir))) {
             return E_FAIL;
+}
         if (dir == PINDIR_OUTPUT)
         {
             if (SUCCEEDED(pPin->ConnectedTo(&pPinTo)) && pPinTo)
@@ -357,7 +363,7 @@ HRESULT NukeDownstream(IFilterGraph *pGraph, IBaseFilter *pFilter)
     IEnumPins *pEnumPins = nullptr;
     if (pFilter && SUCCEEDED(pFilter->EnumPins(&pEnumPins)))
     {
-        for (IPin *pPin = nullptr; S_OK == pEnumPins->Next(1, &pPin, 0); pPin = nullptr)
+        for (IPin *pPin = nullptr; S_OK == pEnumPins->Next(1, &pPin, nullptr); pPin = nullptr)
         {
             NukeDownstream(pGraph, pPin);
             SafeRelease(&pPin);
@@ -389,7 +395,7 @@ HRESULT FindIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
             pFilter->EnumPins(&pPinEnum);
 
             HRESULT hrPin = E_FAIL;
-            for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, 0) == S_OK; pOtherPin2 = nullptr)
+            for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
             {
                 PIN_DIRECTION pinDir;
                 pOtherPin2->QueryDirection(&pinDir);
@@ -398,8 +404,9 @@ HRESULT FindIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
                     hrPin = FindIntefaceInGraph(pOtherPin2, refiid, pUnknown);
                 }
                 SafeRelease(&pOtherPin2);
-                if (SUCCEEDED(hrPin))
+                if (SUCCEEDED(hrPin)) {
                     break;
+}
             }
             hrFilter = hrPin;
             SafeRelease(&pPinEnum);
@@ -436,7 +443,7 @@ HRESULT FindPinIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
             pFilter->EnumPins(&pPinEnum);
 
             HRESULT hrPin = E_FAIL;
-            for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, 0) == S_OK; pOtherPin2 = nullptr)
+            for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
             {
                 PIN_DIRECTION pinDir;
                 pOtherPin2->QueryDirection(&pinDir);
@@ -445,8 +452,9 @@ HRESULT FindPinIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
                     hrPin = FindPinIntefaceInGraph(pOtherPin2, refiid, pUnknown);
                 }
                 SafeRelease(&pOtherPin2);
-                if (SUCCEEDED(hrPin))
+                if (SUCCEEDED(hrPin)) {
                     break;
+}
             }
             hrFilter = hrPin;
             SafeRelease(&pPinEnum);
@@ -506,7 +514,7 @@ HRESULT FindFilterSafe(IPin *pPin, const GUID &guid, IBaseFilter **ppFilter, BOO
                 pFilter->EnumPins(&pPinEnum);
 
                 HRESULT hrPin = E_FAIL;
-                for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, 0) == S_OK; pOtherPin2 = nullptr)
+                for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
                 {
                     PIN_DIRECTION pinDir;
                     pOtherPin2->QueryDirection(&pinDir);
@@ -515,8 +523,9 @@ HRESULT FindFilterSafe(IPin *pPin, const GUID &guid, IBaseFilter **ppFilter, BOO
                         hrPin = FindFilterSafe(pOtherPin2, guid, ppFilter);
                     }
                     SafeRelease(&pOtherPin2);
-                    if (SUCCEEDED(hrPin))
+                    if (SUCCEEDED(hrPin)) {
                         break;
+}
                 }
                 hrFilter = hrPin;
                 SafeRelease(&pPinEnum);
@@ -548,12 +557,12 @@ BOOL HasSourceWithType(IPin *pPin, const GUID &mediaType)
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
 
-        HRESULT hrFilter = E_NOINTERFACE;
+        HRESULT const hrFilter = E_NOINTERFACE;
         IEnumPins *pPinEnum = nullptr;
         pFilter->EnumPins(&pPinEnum);
 
-        HRESULT hrPin = E_FAIL;
-        for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, 0) == S_OK; pOtherPin2 = nullptr)
+        HRESULT const hrPin = E_FAIL;
+        for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
         {
             if (pOtherPin2 != pOtherPin)
             {
@@ -564,7 +573,7 @@ BOOL HasSourceWithType(IPin *pPin, const GUID &mediaType)
                     IEnumMediaTypes *pMediaTypeEnum = nullptr;
                     if (SUCCEEDED(pOtherPin2->EnumMediaTypes(&pMediaTypeEnum)))
                     {
-                        for (AM_MEDIA_TYPE *mt = nullptr; pMediaTypeEnum->Next(1, &mt, 0) == S_OK; mt = nullptr)
+                        for (AM_MEDIA_TYPE *mt = nullptr; pMediaTypeEnum->Next(1, &mt, nullptr) == S_OK; mt = nullptr)
                         {
                             if (mt->majortype == mediaType)
                             {
@@ -593,11 +602,13 @@ BOOL HasSourceWithType(IPin *pPin, const GUID &mediaType)
 BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &mediaType)
 {
     // check the input pin backwards first
-    if (pPinInput && HasSourceWithType(pPinInput, mediaType))
+    if (pPinInput && HasSourceWithType(pPinInput, mediaType)) {
         return true;
+}
 
-    if (pPinOutput == NULL)
+    if (pPinOutput == nullptr) {
         return false;
+}
 
     // and check the tree forwards
     BOOL bFound = FALSE;
@@ -606,13 +617,13 @@ BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &me
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
 
-        HRESULT hrFilter = E_NOINTERFACE;
+        HRESULT const hrFilter = E_NOINTERFACE;
         IEnumPins *pPinEnum = nullptr;
         pFilter->EnumPins(&pPinEnum);
 
         // Iterate over pins of the filter..
-        HRESULT hrPin = E_FAIL;
-        for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, 0) == S_OK; pOtherPin2 = nullptr)
+        HRESULT const hrPin = E_FAIL;
+        for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
         {
             // ignore the pint we're connected to
             if (pOtherPin2 != pOtherPin)
@@ -628,7 +639,7 @@ BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &me
                 // if its an output, go forwards
                 else if (pinDir == PINDIR_OUTPUT)
                 {
-                    bFound = HasSourceWithTypeAdvanced(NULL, pOtherPin2, mediaType);
+                    bFound = HasSourceWithTypeAdvanced(nullptr, pOtherPin2, mediaType);
                 }
             }
             SafeRelease(&pOtherPin2);
@@ -644,7 +655,7 @@ BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &me
 BOOL FilterInGraphSafe(IPin *pPin, const GUID &guid, BOOL bReverse)
 {
     IBaseFilter *pFilter = nullptr;
-    HRESULT hr = FindFilterSafe(pPin, guid, &pFilter, bReverse);
+    HRESULT const hr = FindFilterSafe(pPin, guid, &pFilter, bReverse);
     if (SUCCEEDED(hr) && pFilter)
     {
         SafeRelease(&pFilter);
@@ -681,8 +692,9 @@ void videoFormatTypeHandler(const BYTE *format, const GUID *formattype, BITMAPIN
     BITMAPINFOHEADER *bmi = nullptr;
     DWORD dwAspectX = 0, dwAspectY = 0;
 
-    if (!format)
+    if (!format) {
         goto done;
+}
 
     if (*formattype == FORMAT_VideoInfo)
     {
@@ -743,8 +755,9 @@ void audioFormatTypeHandler(const BYTE *format, const GUID *formattype, DWORD *p
     DWORD nBytesPerSec = 0;
     DWORD nChannelMask = 0;
 
-    if (!format)
+    if (!format) {
         goto done;
+}
 
     if (*formattype == FORMAT_WaveFormatEx)
     {
@@ -770,18 +783,24 @@ void audioFormatTypeHandler(const BYTE *format, const GUID *formattype, DWORD *p
     }
 
 done:
-    if (pnSamples)
+    if (pnSamples) {
         *pnSamples = nSamples;
-    if (pnChannels)
+}
+    if (pnChannels) {
         *pnChannels = nChannels;
-    if (pnBitsPerSample)
+}
+    if (pnBitsPerSample) {
         *pnBitsPerSample = nBitsPerSample;
-    if (pnBlockAlign)
+}
+    if (pnBlockAlign) {
         *pnBlockAlign = nBlockAlign;
-    if (pnBytesPerSec)
+}
+    if (pnBytesPerSec) {
         *pnBytesPerSec = nBytesPerSec;
-    if (pnChannelMask)
+}
+    if (pnChannelMask) {
         *pnChannelMask = nChannelMask;
+}
 }
 
 void getExtraData(const AM_MEDIA_TYPE &mt, BYTE *extra, size_t *extralen)
@@ -808,23 +827,25 @@ void getExtraData(const BYTE *format, const GUID *formattype, const size_t forma
         if (extra)
         {
             *extra = 2;
-            offset += lav_xiphlacing(extra + offset, vf2->HeaderSize[0]);
-            offset += lav_xiphlacing(extra + offset, vf2->HeaderSize[1]);
+            offset += lav_xiphlacing(extra + offset, vf2->HeaderSize[0U]);
+            offset += lav_xiphlacing(extra + offset, vf2->HeaderSize[1U]);
             extra += offset;
         }
         else
         {
-            BYTE dummy[100];
-            offset += lav_xiphlacing(dummy, vf2->HeaderSize[0]);
-            offset += lav_xiphlacing(dummy, vf2->HeaderSize[1]);
+            BYTE dummy[100U];
+            offset += lav_xiphlacing(dummy, vf2->HeaderSize[0U]);
+            offset += lav_xiphlacing(dummy, vf2->HeaderSize[1U]);
         }
-        extralength = vf2->HeaderSize[0] + vf2->HeaderSize[1] + vf2->HeaderSize[2];
+        extralength = vf2->HeaderSize[0U] + vf2->HeaderSize[1U] + vf2->HeaderSize[2U];
         extralength = min(extralength, formatlen - sizeof(VORBISFORMAT2));
 
-        if (extra && extralength)
+        if (extra && extralength) {
             memcpy(extra, format + sizeof(VORBISFORMAT2), extralength);
-        if (extralen)
+}
+        if (extralen) {
             *extralen = extralength + offset;
+}
 
         return;
     }
@@ -842,13 +863,13 @@ void getExtraData(const BYTE *format, const GUID *formattype, const size_t forma
     {
         MPEG1VIDEOINFO *mp1vi = (MPEG1VIDEOINFO *)format;
         extraposition = (BYTE *)mp1vi->bSequenceHeader;
-        extralength = min(mp1vi->cbSequenceHeader, formatlen - FIELD_OFFSET(MPEG1VIDEOINFO, bSequenceHeader[0]));
+        extralength = min(mp1vi->cbSequenceHeader, formatlen - FIELD_OFFSET(MPEG1VIDEOINFO, bSequenceHeader[0U]));
     }
     else if (*formattype == FORMAT_MPEG2Video)
     {
         MPEG2VIDEOINFO *mp2vi = (MPEG2VIDEOINFO *)format;
         extraposition = (BYTE *)mp2vi->dwSequenceHeader;
-        extralength = min(mp2vi->cbSequenceHeader, formatlen - FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader[0]));
+        extralength = min(mp2vi->cbSequenceHeader, formatlen - FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader[0U]));
     }
     else if (*formattype == FORMAT_SubtitleInfo)
     {
@@ -857,16 +878,19 @@ void getExtraData(const BYTE *format, const GUID *formattype, const size_t forma
         extralength = formatlen - sub->dwOffset;
     }
 
-    if (extra && extralength)
+    if (extra && extralength) {
         memcpy(extra, extraposition, extralength);
-    if (extralen)
+}
+    if (extralen) {
         *extralen = extralength;
+}
 }
 
 void CopyMediaSideDataFF(AVPacket *dst, const MediaSideDataFFMpeg **sd)
 {
-    if (!dst)
+    if (!dst) {
         return;
+}
 
     if (!sd || !*sd)
     {
@@ -876,7 +900,7 @@ void CopyMediaSideDataFF(AVPacket *dst, const MediaSideDataFFMpeg **sd)
     }
 
     // add sidedata to the packet
-    for (int i = 0; i < (*sd)->side_data_elems; i++)
+    for (int i = 0; i < (*sd)->side_data_elems; ++i)
     {
         uint8_t *ptr = av_packet_new_side_data(dst, (*sd)->side_data[i].type, (*sd)->side_data[i].size);
         memcpy(ptr, (*sd)->side_data[i].data, (*sd)->side_data[i].size);
@@ -907,7 +931,7 @@ BOOL IsWindows10BuildOrNewer(DWORD dwBuild)
 
 void __cdecl debugprintf(LPCWSTR format, ...)
 {
-    WCHAR buf[4096], *p = buf;
+    WCHAR buf[4096U], *p = buf;
     va_list args;
     int n;
 
@@ -917,8 +941,9 @@ void __cdecl debugprintf(LPCWSTR format, ...)
 
     p += (n < 0) ? (4096 - 3) : n;
 
-    while (p > buf && isspace(p[-1]))
+    while (p > buf && isspace(p[-1])) {
         *--p = L'\0';
+}
 
     *p++ = L'\r';
     *p++ = L'\n';
@@ -931,8 +956,8 @@ BOOL CheckApplicationBlackList(LPCTSTR subkey)
 {
     HRESULT hr;
     DWORD dwVal;
-    WCHAR fileName[1024];
-    GetModuleFileName(NULL, fileName, 1024);
+    WCHAR fileName[1024U];
+    GetModuleFileName(nullptr, fileName, 1024);
     WCHAR *processName = PathFindFileName(fileName);
 
     // Check local machine path

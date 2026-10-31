@@ -55,7 +55,7 @@ const char *find_codec_override(AVCodecID codec);
 DWORD get_channel_mask(int num_channels);
 
 const char *get_sample_format_desc(LAVAudioSampleFormat sfFormat);
-const char *get_sample_format_desc(CMediaType &mt);
+const char *get_sample_format_desc(CMediaType  const&mt);
 
 BYTE get_byte_per_sample(LAVAudioSampleFormat sfFormat);
 

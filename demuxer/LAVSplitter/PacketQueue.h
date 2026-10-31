@@ -51,7 +51,7 @@ class CPacketQueue : public CCritSec
 
     bool IsEmpty()
     {
-        CAutoLock cAutoLock(this);
+        CAutoLock const cAutoLock(this);
         return m_queue.empty();
     }
 

@@ -109,18 +109,18 @@ class CLAVOutputPin
 
     void SetNewMediaTypes(std::deque<CMediaType> pmts)
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         m_mts = pmts;
         SetQueueSizes();
     }
     void SendMediaType(CMediaType *mt)
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         m_newMT = mt;
     }
     void SetStreamMediaType(CMediaType *mt)
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         m_StreamMT = *mt;
     }
 

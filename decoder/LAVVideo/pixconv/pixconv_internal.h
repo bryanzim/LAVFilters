@@ -24,4 +24,4 @@
 #include "timer.h"
 #include "Media.h"
 
-extern __declspec(align(16)) const uint16_t dither_8x8_256[8][8];
+extern __declspec(align(16)) const uint16_t dither_8x8_256[8U][8U];

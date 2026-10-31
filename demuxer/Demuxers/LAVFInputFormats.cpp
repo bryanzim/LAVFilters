@@ -90,14 +90,17 @@ void lavf_get_iformat_infos(const AVInputFormat *pFormat, const char **pszName, 
         if (strcmp(lavf_input_formats[i].orig_format, name) == 0)
         {
             name = lavf_input_formats[i].new_format;
-            if (lavf_input_formats[i].new_description)
+            if (lavf_input_formats[i].new_description) {
                 desc = lavf_input_formats[i].new_description;
+}
             break;
         }
     }
 
-    if (pszName)
+    if (pszName) {
         *pszName = name;
-    if (pszDescription)
+}
+    if (pszDescription) {
         *pszDescription = desc;
+}
 }

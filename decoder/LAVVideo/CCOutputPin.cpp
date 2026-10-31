@@ -60,10 +60,12 @@ HRESULT CCCOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTI
 
     // Sanity checks
     ALLOCATOR_PROPERTIES Actual;
-    if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual)))
+    if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) {
         return hr;
-    if (Actual.cbBuffer < pProperties->cbBuffer)
+}
+    if (Actual.cbBuffer < pProperties->cbBuffer) {
         return E_FAIL;
+}
     ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
     return S_OK;
@@ -71,16 +73,18 @@ HRESULT CCCOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTI
 
 HRESULT CCCOutputPin::CheckMediaType(const CMediaType *pmt)
 {
-    if (*pmt == m_CCmt)
+    if (*pmt == m_CCmt) {
         return S_OK;
+}
 
     return E_INVALIDARG;
 }
 
 HRESULT CCCOutputPin::GetMediaType(int iPosition, CMediaType *pmt)
 {
-    if (iPosition < 0 || iPosition > 0)
+    if (iPosition < 0 || iPosition > 0) {
         return E_INVALIDARG;
+}
     *pmt = m_CCmt;
 
     return S_OK;
@@ -115,8 +119,9 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_T
 
     // Fill the sample
     BYTE *pData = nullptr;
-    if (FAILED(hr = pSample->GetPointer(&pData)) || !pData)
+    if (FAILED(hr = pSample->GetPointer(&pData)) || !pData) {
         goto done;
+}
 
     memcpy(pData, pDataIn, size);
 

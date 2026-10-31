@@ -40,7 +40,7 @@ class CBitstreamBuffer
 {
   public:
     CBitstreamBuffer(GrowableArray<BYTE> *arrStorage)
-        : m_pStorage(arrStorage)
+        : m_pStorage{arrStorage}
     {
     }
 
@@ -95,12 +95,13 @@ STDMETHODIMP CDecMSDKMVC::Init()
     mfxVersion version = {8, 1};
 
     // Check if HWAccel is allowed
-    if (!m_pSettings->GetHWAccelCodec(HWCodec_H264MVC))
-        impls[0] = MFX_IMPL_SOFTWARE;
+    if (!m_pSettings->GetHWAccelCodec(HWCodec_H264MVC)) {
+        impls[0U] = MFX_IMPL_SOFTWARE;
+}
 
-    for (int i = 0; i < countof(impls); i++)
+    for (int i = 0; i < countof(impls); ++i)
     {
-        mfxStatus sts = MFXInit(impls[i], &version, &m_mfxSession);
+        mfxStatus const sts = MFXInit(impls[i], &version, &m_mfxSession);
         if (sts != MFX_ERR_NONE)
         {
             DbgLog((LOG_TRACE, 10, L"CDevMSDKMVC::Init(): MSDK not available"));
@@ -140,14 +141,14 @@ void CDecMSDKMVC::DestroyDecoder(bool bFull)
     }
 
     {
-        CAutoLock lock(&m_BufferCritSec);
-        for (int i = 0; i < ASYNC_QUEUE_SIZE; i++)
+        CAutoLock const lock(&m_BufferCritSec);
+        for (int i = 0; i < ASYNC_QUEUE_SIZE; ++i)
         {
             ReleaseBuffer(&m_pOutputQueue[i]->surface);
         }
         memset(m_pOutputQueue, 0, sizeof(m_pOutputQueue));
 
-        for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); it++)
+        for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
         {
             if (!(*it)->queued)
             {
@@ -177,11 +178,13 @@ void CDecMSDKMVC::DestroyDecoder(bool bFull)
 
 STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, const MediaSideDataFFMpeg *pSideData)
 {
-    if (codec != AV_CODEC_ID_H264_MVC)
+    if (codec != AV_CODEC_ID_H264_MVC) {
         return E_UNEXPECTED;
+}
 
-    if (*pmt->FormatType() != FORMAT_MPEG2Video)
+    if (*pmt->FormatType() != FORMAT_MPEG2Video) {
         return E_UNEXPECTED;
+}
 
     DestroyDecoder(false);
 
@@ -192,7 +195,7 @@ STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     memset(&m_mfxExtMVCSeq, 0, sizeof(m_mfxExtMVCSeq));
     m_mfxExtMVCSeq.Header.BufferId = MFX_EXTBUFF_MVC_SEQ_DESC;
     m_mfxExtMVCSeq.Header.BufferSz = sizeof(m_mfxExtMVCSeq);
-    m_mfxExtParam[0] = (mfxExtBuffer *)&m_mfxExtMVCSeq;
+    m_mfxExtParam[0U] = (mfxExtBuffer *)&m_mfxExtMVCSeq;
 
     // Attach ext params to VideoParams
     m_mfxVideoParams.ExtParam = m_mfxExtParam;
@@ -207,10 +210,11 @@ STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
         // Decode sequence header from the media type
         if (mp2vi->cbSequenceHeader)
         {
-            HRESULT hr = Decode((const BYTE *)mp2vi->dwSequenceHeader, mp2vi->cbSequenceHeader, AV_NOPTS_VALUE,
+            HRESULT const hr = Decode((const BYTE *)mp2vi->dwSequenceHeader, mp2vi->cbSequenceHeader, AV_NOPTS_VALUE,
                                 AV_NOPTS_VALUE, TRUE, TRUE, nullptr);
-            if (FAILED(hr))
+            if (FAILED(hr)) {
                 return hr;
+}
         }
 
         m_nMP4NALUSize = mp2vi->dwFlags;
@@ -220,10 +224,11 @@ STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
         // Decode sequence header from the media type
         if (mp2vi->cbSequenceHeader)
         {
-            HRESULT hr = Decode((const BYTE *)mp2vi->dwSequenceHeader, mp2vi->cbSequenceHeader, AV_NOPTS_VALUE,
+            HRESULT const hr = Decode((const BYTE *)mp2vi->dwSequenceHeader, mp2vi->cbSequenceHeader, AV_NOPTS_VALUE,
                                 AV_NOPTS_VALUE, TRUE, TRUE, nullptr);
-            if (FAILED(hr))
+            if (FAILED(hr)) {
                 return hr;
+}
         }
     }
 
@@ -266,9 +271,9 @@ STDMETHODIMP CDecMSDKMVC::AllocateMVCExtBuffers()
 
 MVCBuffer *CDecMSDKMVC::GetBuffer()
 {
-    CAutoLock lock(&m_BufferCritSec);
+    CAutoLock const lock(&m_BufferCritSec);
     MVCBuffer *pBuffer = nullptr;
-    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); it++)
+    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if (!(*it)->surface.Data.Locked && !(*it)->queued)
         {
@@ -304,9 +309,9 @@ MVCBuffer *CDecMSDKMVC::GetBuffer()
 
 MVCBuffer *CDecMSDKMVC::FindBuffer(mfxFrameSurface1 *pSurface)
 {
-    CAutoLock lock(&m_BufferCritSec);
-    bool bFound = false;
-    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); it++)
+    CAutoLock const lock(&m_BufferCritSec);
+    bool const bFound = false;
+    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if (&(*it)->surface == pSurface)
         {
@@ -319,10 +324,11 @@ MVCBuffer *CDecMSDKMVC::FindBuffer(mfxFrameSurface1 *pSurface)
 
 void CDecMSDKMVC::ReleaseBuffer(mfxFrameSurface1 *pSurface)
 {
-    if (!pSurface)
+    if (!pSurface) {
         return;
+}
 
-    CAutoLock lock(&m_BufferCritSec);
+    CAutoLock const lock(&m_BufferCritSec);
     MVCBuffer *pBuffer = FindBuffer(pSurface);
 
     if (pBuffer)
@@ -332,25 +338,27 @@ void CDecMSDKMVC::ReleaseBuffer(mfxFrameSurface1 *pSurface)
     }
 }
 
-static const BYTE s_AnnexBStartCode3[3] = {0x00, 0x00, 0x01};
-static const BYTE s_AnnexBStartCode4[4] = {0x00, 0x00, 0x00, 0x01};
+static const BYTE s_AnnexBStartCode3[3U] = {0x00, 0x00, 0x01};
+static const BYTE s_AnnexBStartCode4[4U] = {0x00, 0x00, 0x00, 0x01};
 
 STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rtStart, REFERENCE_TIME rtStop,
                                  BOOL bSyncPoint, BOOL bDiscontinuity, IMediaSample *pSample)
 {
-    if (!m_mfxSession)
+    if (!m_mfxSession) {
         return E_UNEXPECTED;
+}
 
     HRESULT hr = S_OK;
     CBitstreamBuffer bsBuffer(&m_buff);
     mfxStatus sts = MFX_ERR_NONE;
-    mfxBitstream bs = {0};
+    mfxBitstream bs = {nullptr};
     BOOL bFlush = (buffer == nullptr);
 
-    if (rtStart >= -TIMESTAMP_OFFSET && rtStart != AV_NOPTS_VALUE)
+    if (rtStart >= -TIMESTAMP_OFFSET && rtStart != AV_NOPTS_VALUE) {
         bs.TimeStamp = rtStart + TIMESTAMP_OFFSET;
-    else
+    } else {
         bs.TimeStamp = MFX_TIMESTAMP_UNKNOWN;
+}
 
     bs.DecodeTimeStamp = MFX_TIMESTAMP_UNKNOWN;
 
@@ -362,12 +370,13 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         // MSDK's SEI reading functionality is slightly buggy
         CH264Nalu nalu;
         nalu.SetBuffer(buffer, buflen, m_nMP4NALUSize);
-        BOOL bNeedFilter = FALSE;
+        BOOL const bNeedFilter = FALSE;
         while (nalu.ReadNext())
         {
             // Don't include End-of-Sequence or AUD NALUs
-            if (nalu.GetType() == NALU_TYPE_EOSEQ || nalu.GetType() == NALU_TYPE_AUD)
+            if (nalu.GetType() == NALU_TYPE_EOSEQ || nalu.GetType() == NALU_TYPE_AUD) {
                 continue;
+}
 
             if (nalu.GetType() == NALU_TYPE_SEI)
             {
@@ -379,10 +388,11 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
             if (m_nMP4NALUSize)
             {
                 // write annex b nal
-                if (nalu.GetNALPos() == 0 || nalu.GetType() == NALU_TYPE_SPS || nalu.GetType() == NALU_TYPE_PPS)
+                if (nalu.GetNALPos() == 0 || nalu.GetType() == NALU_TYPE_SPS || nalu.GetType() == NALU_TYPE_PPS) {
                     bsBuffer.Append(s_AnnexBStartCode4, 4);
-                else
+                } else {
                     bsBuffer.Append(s_AnnexBStartCode3, 3);
+}
 
                 // append nal data
                 bsBuffer.Append(nalu.GetDataBuffer(), nalu.GetDataLength());
@@ -406,8 +416,9 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         if (sts == MFX_ERR_NOT_ENOUGH_BUFFER)
         {
             hr = AllocateMVCExtBuffers();
-            if (FAILED(hr))
+            if (FAILED(hr)) {
                 return hr;
+}
 
             sts = MFXVideoDECODE_DecodeHeader(m_mfxSession, &bs, &m_mfxVideoParams);
         }
@@ -431,14 +442,15 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
             }
 
             DbgLog((LOG_TRACE, 10, L"CDevMSDKMVC::Decode(): Initialized MVC with View Ids %d, %d",
-                    m_mfxExtMVCSeq.View[0].ViewId, m_mfxExtMVCSeq.View[1].ViewId));
+                    m_mfxExtMVCSeq.View[0U].ViewId, m_mfxExtMVCSeq.View[1U].ViewId));
 
             m_bDecodeReady = TRUE;
         }
     }
 
-    if (!m_bDecodeReady)
+    if (!m_bDecodeReady) {
         return S_FALSE;
+}
 
     mfxSyncPoint sync = nullptr;
 
@@ -446,8 +458,9 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     while (1)
     {
         MVCBuffer *pInputBuffer = GetBuffer();
-        if (pInputBuffer == nullptr)
+        if (pInputBuffer == nullptr) {
             return E_OUTOFMEMORY;
+}
 
         mfxFrameSurface1 *outsurf = nullptr;
         sts = MFXVideoDECODE_DecodeFrameAsync(m_mfxSession, bFlush ? nullptr : &bs, &pInputBuffer->surface, &outsurf,
@@ -471,8 +484,9 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
             continue;
         }
 
-        if (sts != MFX_ERR_MORE_SURFACE && sts < 0)
+        if (sts != MFX_ERR_MORE_SURFACE && sts < 0) {
             break;
+}
     }
 
     if (!bs.DataOffset && !sync && !bFlush)
@@ -502,15 +516,17 @@ HRESULT CDecMSDKMVC::ParseSEI(const BYTE *buffer, size_t size, mfxU64 timestamp)
 
         do
         {
-            if (seiParser.RemainingBits() < 8)
+            if (seiParser.RemainingBits() < 8) {
                 return E_FAIL;
+}
             type += seiParser.BitRead(8, true);
         } while (seiParser.BitRead(8) == 0xFF);
 
         do
         {
-            if (seiParser.RemainingBits() < 8)
+            if (seiParser.RemainingBits() < 8) {
                 return E_FAIL;
+}
             size += seiParser.BitRead(8, true);
         } while (seiParser.BitRead(8) == 0xFF);
 
@@ -538,14 +554,14 @@ HRESULT CDecMSDKMVC::ParseMVCNestedSEI(const BYTE *buffer, size_t size, mfxU64 t
     CByteParser seiParser(buffer, size);
 
     // Parse the MVC Scalable Nesting SEI first
-    int op_flag = seiParser.BitRead(1);
+    int const op_flag = seiParser.BitRead(1);
     if (!op_flag)
     {
-        int all_views_in_au = seiParser.BitRead(1);
+        int const all_views_in_au = seiParser.BitRead(1);
         if (!all_views_in_au)
         {
-            int num_views_min1 = seiParser.UExpGolombRead();
-            for (int i = 0; i <= num_views_min1; i++)
+            int const num_views_min1 = seiParser.UExpGolombRead();
+            for (int i = 0; i <= num_views_min1; ++i)
             {
                 seiParser.BitRead(10); // sei_view_id[i]
             }
@@ -553,8 +569,8 @@ HRESULT CDecMSDKMVC::ParseMVCNestedSEI(const BYTE *buffer, size_t size, mfxU64 t
     }
     else
     {
-        int num_views_min1 = seiParser.UExpGolombRead();
-        for (int i = 0; i <= num_views_min1; i++)
+        int const num_views_min1 = seiParser.UExpGolombRead();
+        for (int i = 0; i <= num_views_min1; ++i)
         {
             seiParser.BitRead(10); // sei_op_view_id[i]
         }
@@ -568,13 +584,14 @@ HRESULT CDecMSDKMVC::ParseMVCNestedSEI(const BYTE *buffer, size_t size, mfxU64 t
     return S_OK;
 }
 
-static const uint8_t uuid_iso_iec_11578[16] = {0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9,
+static const uint8_t uuid_iso_iec_11578[16U] = {0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9,
                                                0x8c, 0xd6, 0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66};
 
 HRESULT CDecMSDKMVC::ParseUnregUserDataSEI(const BYTE *buffer, size_t size, mfxU64 timestamp)
 {
-    if (size < 20)
+    if (size < 20) {
         return E_FAIL;
+}
 
     if (memcmp(buffer, uuid_iso_iec_11578, 16) != 0)
     {
@@ -582,7 +599,7 @@ HRESULT CDecMSDKMVC::ParseUnregUserDataSEI(const BYTE *buffer, size_t size, mfxU
         return S_FALSE;
     }
 
-    uint32_t type = AV_RB32(buffer + 16);
+    uint32_t const type = AV_RB32(buffer + 16);
 
     // Offset metadata
     if (type == 0x4F464D44)
@@ -595,15 +612,16 @@ HRESULT CDecMSDKMVC::ParseUnregUserDataSEI(const BYTE *buffer, size_t size, mfxU
 
 HRESULT CDecMSDKMVC::ParseOffsetMetadata(const BYTE *buffer, size_t size, mfxU64 timestamp)
 {
-    if (size < 10)
+    if (size < 10) {
         return E_FAIL;
+}
 
     // Skip PTS part, its not used. Start parsing at first marker bit after the PTS
     CByteParser offset(buffer + 6, size - 6);
     offset.BitSkip(2); // Skip marker and re served
 
-    unsigned int nOffsets = offset.BitRead(6);
-    unsigned int nFrames = offset.BitRead(8);
+    unsigned int const nOffsets = offset.BitRead(6);
+    unsigned int const nFrames = offset.BitRead(8);
     DbgLog((LOG_CUSTOM2, 10,
             L"CDecMSDKMVC::ParseOffsetMetadata(): offset_metadata with %d offsets and %d frames for time %I64u",
             nOffsets, nFrames, timestamp));
@@ -625,21 +643,22 @@ HRESULT CDecMSDKMVC::ParseOffsetMetadata(const BYTE *buffer, size_t size, mfxU64
 
     MVCGOP GOP;
 
-    for (unsigned int o = 0; o < nOffsets; o++)
+    for (unsigned int o = 0; o < nOffsets; ++o)
     {
-        for (unsigned int f = 0; f < nFrames; f++)
+        for (unsigned int f = 0; f < nFrames; ++f)
         {
             if (o == 0)
             {
-                MediaSideData3DOffset off = {(int)nOffsets};
+                MediaSideData3DOffset const off = {(int)nOffsets};
                 GOP.offsets.push_back(off);
             }
 
-            int direction_flag = offset.BitRead(1);
+            int const direction_flag = offset.BitRead(1);
             int value = offset.BitRead(7);
 
-            if (direction_flag)
+            if (direction_flag) {
                 value = -value;
+}
 
             GOP.offsets[f].offset[o] = value;
         }
@@ -652,16 +671,18 @@ HRESULT CDecMSDKMVC::ParseOffsetMetadata(const BYTE *buffer, size_t size, mfxU64
 
 void CDecMSDKMVC::AddFrameToGOP(mfxU64 timestamp)
 {
-    if (m_GOPs.size() > 0)
+    if (m_GOPs.size() > 0) {
         m_GOPs.back().timestamps.push_back(timestamp);
+}
 }
 
 BOOL CDecMSDKMVC::RemoveFrameFromGOP(MVCGOP *pGOP, mfxU64 timestamp)
 {
-    if (pGOP->timestamps.empty() || pGOP->offsets.empty())
+    if (pGOP->timestamps.empty() || pGOP->offsets.empty()) {
         return FALSE;
+}
 
-    auto e = std::find(pGOP->timestamps.begin(), pGOP->timestamps.end(), timestamp);
+    auto const e = std::find(pGOP->timestamps.begin(), pGOP->timestamps.end(), timestamp);
     if (e != pGOP->timestamps.end())
     {
         pGOP->timestamps.erase(e);
@@ -677,7 +698,7 @@ void CDecMSDKMVC::GetOffsetSideData(LAVFrame *pFrame, mfxU64 timestamp)
 
     // Go over all stored GOPs and find an entry for our timestamp
     // In general it should be found in the first GOP, unless we lost frames in between or something else went wrong.
-    for (auto it = m_GOPs.begin(); it != m_GOPs.end(); it++)
+    for (auto it = m_GOPs.begin(); it != m_GOPs.end(); ++it)
     {
         if (RemoveFrameFromGOP(&(*it), timestamp))
         {
@@ -689,7 +710,7 @@ void CDecMSDKMVC::GetOffsetSideData(LAVFrame *pFrame, mfxU64 timestamp)
             {
 #ifdef DEBUG
                 // Check that all to-be-erased GOPs are empty
-                for (auto itd = m_GOPs.begin(); itd < it; itd++)
+                for (auto itd = m_GOPs.begin(); itd < it; ++itd)
                 {
                     if (!itd->offsets.empty())
                     {
@@ -719,8 +740,9 @@ void CDecMSDKMVC::GetOffsetSideData(LAVFrame *pFrame, mfxU64 timestamp)
     {
         MediaSideData3DOffset *FrameOffset = (MediaSideData3DOffset *)AddLAVFrameSideData(
             pFrame, IID_MediaSideData3DOffset, sizeof(MediaSideData3DOffset));
-        if (FrameOffset)
+        if (FrameOffset) {
             *FrameOffset = offset;
+}
     }
 }
 
@@ -753,7 +775,7 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
 {
     mfxStatus sts = MFX_ERR_NONE;
 
-    ASSERT(pBaseView->surface.Info.FrameId.ViewId == 0 && pExtraView->surface.Info.FrameId.ViewId > 0);
+    ASSERT((pBaseView->surface.Info.FrameId.ViewId == 0 && pExtraView->surface.Info.FrameId.ViewId > 0));
     ASSERT(pBaseView->surface.Data.FrameOrder == pExtraView->surface.Data.FrameOrder);
 
     // Sync base view
@@ -776,22 +798,23 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
     pFrame->width = pBaseView->surface.Info.CropW;
     pFrame->height = pBaseView->surface.Info.CropH;
 
-    pFrame->data[0] = pBaseView->surface.Data.Y;
-    pFrame->data[1] = pBaseView->surface.Data.UV;
-    pFrame->stereo[0] = pExtraView->surface.Data.Y;
-    pFrame->stereo[1] = pExtraView->surface.Data.UV;
-    pFrame->data[2] = (uint8_t *)pBaseView;
-    pFrame->data[3] = (uint8_t *)pExtraView;
-    pFrame->stride[0] = pBaseView->surface.Data.PitchLow;
-    pFrame->stride[1] = pBaseView->surface.Data.PitchLow;
+    pFrame->data[0U] = pBaseView->surface.Data.Y;
+    pFrame->data[1U] = pBaseView->surface.Data.UV;
+    pFrame->stereo[0U] = pExtraView->surface.Data.Y;
+    pFrame->stereo[1U] = pExtraView->surface.Data.UV;
+    pFrame->data[2U] = (uint8_t *)pBaseView;
+    pFrame->data[3U] = (uint8_t *)pExtraView;
+    pFrame->stride[0U] = pBaseView->surface.Data.PitchLow;
+    pFrame->stride[1U] = pBaseView->surface.Data.PitchLow;
 
     pFrame->format = LAVPixFmt_NV12;
     pFrame->sw_format = pFrame->format;
     pFrame->bpp = 8;
     pFrame->flags |= LAV_FRAME_FLAG_MVC;
 
-    if (!(pBaseView->surface.Data.DataFlag & MFX_FRAMEDATA_ORIGINAL_TIMESTAMP))
+    if (!(pBaseView->surface.Data.DataFlag & MFX_FRAMEDATA_ORIGINAL_TIMESTAMP)) {
         pBaseView->surface.Data.TimeStamp = MFX_TIMESTAMP_UNKNOWN;
+}
 
     if (pBaseView->surface.Data.TimeStamp != MFX_TIMESTAMP_UNKNOWN)
     {
@@ -803,8 +826,8 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
         pFrame->rtStart = AV_NOPTS_VALUE;
     }
 
-    int64_t num = (int64_t)pBaseView->surface.Info.AspectRatioW * pFrame->width;
-    int64_t den = (int64_t)pBaseView->surface.Info.AspectRatioH * pFrame->height;
+    int64_t const num = (int64_t)pBaseView->surface.Info.AspectRatioW * pFrame->width;
+    int64_t const den = (int64_t)pBaseView->surface.Info.AspectRatioH * pFrame->height;
     av_reduce(&pFrame->aspect_ratio.num, &pFrame->aspect_ratio.den, num, den, INT_MAX);
 
     pFrame->destruct = msdk_buffer_destruct;
@@ -818,9 +841,9 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
 void CDecMSDKMVC::msdk_buffer_destruct(LAVFrame *pFrame)
 {
     CDecMSDKMVC *pDec = (CDecMSDKMVC *)pFrame->priv_data;
-    CAutoLock lock(&pDec->m_BufferCritSec);
+    CAutoLock const lock(&pDec->m_BufferCritSec);
 
-    MVCBuffer *pBaseBuffer = (MVCBuffer *)pFrame->data[2];
+    MVCBuffer *pBaseBuffer = (MVCBuffer *)pFrame->data[2U];
     MVCBuffer *pStoredBuffer = pDec->FindBuffer(&pBaseBuffer->surface);
     if (pStoredBuffer)
     {
@@ -832,7 +855,7 @@ void CDecMSDKMVC::msdk_buffer_destruct(LAVFrame *pFrame)
         SAFE_DELETE(pBaseBuffer);
     }
 
-    MVCBuffer *pExtraBuffer = (MVCBuffer *)pFrame->data[3];
+    MVCBuffer *pExtraBuffer = (MVCBuffer *)pFrame->data[3U];
     pStoredBuffer = pDec->FindBuffer(&pExtraBuffer->surface);
     if (pStoredBuffer)
     {
@@ -851,11 +874,12 @@ STDMETHODIMP CDecMSDKMVC::Flush()
 
     if (m_mfxSession)
     {
-        if (m_bDecodeReady)
+        if (m_bDecodeReady) {
             MFXVideoDECODE_Reset(m_mfxSession, &m_mfxVideoParams);
+}
         // TODO: decode sequence data
 
-        for (int i = 0; i < ASYNC_QUEUE_SIZE; i++)
+        for (int i = 0; i < ASYNC_QUEUE_SIZE; ++i)
         {
             ReleaseBuffer(&m_pOutputQueue[i]->surface);
         }
@@ -870,14 +894,15 @@ STDMETHODIMP CDecMSDKMVC::Flush()
 
 STDMETHODIMP CDecMSDKMVC::EndOfStream()
 {
-    if (!m_bDecodeReady)
+    if (!m_bDecodeReady) {
         return S_FALSE;
+}
 
     // Flush frames out of the decoder
     Decode(nullptr, 0, AV_NOPTS_VALUE, AV_NOPTS_VALUE, FALSE, FALSE, nullptr);
 
     // Process all remaining frames in the queue
-    for (int i = 0; i < ASYNC_QUEUE_SIZE; i++)
+    for (int i = 0; i < ASYNC_QUEUE_SIZE; ++i)
     {
         int nCur = (m_nOutputQueuePosition + i) % ASYNC_QUEUE_SIZE,
             nNext = (m_nOutputQueuePosition + i + 1) % ASYNC_QUEUE_SIZE;

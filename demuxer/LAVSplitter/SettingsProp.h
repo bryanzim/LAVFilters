@@ -85,7 +85,7 @@ class CLAVSplitterSettingsProp : public CBaseDSPropPage
     WCHAR m_subLangBuffer[LANG_BUFFER_SIZE];
     WCHAR m_advSubBuffer[LANG_BUFFER_SIZE];
 
-    WCHAR stringBuffer[256];
+    WCHAR stringBuffer[256U];
 };
 
 class CLAVSplitterFormatsProp : public CBaseDSPropPage
@@ -116,5 +116,5 @@ class CLAVSplitterFormatsProp : public CBaseDSPropPage
     std::set<FormatInfo> m_Formats;
     BOOL *m_bFormats = nullptr;
 
-    WCHAR stringBuffer[256];
+    WCHAR stringBuffer[256U];
 };

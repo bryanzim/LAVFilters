@@ -32,6 +32,6 @@ class CPopupMenu
     HMENU Finish();
 
   private:
-    HMENU m_hMenu = 0;
+    HMENU m_hMenu = nullptr;
     int order = 0;
 };

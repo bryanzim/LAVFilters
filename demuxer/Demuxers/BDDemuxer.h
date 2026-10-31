@@ -48,7 +48,7 @@ class CBDDemuxer
     }
 
     // CBaseDemuxer
-    STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = NULL, LPCOLESTR pszReferrer = NULL);
+    STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
     STDMETHODIMP Start();
     REFERENCE_TIME GetDuration() const;
     STDMETHODIMP GetNextPacket(Packet **ppPacket) { return m_lavfDemuxer->GetNextPacket(ppPacket); }
@@ -59,10 +59,11 @@ class CBDDemuxer
 
     CStreamList *GetStreams(StreamType type)
     {
-        if (m_lavfDemuxer)
+        if (m_lavfDemuxer) {
             return m_lavfDemuxer->GetStreams(type);
-        else
+        } else {
             return __super::GetStreams(type);
+}
     }
     HRESULT SetActiveStream(StreamType type, int pid)
     {
@@ -71,32 +72,37 @@ class CBDDemuxer
             m_lavfDemuxer->SetActiveStream(type, pid);
             return S_OK;
         }
-        else
+        else {
             return E_FAIL;
+}
     }
 
     void SettingsChanged(ILAVFSettingsInternal *pSettings)
     {
-        if (m_lavfDemuxer)
+        if (m_lavfDemuxer) {
             m_lavfDemuxer->SettingsChanged(pSettings);
+}
     }
 
     STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream)
     {
-        if (m_lavfDemuxer)
+        if (m_lavfDemuxer) {
             return m_lavfDemuxer->GetStreamFlags(dwStream);
+}
         return 0;
     }
     STDMETHODIMP_(int) GetPixelFormat(DWORD dwStream)
     {
-        if (m_lavfDemuxer)
+        if (m_lavfDemuxer) {
             return m_lavfDemuxer->GetPixelFormat(dwStream);
+}
         return AV_PIX_FMT_NONE;
     }
     STDMETHODIMP_(int) GetHasBFrames(DWORD dwStream)
     {
-        if (m_lavfDemuxer)
+        if (m_lavfDemuxer) {
             return m_lavfDemuxer->GetHasBFrames(dwStream);
+}
         return -1;
     }
 
@@ -144,7 +150,7 @@ class CBDDemuxer
   private:
     BLURAY *m_pBD = nullptr;
     AVIOContext *m_pb = nullptr;
-    char m_cBDRootPath[4096] = {0};
+    char m_cBDRootPath[4096U] = {0};
 
     ILAVFSettingsInternal *m_pSettings = nullptr;
     CLAVFDemuxer *m_lavfDemuxer = nullptr;

@@ -38,22 +38,23 @@ static const WCHAR *noTrayProcesses[] = {L"dllhost.exe", L"explorer.exe", L"ReCl
 
 BOOL CBaseTrayIcon::ProcessBlackList()
 {
-    WCHAR fileName[1024];
+    WCHAR fileName[1024U];
     GetModuleFileName(nullptr, fileName, 1024);
     WCHAR *processName = PathFindFileName(fileName);
 
-    for (int i = 0; i < countof(noTrayProcesses); i++)
+    for (int i = 0; i < countof(noTrayProcesses); ++i)
     {
-        if (_wcsicmp(processName, noTrayProcesses[i]) == 0)
+        if (_wcsicmp(processName, noTrayProcesses[i]) == 0) {
             return TRUE;
+}
     }
     return FALSE;
 }
 
 CBaseTrayIcon::CBaseTrayIcon(IBaseFilter *pFilter, const WCHAR *wszName, int resIcon)
-    : m_pFilter(pFilter)
-    , m_wszName(wszName)
-    , m_resIcon(resIcon)
+    : m_pFilter{pFilter}
+    , m_wszName{wszName}
+    , m_resIcon{resIcon}
 {
     memset(&m_NotifyIconData, 0, sizeof(m_NotifyIconData));
     m_evSetupFinished.Reset();
@@ -86,13 +87,14 @@ HRESULT CBaseTrayIcon::StartMessageThread()
 
 unsigned int WINAPI CBaseTrayIcon::InitialThreadProc(LPVOID pv)
 {
-    HRESULT hrCo = CoInitialize(nullptr);
+    HRESULT const hrCo = CoInitialize(nullptr);
 
     CBaseTrayIcon *pTrayIcon = (CBaseTrayIcon *)pv;
-    unsigned int ret = pTrayIcon->TrayMessageThread();
+    unsigned int const ret = pTrayIcon->TrayMessageThread();
 
-    if (SUCCEEDED(hrCo))
+    if (SUCCEEDED(hrCo)) {
         CoUninitialize();
+}
 
     return ret;
 }
@@ -156,7 +158,7 @@ HRESULT CBaseTrayIcon::RegisterWindowClass()
     wx.lpfnWndProc = WindowProc;
     wx.hInstance = g_hInst;
     wx.lpszClassName = m_wszClassName;
-    ATOM wndClass = RegisterClassEx(&wx);
+    ATOM const wndClass = RegisterClassEx(&wx);
 
     return !wndClass ? E_FAIL : S_OK;
 }
@@ -190,7 +192,7 @@ HRESULT CBaseTrayIcon::OpenPropPage()
     m_bPropPageOpen = TRUE;
     RECT desktopRect;
     GetWindowRect(GetDesktopWindow(), &desktopRect);
-    SetWindowPos(m_hWnd, 0, (desktopRect.right / 2) - PROP_WIDTH_OFFSET, (desktopRect.bottom / 2) - PROP_HEIGHT_OFFSET,
+    SetWindowPos(m_hWnd, nullptr, (desktopRect.right / 2) - PROP_WIDTH_OFFSET, (desktopRect.bottom / 2) - PROP_HEIGHT_OFFSET,
                  0, 0, SWP_NOZORDER | SWP_NOSIZE);
     CBaseDSPropPage::ShowPropPageDialog(m_pFilter, m_hWnd);
     m_bPropPageOpen = FALSE;
@@ -219,7 +221,7 @@ LRESULT CALLBACK CBaseTrayIcon::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, 
         break;
     case MSG_QUIT: DestroyWindow(hwnd); break;
     case MSG_TRAYICON: {
-        UINT trayMsg = LOWORD(lParam);
+        UINT const trayMsg = LOWORD(lParam);
         if (icon)
         {
             switch (trayMsg)
@@ -246,7 +248,7 @@ LRESULT CALLBACK CBaseTrayIcon::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, 
                     POINT p;
                     GetCursorPos(&p);
                     SetForegroundWindow(hwnd);
-                    int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD, p.x, p.y, 0, hwnd, nullptr);
+                    int const cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD, p.x, p.y, 0, hwnd, nullptr);
                     PostMessage(hwnd, WM_NULL, 0, 0);
                     icon->ProcessMenuCommand(hMenu, cmd);
                     DestroyMenu(hMenu);

@@ -28,7 +28,7 @@ extern "C"
 #define AVCODEC_X86_MATHOPS_H
 #include "libavcodec/get_bits.h"
 #include "libavcodec/unary.h"
-    extern __declspec(dllimport) const AVRational ff_vc1_pixel_aspect[16];
+    extern __declspec(dllimport) const AVRational ff_vc1_pixel_aspect[16U];
 };
 #pragma warning(pop)
 
@@ -73,13 +73,15 @@ static inline const uint8_t *find_next_marker(const uint8_t *src, const uint8_t 
 {
     uint32_t mrk = 0xFFFFFFFF;
 
-    if (end - src < 4)
+    if (end - src < 4) {
         return end;
+}
     while (src < end)
     {
         mrk = (mrk << 8) | *src++;
-        if (IS_MARKER(mrk))
+        if (IS_MARKER(mrk)) {
             return src - 4;
+}
     }
     return end;
 }
@@ -90,20 +92,22 @@ static inline int vc1_unescape_buffer(const uint8_t *src, int size, uint8_t *dst
 
     if (size < 4)
     {
-        for (dsize = 0; dsize < size; dsize++)
+        for (dsize = 0; dsize < size; ++dsize) {
             *dst++ = *src++;
+}
         return size;
     }
     for (i = 0; i < size; i++, src++)
     {
-        if (src[0] == 3 && i >= 2 && !src[-1] && !src[-2] && i < size - 1 && src[1] < 4)
+        if (src[0U] == 3 && i >= 2 && !src[-1] && !src[-2] && i < size - 1 && src[1U] < 4)
         {
-            dst[dsize++] = src[1];
+            dst[dsize++] = src[1U];
             src++;
             i++;
         }
-        else
+        else {
             dst[dsize++] = *src;
+}
     }
     return dsize;
 }
@@ -123,8 +127,9 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecI
     GetBitContext gb;
     if (codec == AV_CODEC_ID_VC1)
     {
-        if (length < 16)
+        if (length < 16) {
             return;
+}
 
         const uint8_t *start = pData;
         const uint8_t *end = start + length;
@@ -142,8 +147,9 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecI
         {
             next = find_next_marker(start + 4, end);
             size = (int)(next - start - 4);
-            if (size <= 0)
+            if (size <= 0) {
                 continue;
+}
             buf2_size = vc1_unescape_buffer(start + 4, size, buf2);
 
             init_get_bits(&gb, buf2, buf2_size * 8);
@@ -157,8 +163,9 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecI
     }
     else if (codec == AV_CODEC_ID_WMV3)
     {
-        if (length < 4)
+        if (length < 4) {
             return;
+}
         init_get_bits8(&gb, pData, (int)length);
         VC1ParseSequenceHeader(&gb);
     }
@@ -194,8 +201,9 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
             int w, h, ar = 0;
             w = get_bits(gb, 14) + 1;
             h = get_bits(gb, 14) + 1;
-            if (get_bits1(gb))
+            if (get_bits1(gb)) {
                 ar = get_bits(gb, 4);
+}
             if (ar && ar < 14)
             {
                 hdr.ar = ff_vc1_pixel_aspect[ar];
@@ -268,14 +276,16 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const uint8_t *buf, int bufl
         if (hdr.profile == PROFILE_ADVANCED)
         {
             int fcm = PROGRESSIVE;
-            if (hdr.interlaced)
+            if (hdr.interlaced) {
                 fcm = decode012(&gb);
+}
             if (fcm == ILACE_FIELD)
             {
-                int fptype = get_bits(&gb, 3);
+                int const fptype = get_bits(&gb, 3);
                 pictype = (fptype & 2) ? AV_PICTURE_TYPE_P : AV_PICTURE_TYPE_I;
-                if (fptype & 4) // B-picture
+                if (fptype & 4) { // B-picture
                     pictype = (fptype & 2) ? AV_PICTURE_TYPE_BI : AV_PICTURE_TYPE_B;
+}
             }
             else
             {
@@ -294,12 +304,14 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const uint8_t *buf, int bufl
         }
         else
         {
-            if (hdr.finterp)
+            if (hdr.finterp) {
                 skip_bits1(&gb);
+}
             skip_bits(&gb, 2); // framecnt
-            if (hdr.rangered)
+            if (hdr.rangered) {
                 skip_bits1(&gb);
-            int pic = get_bits1(&gb);
+}
+            int const pic = get_bits1(&gb);
             if (hdr.bframes)
             {
                 if (!pic)

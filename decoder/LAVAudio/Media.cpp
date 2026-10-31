@@ -310,8 +310,9 @@ const char *find_codec_override(AVCodecID codec)
 {
     for (int i = 0; i < countof(ffmpeg_codec_overrides); ++i)
     {
-        if (ffmpeg_codec_overrides[i].codec == codec)
+        if (ffmpeg_codec_overrides[i].codec == codec) {
             return ffmpeg_codec_overrides[i].override;
+}
     }
     return nullptr;
 }
@@ -331,8 +332,9 @@ static const scmap_t m_scmap_default[] = {
 
 DWORD get_channel_mask(int num_channels)
 {
-    if (num_channels < 1 || num_channels > 8)
+    if (num_channels < 1 || num_channels > 8) {
         return 0;
+}
     return m_scmap_default[num_channels - 1].dwChannelMask;
 }
 
@@ -344,7 +346,7 @@ const char *get_sample_format_desc(LAVAudioSampleFormat sfFormat)
     return sample_format_strings[sfFormat];
 }
 
-const char *get_sample_format_desc(CMediaType &mt)
+const char *get_sample_format_desc(CMediaType  const&mt)
 {
     LAVAudioSampleFormat format;
     if (mt.subtype == MEDIASUBTYPE_IEEE_FLOAT)
@@ -389,12 +391,13 @@ LAVAudioSampleFormat get_lav_sample_fmt(AVSampleFormat sample_fmt, int bits)
     case AV_SAMPLE_FMT_S16P:
     case AV_SAMPLE_FMT_S32:
     case AV_SAMPLE_FMT_S32P:
-        if (bits > 24 || (!bits && (sample_fmt == AV_SAMPLE_FMT_S32 || sample_fmt == AV_SAMPLE_FMT_S32P)))
+        if (bits > 24 || (!bits && (sample_fmt == AV_SAMPLE_FMT_S32 || sample_fmt == AV_SAMPLE_FMT_S32P))) {
             lav_sample_fmt = SampleFormat_32;
-        else if (bits > 16)
+        } else if (bits > 16) {
             lav_sample_fmt = SampleFormat_24;
-        else
+        } else {
             lav_sample_fmt = SampleFormat_16;
+}
         break;
     case AV_SAMPLE_FMT_DBL:
     case AV_SAMPLE_FMT_DBLP:
@@ -447,10 +450,10 @@ static BYTE get_lpcm_bit_per_sample_index(int bit_per_sample)
 void CLAVAudio::CreateBDLPCMHeader(BYTE *const pBuf, const WAVEFORMATEX_HDMV_LPCM *const wfex_lpcm) const
 {
     const BYTE channel_conf = (wfex_lpcm->cbSize >= 1) ? wfex_lpcm->channel_conf : 0;
-    pBuf[0] = 0;
-    pBuf[1] = 0;
-    pBuf[2] = ((channel_conf) << 4) | (get_lpcm_sample_rate_index(wfex_lpcm->nSamplesPerSec) & 0x0f);
-    pBuf[3] = get_lpcm_bit_per_sample_index(wfex_lpcm->wBitsPerSample) << 6;
+    pBuf[0U] = 0;
+    pBuf[1U] = 0;
+    pBuf[2U] = ((channel_conf) << 4) | (get_lpcm_sample_rate_index(wfex_lpcm->nSamplesPerSec) & 0x0f);
+    pBuf[3U] = get_lpcm_bit_per_sample_index(wfex_lpcm->wBitsPerSample) << 6;
 }
 
 static BYTE get_dvdlpcm_sample_rate_index(int sample_rate)
@@ -467,16 +470,16 @@ static BYTE get_dvdlpcm_sample_rate_index(int sample_rate)
 
 void CLAVAudio::CreateDVDLPCMHeader(BYTE *const pBuf, const WAVEFORMATEX *const wfex) const
 {
-    pBuf[0] = 0;
-    pBuf[1] = (((wfex->wBitsPerSample - 16) / 4) << 6) | (get_dvdlpcm_sample_rate_index(wfex->nSamplesPerSec) << 4) |
+    pBuf[0U] = 0;
+    pBuf[1U] = (((wfex->wBitsPerSample - 16) / 4) << 6) | (get_dvdlpcm_sample_rate_index(wfex->nSamplesPerSec) << 4) |
               ((wfex->nChannels - 1) & 7);
-    pBuf[2] = 0;
+    pBuf[2U] = 0;
 }
 
 HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const size_t extralen)
 {
     const uint8_t *fmt = extra + 4;
-    uint16_t version = AV_RB16(fmt);
+    uint16_t const version = AV_RB16(fmt);
     fmt += 2;
     if (version == 3)
     {
@@ -504,8 +507,9 @@ HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const size_t extralen
         fmt += 2; // word - subpacket size
         fmt += 2; // word - unknown
         // 6 Unknown bytes in ver 5
-        if (version == 5)
+        if (version == 5) {
             fmt += 6;
+}
         // Audio format block
         fmt += 8;
         // Tag info in v4
@@ -524,10 +528,11 @@ HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const size_t extralen
             fmt += 4;
         }
         fmt += 3;
-        if (version == 5)
+        if (version == 5) {
             fmt++;
+}
 
-        size_t ra_extralen = min((size_t)((extra + extralen) - (fmt + 4)), AV_RB32(fmt));
+        size_t const ra_extralen = min((size_t)((extra + extralen) - (fmt + 4)), AV_RB32(fmt));
         if (ra_extralen > 0)
         {
             m_pAVCtx->extradata_size = (int)ra_extralen;
@@ -561,9 +566,9 @@ template <class T> T get_sample_from_buffer(const BYTE *const pBuffer, LAVAudioS
         fSample /= INT16_MAX;
         break;
     case SampleFormat_24:
-        fSample += pBuffer[0] << 8;
-        fSample += pBuffer[1] << 16;
-        fSample += pBuffer[2] << 24;
+        fSample += pBuffer[0U] << 8;
+        fSample += pBuffer[1U] << 16;
+        fSample += pBuffer[2U] << 24;
         fSample /= INT32_MAX;
         break;
     case SampleFormat_32:
@@ -616,15 +621,16 @@ void CLAVAudio::UpdateVolumeStats(const BufferDetails &buffer)
 WORD get_channel_from_flag(DWORD dwMask, DWORD dwFlag)
 {
     WORD nChannel = 0;
-    for (int i = 0; i < MAX_SPEAKER_LAYOUT; i++)
+    for (int i = 0; i < MAX_SPEAKER_LAYOUT; ++i)
     {
-        DWORD flag = 1 << i;
+        DWORD const flag = 1 << i;
         if (dwMask & flag)
         {
-            if (dwFlag == flag)
+            if (dwFlag == flag) {
                 break;
-            else
+            } else {
                 nChannel++;
+}
         }
     }
     return nChannel;
@@ -635,15 +641,16 @@ WORD get_channel_from_flag(DWORD dwMask, DWORD dwFlag)
 DWORD get_flag_from_channel(DWORD dwMask, WORD wChannel)
 {
     WORD nChannel = 0;
-    for (int i = 0; i < MAX_SPEAKER_LAYOUT; i++)
+    for (int i = 0; i < MAX_SPEAKER_LAYOUT; ++i)
     {
-        DWORD flag = 1 << i;
+        DWORD const flag = 1 << i;
         if (dwMask & flag)
         {
-            if (nChannel == wChannel)
+            if (nChannel == wChannel) {
                 return flag;
-            else
+            } else {
                 nChannel++;
+}
         }
     }
     return 0;
@@ -654,9 +661,9 @@ static const char *channel_short_descs[] = {"L",  "R",  "C",  "LFE", "BL",  "BR"
 
 const char *get_channel_desc(DWORD dwFlag)
 {
-    for (int i = 0; i < MAX_SPEAKER_LAYOUT; i++)
+    for (int i = 0; i < MAX_SPEAKER_LAYOUT; ++i)
     {
-        DWORD flag = 1 << i;
+        DWORD const flag = 1 << i;
         if (flag & dwFlag)
         {
             return channel_short_descs[i];
@@ -706,7 +713,7 @@ const codec_config_t *get_codec_config(LAVAudioCodec codec)
 {
     codec_config_t *config = &m_codec_config[codec];
 
-    const AVCodec *avcodec = avcodec_find_decoder(config->codecs[0]);
+    const AVCodec *avcodec = avcodec_find_decoder(config->codecs[0U]);
     if (avcodec)
     {
         if (!config->name)
@@ -723,7 +730,7 @@ const codec_config_t *get_codec_config(LAVAudioCodec codec)
     return &m_codec_config[codec];
 }
 
-static LAVAudioSampleFormat sampleFormatMapping[5][5] = {
+static LAVAudioSampleFormat sampleFormatMapping[5U][5U] = {
     {SampleFormat_16, SampleFormat_24, SampleFormat_FP32, SampleFormat_32, SampleFormat_U8}, // SampleFormat_16
     {SampleFormat_24, SampleFormat_FP32, SampleFormat_32, SampleFormat_16, SampleFormat_U8}, // SampleFormat_24
     {SampleFormat_32, SampleFormat_FP32, SampleFormat_24, SampleFormat_16, SampleFormat_U8}, // SampleFormat_32
@@ -733,13 +740,14 @@ static LAVAudioSampleFormat sampleFormatMapping[5][5] = {
 
 LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleFormat inFormat, int *bits, BOOL bNoFallback)
 {
-    ASSERT(inFormat >= 0 && inFormat < SampleFormat_Bitstream);
+    ASSERT((inFormat >= 0 && inFormat < SampleFormat_Bitstream));
 
-    if (m_FallbackFormat != SampleFormat_None && !bNoFallback)
+    if (m_FallbackFormat != SampleFormat_None && !bNoFallback) {
         return m_FallbackFormat;
+}
 
-    LAVAudioSampleFormat outFormat = sampleFormatMapping[inFormat][0];
-    for (int i = 0; i < 5; i++)
+    LAVAudioSampleFormat outFormat = sampleFormatMapping[inFormat][0U];
+    for (int i = 0; i < 5; ++i)
     {
         if (GetSampleFormat(sampleFormatMapping[inFormat][i]))
         {
@@ -748,8 +756,9 @@ LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleForma
         }
     }
 
-    if (bits && outFormat != inFormat)
+    if (bits && outFormat != inFormat) {
         *bits = get_byte_per_sample(outFormat) << 3;
+}
 
     return outFormat;
 }
@@ -770,6 +779,7 @@ void lav_spdif_bswap_buf16(uint16_t *dst, const uint16_t *src, int w)
         dst[i + 6] = av_bswap16(src[i + 6]);
         dst[i + 7] = av_bswap16(src[i + 7]);
     }
-    for (; i < w; i++)
+    for (; i < w; i++) {
         dst[i + 0] = av_bswap16(src[i + 0]);
+}
 }

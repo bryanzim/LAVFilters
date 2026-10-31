@@ -1,0 +1,14 @@
+---
+description: Git commit messages do not credit Cursor
+alwaysApply: true
+---
+
+# Git commits
+
+Do not add a Cursor co-author line to a commit message. The message is only the change itself.
+
+```
+Prefer nullptr to NULL.
+```
+
+Do not append `Co-authored-by: Cursor`. Do not pass `--trailer` for a Cursor co-author. The commit author is the user only.

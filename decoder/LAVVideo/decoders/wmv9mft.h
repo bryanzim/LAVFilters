@@ -107,7 +107,7 @@ class CDecWMV9MFT : public CDecBase
 
     struct
     {
-        HMODULE mfplat = NULL;
+        HMODULE mfplat = nullptr;
         MFMETHOD(Startup);
         MFMETHOD(Shutdown);
         MFMETHOD(CreateAlignedMemoryBuffer);

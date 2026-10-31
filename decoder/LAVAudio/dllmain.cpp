@@ -62,7 +62,7 @@ CFactoryTemplate g_Templates[] = {
     {L"LAV Audio Mixer", &CLSID_LAVAudioMixingProp, CreateInstance<CLAVAudioMixingProp>, nullptr, nullptr},
     {L"LAV Audio Format Settings", &CLSID_LAVAudioFormatsProp, CreateInstance<CLAVAudioFormatsProp>, nullptr, nullptr},
     {L"LAV Audio Status", &CLSID_LAVAudioStatusProp, CreateInstance<CLAVAudioStatusProp>, nullptr, nullptr}};
-int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0]);
+int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0U]);
 
 // self-registration entrypoint
 STDAPI DllRegisterServer()

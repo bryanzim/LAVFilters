@@ -190,8 +190,9 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
     // ILAVSplitterSettingsInternal
     STDMETHODIMP_(LPCSTR) GetInputFormat()
     {
-        if (m_pDemuxer)
+        if (m_pDemuxer) {
             return m_pDemuxer->GetContainerFormat();
+}
         return nullptr;
     }
     STDMETHODIMP_(std::set<FormatInfo> &) GetInputFormats();
@@ -209,28 +210,32 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
 
     STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream)
     {
-        if (m_pDemuxer)
+        if (m_pDemuxer) {
             return m_pDemuxer->GetStreamFlags(dwStream);
+}
         return 0;
     }
     STDMETHODIMP_(int) GetPixelFormat(DWORD dwStream)
     {
-        if (m_pDemuxer)
+        if (m_pDemuxer) {
             return m_pDemuxer->GetPixelFormat(dwStream);
+}
         return AV_PIX_FMT_NONE;
     }
     STDMETHODIMP_(int) GetHasBFrames(DWORD dwStream)
     {
-        if (m_pDemuxer)
+        if (m_pDemuxer) {
             return m_pDemuxer->GetHasBFrames(dwStream);
+}
         return -1;
     }
     STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, size_t *pSize)
     {
-        if (m_pDemuxer)
+        if (m_pDemuxer) {
             return m_pDemuxer->GetSideData(dwStream, guidType, pData, pSize);
-        else
+        } else {
             return E_FAIL;
+}
     }
 
     // Settings helper

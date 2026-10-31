@@ -41,13 +41,13 @@ static void avfilter_free_lav_buffer(LAVFrame *pFrame)
 HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 {
     int ret = 0;
-    BOOL bFlush = pFrame->flags & LAV_FRAME_FLAG_FLUSH;
+    BOOL const bFlush = pFrame->flags & LAV_FRAME_FLAG_FLUSH;
     if (m_Decoder.IsInterlaced(FALSE) && m_settings.DeintMode != DeintMode_Disable &&
         m_settings.SWDeintMode != SWDeintMode_None &&
         ((bFlush && m_pFilterGraph) || pFrame->format == LAVPixFmt_YUV420 || pFrame->format == LAVPixFmt_YUV422 ||
          pFrame->format == LAVPixFmt_NV12))
     {
-        AVPixelFormat ff_pixfmt = (pFrame->format == LAVPixFmt_YUV420)
+        AVPixelFormat const ff_pixfmt = (pFrame->format == LAVPixFmt_YUV420)
                                       ? AV_PIX_FMT_YUV420P
                                       : (pFrame->format == LAVPixFmt_YUV422) ? AV_PIX_FMT_YUV422P : AV_PIX_FMT_NV12;
 
@@ -66,7 +66,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             m_filterWidth = pFrame->width;
             m_filterHeight = pFrame->height;
 
-            char args[512];
+            char args[512U];
 
             const AVFilter *buffersrc = avfilter_get_by_name("buffer");
             const AVFilter *buffersink = avfilter_get_by_name("buffersink");
@@ -80,8 +80,9 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
             // 0/0 is not a valid value for avfilter, make sure it doesn't happen
             AVRational aspect_ratio = pFrame->aspect_ratio;
-            if (aspect_ratio.num == 0 || aspect_ratio.den == 0)
+            if (aspect_ratio.num == 0 || aspect_ratio.den == 0) {
                 aspect_ratio = {0, 1};
+}
 
             _snprintf_s(args, sizeof(args), "video_size=%dx%d:pix_fmt=%s:time_base=1/10000000:pixel_aspect=%d/%d",
                         pFrame->width, pFrame->height, av_get_pix_fmt_name(ff_pixfmt), pFrame->aspect_ratio.num,
@@ -117,19 +118,19 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             inputs->pad_idx = 0;
             inputs->next = nullptr;
 
-            if (m_settings.SWDeintMode == SWDeintMode_YADIF)
+            if (m_settings.SWDeintMode == SWDeintMode_YADIF) {
                 _snprintf_s(args, sizeof(args), "yadif=mode=%s:parity=auto:deint=interlaced",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "send_field" : "send_frame");
-            else if (m_settings.SWDeintMode == SWDeintMode_W3FDIF_Simple)
+            } else if (m_settings.SWDeintMode == SWDeintMode_W3FDIF_Simple) {
                 _snprintf_s(args, sizeof(args), "w3fdif=filter=simple:deint=interlaced:mode=%s:parity=auto",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "field" : "frame");
-            else if (m_settings.SWDeintMode == SWDeintMode_W3FDIF_Complex)
+            } else if (m_settings.SWDeintMode == SWDeintMode_W3FDIF_Complex) {
                 _snprintf_s(args, sizeof(args), "w3fdif=filter=complex:deint=interlaced:mode=%s:parity=auto",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "field" : "frame");
-            else if (m_settings.SWDeintMode == SWDeintMode_BWDIF)
+            } else if (m_settings.SWDeintMode == SWDeintMode_BWDIF) {
                 _snprintf_s(args, sizeof(args), "bwdif=mode=%s:parity=auto:deint=interlaced",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "send_field" : "send_frame");
-            else
+            } else
                 ASSERT(0);
 
             if ((ret = avfilter_graph_parse_ptr(m_pFilterGraph, args, &inputs, &outputs, nullptr)) < 0)
@@ -149,12 +150,13 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             DbgLog((LOG_TRACE, 10, L":Filter()(init) avfilter Initialization complete"));
         }
 
-        if (!m_pFilterGraph)
+        if (!m_pFilterGraph) {
             goto deliver;
+}
 
         if (pFrame->direct)
         {
-            HRESULT hr = DeDirectFrame(pFrame, true);
+            HRESULT const hr = DeDirectFrame(pFrame, true);
             if (FAILED(hr))
             {
                 ReleaseFrame(&pFrame);
@@ -163,13 +165,13 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
         }
 
         AVFrame *in_frame = nullptr;
-        BOOL refcountedFrame = (m_Decoder.HasThreadSafeBuffers() == S_OK);
+        BOOL const refcountedFrame = (m_Decoder.HasThreadSafeBuffers() == S_OK);
         // When flushing, we feed a NULL frame
         if (!bFlush)
         {
             in_frame = av_frame_alloc();
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; ++i)
             {
                 in_frame->data[i] = pFrame->data[i];
                 in_frame->linesize[i] = (int)pFrame->stride[i];
@@ -187,12 +189,12 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             {
                 AVBufferRef *pFrameBuf = av_buffer_create(nullptr, 0, lav_free_lavframe, pFrame, 0);
                 const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)in_frame->format);
-                int planes = (in_frame->format == AV_PIX_FMT_NV12) ? 2 : desc->nb_components;
+                int const planes = (in_frame->format == AV_PIX_FMT_NV12) ? 2 : desc->nb_components;
 
-                for (int i = 0; i < planes; i++)
+                for (int i = 0; i < planes; ++i)
                 {
-                    int h_shift = (i == 1 || i == 2) ? desc->log2_chroma_h : 0;
-                    int plane_size = (in_frame->height >> h_shift) * in_frame->linesize[i];
+                    int const h_shift = (i == 1 || i == 2) ? desc->log2_chroma_h : 0;
+                    int const plane_size = (in_frame->height >> h_shift) * in_frame->linesize[i];
 
                     AVBufferRef *planeRef = av_buffer_ref(pFrameBuf);
                     in_frame->buf[i] = av_buffer_create(in_frame->data[i], plane_size, lav_unref_frame, planeRef,
@@ -207,8 +209,9 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
         }
         else
         {
-            if (!m_FilterPrevFrame.height) // if height is not set, the frame is most likely not valid
+            if (!m_FilterPrevFrame.height) { // if height is not set, the frame is most likely not valid
                 return S_OK;
+}
             *pFrame = m_FilterPrevFrame;
         }
 
@@ -218,7 +221,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             goto deliver;
         }
 
-        BOOL bFramePerField =
+        BOOL const bFramePerField =
             (m_settings.SWDeintMode != SWDeintMode_None && m_settings.SWDeintOutput == DeintOutput_FramePerField);
 
         AVFrame *out_frame = av_frame_alloc();
@@ -229,8 +232,9 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             AllocateFrame(&outFrame);
 
             REFERENCE_TIME rtDuration = pFrame->rtStop - pFrame->rtStart;
-            if (bFramePerField)
+            if (bFramePerField) {
                 rtDuration >>= 1;
+}
 
             // Copy most settings over
             outFrame->format = (out_frame->format == AV_PIX_FMT_YUV420P)
@@ -247,18 +251,19 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             outFrame->aspect_ratio = out_frame->sample_aspect_ratio;
             outFrame->tff = !!(out_frame->flags & AV_FRAME_FLAG_TOP_FIELD_FIRST);
 
-            REFERENCE_TIME pts = av_rescale(out_frame->pts, m_pFilterBufferSink->inputs[0]->time_base.num * 10000000LL,
-                                            m_pFilterBufferSink->inputs[0]->time_base.den);
+            REFERENCE_TIME const pts = av_rescale(out_frame->pts, m_pFilterBufferSink->inputs[0U]->time_base.num * 10000000LL,
+                                            m_pFilterBufferSink->inputs[0U]->time_base.den);
             outFrame->rtStart = pts;
             outFrame->rtStop = pts + rtDuration;
 
             if (bFramePerField)
             {
-                if (outFrame->avgFrameDuration != AV_NOPTS_VALUE)
+                if (outFrame->avgFrameDuration != AV_NOPTS_VALUE) {
                     outFrame->avgFrameDuration /= 2;
+}
             }
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; ++i)
             {
                 outFrame->data[i] = out_frame->data[i];
                 outFrame->stride[i] = out_frame->linesize[i];
@@ -270,8 +275,9 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
             hrDeliver = DeliverToRenderer(outFrame);
         }
-        if (!refcountedFrame)
+        if (!refcountedFrame) {
             ReleaseFrame(&pFrame);
+}
         av_frame_free(&in_frame);
         av_frame_free(&out_frame);
 

@@ -78,12 +78,15 @@ CMediaType CLAVFVideoHelper::initVideoType(AVCodecID codecId, unsigned int &code
     {
         if (video_map[i].codec == codecId)
         {
-            if (video_map[i].subtype)
+            if (video_map[i].subtype) {
                 mediaType.subtype = *video_map[i].subtype;
-            if (video_map[i].codecTag)
+}
+            if (video_map[i].codecTag) {
                 codecTag = video_map[i].codecTag;
-            if (video_map[i].format)
+}
+            if (video_map[i].format) {
                 mediaType.formattype = *video_map[i].format;
+}
             break;
         }
     }
@@ -112,14 +115,16 @@ CMediaType CLAVFVideoHelper::initVideoType(AVCodecID codecId, unsigned int &code
         }
         break;
     case AV_CODEC_ID_VC1:
-        if (codecTag != MKTAG('W', 'M', 'V', 'A'))
+        if (codecTag != MKTAG('W', 'M', 'V', 'A')) {
             codecTag = MKTAG('W', 'V', 'C', '1');
+}
         mediaType.formattype = FORMAT_VideoInfo2;
         mediaType.subtype = FOURCCMap(codecTag);
         break;
     case AV_CODEC_ID_DVVIDEO:
-        if (codecTag == 0)
+        if (codecTag == 0) {
             mediaType.subtype = MEDIASUBTYPE_DVCP;
+}
         break;
     }
 
@@ -133,11 +138,11 @@ DWORD avc_quant(BYTE *src, BYTE *dst, int extralen)
     BYTE *dst_end = (BYTE *)dst + extralen;
     src += 5;
     // Two runs, for sps and pps
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 2; ++i)
     {
         for (int n = *(src++) & 0x1f; n > 0; n--)
         {
-            unsigned len = (((unsigned)src[0] << 8) | src[1]) + 2;
+            unsigned const len = (((unsigned)src[0U] << 8) | src[1U]) + 2;
             if (src + len > src_end || dst + len > dst_end)
             {
                 ASSERT(0);
@@ -162,7 +167,7 @@ size_t avc_parse_annexb(BYTE *extra, int extrasize, BYTE *dst)
     {
         if (Nalu.GetType() == NALU_TYPE_SPS || Nalu.GetType() == NALU_TYPE_PPS)
         {
-            size_t len = Nalu.GetDataLength();
+            size_t const len = Nalu.GetDataLength();
             AV_WB16(dst + dstSize, (uint16_t)len);
             dstSize += 2;
             memcpy(dst + dstSize, Nalu.GetDataBuffer(), Nalu.GetDataLength());
@@ -176,8 +181,9 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
 {
     VIDEOINFOHEADER *pvi =
         (VIDEOINFOHEADER *)CoTaskMemAlloc(ULONG(sizeof(VIDEOINFOHEADER) + avstream->codecpar->extradata_size));
-    if (!pvi)
+    if (!pvi) {
         return nullptr;
+}
     memset(pvi, 0, sizeof(VIDEOINFOHEADER));
 
     REFERENCE_TIME r_avg = 0, avg_avg = 0, codec_avg = 0;
@@ -198,22 +204,24 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
     if (avg_avg >= MIN_TIME_PER_FRAME && avg_avg <= MAX_TIME_PER_FRAME)
     {
         // prefer the more accurate r_avg when its close to the average
-        if (abs(r_avg - avg_avg) < 10000)
+        if (abs(r_avg - avg_avg) < 10000) {
             pvi->AvgTimePerFrame = r_avg;
-        else
+        } else {
             pvi->AvgTimePerFrame = avg_avg;
+}
     }
-    else if (r_avg >= MIN_TIME_PER_FRAME && r_avg <= MAX_TIME_PER_FRAME)
+    else if (r_avg >= MIN_TIME_PER_FRAME && r_avg <= MAX_TIME_PER_FRAME) {
         pvi->AvgTimePerFrame = r_avg;
-    else if (codec_avg >= MIN_TIME_PER_FRAME && codec_avg <= MAX_TIME_PER_FRAME)
+    } else if (codec_avg >= MIN_TIME_PER_FRAME && codec_avg <= MAX_TIME_PER_FRAME) {
         pvi->AvgTimePerFrame = codec_avg;
-    else
+    } else {
         pvi->AvgTimePerFrame = r_avg;
+}
 
     if ((container == "matroska" || container == "mp4") && r_avg && codec_avg &&
         (avstream->codecpar->codec_id == AV_CODEC_ID_H264 || avstream->codecpar->codec_id == AV_CODEC_ID_MPEG2VIDEO))
     {
-        float factor = (float)r_avg / (float)codec_avg;
+        float const factor = (float)r_avg / (float)codec_avg;
         if ((factor > 0.4 && factor < 0.6) || (factor > 1.9 && factor < 2.1))
         {
             pvi->AvgTimePerFrame = codec_avg;
@@ -222,7 +230,7 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
 
     pvi->dwBitErrorRate = 0;
     pvi->dwBitRate = (DWORD)avstream->codecpar->bit_rate;
-    RECT empty_tagrect = {0, 0, 0, 0};
+    RECT const empty_tagrect = {0, 0, 0, 0};
     pvi->rcSource = empty_tagrect; // Some codecs like wmv are setting that value to the video current value
     pvi->rcTarget = empty_tagrect;
     pvi->rcTarget.right = pvi->rcSource.right = avstream->codecpar->width;
@@ -240,8 +248,9 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
         avstream->codecpar->format != AV_PIX_FMT_NONE)
     {
         const AVPixFmtDescriptor *pixdecs = av_pix_fmt_desc_get((AVPixelFormat)avstream->codecpar->format);
-        if (pixdecs)
+        if (pixdecs) {
             pvi->bmiHeader.biBitCount = av_get_bits_per_pixel(pixdecs);
+}
     }
     pvi->bmiHeader.biSizeImage = DIBSIZE(pvi->bmiHeader); // Calculating this value doesn't really make alot of sense,
                                                           // but apparently some decoders freak out if its 0
@@ -269,11 +278,12 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *
     if (avstream->codecpar->codec_id == AV_CODEC_ID_VC1 && avstream->codecpar->extradata_size)
     {
         int i = 0;
-        for (i = 0; i < (avstream->codecpar->extradata_size - 4); i++)
+        for (i = 0; i < (avstream->codecpar->extradata_size - 4); ++i)
         {
-            uint32_t code = AV_RB32(avstream->codecpar->extradata + i);
-            if (IS_VC1_MARKER(code))
+            uint32_t const code = AV_RB32(avstream->codecpar->extradata + i);
+            if (IS_VC1_MARKER(code)) {
                 break;
+}
         }
         if (i == 0)
         {
@@ -288,8 +298,9 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *
 
     // Create a VIH that we'll convert
     VIDEOINFOHEADER *vih = CreateVIH(avstream, size, container);
-    if (!vih)
+    if (!vih) {
         return nullptr;
+}
 
     if (avstream->codecpar->extradata_size > 0)
     {
@@ -304,8 +315,9 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *
     }
 
     VIDEOINFOHEADER2 *vih2 = (VIDEOINFOHEADER2 *)CoTaskMemAlloc(sizeof(VIDEOINFOHEADER2) + extra);
-    if (!vih2)
+    if (!vih2) {
         return nullptr;
+}
     memset(vih2, 0, sizeof(VIDEOINFOHEADER2));
 
     vih2->rcSource = vih->rcSource;
@@ -315,8 +327,8 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *
     vih2->AvgTimePerFrame = vih->AvgTimePerFrame;
 
     // Calculate aspect ratio
-    AVRational r = avstream->sample_aspect_ratio;
-    AVRational rc = avstream->codecpar->sample_aspect_ratio;
+    AVRational const r = avstream->sample_aspect_ratio;
+    AVRational const rc = avstream->codecpar->sample_aspect_ratio;
     int num = vih->bmiHeader.biWidth, den = vih->bmiHeader.biHeight;
     if (r.den > 0 && r.num > 0)
     {
@@ -370,8 +382,9 @@ MPEG1VIDEOINFO *CLAVFVideoHelper::CreateMPEG1VI(const AVStream *avstream, ULONG 
 
     // Create a VIH that we'll convert
     VIDEOINFOHEADER *vih = CreateVIH(avstream, size, container);
-    if (!vih)
+    if (!vih) {
         return nullptr;
+}
 
     if (avstream->codecpar->extradata_size > 0)
     {
@@ -380,8 +393,9 @@ MPEG1VIDEOINFO *CLAVFVideoHelper::CreateMPEG1VI(const AVStream *avstream, ULONG 
     }
 
     MPEG1VIDEOINFO *mp1vi = (MPEG1VIDEOINFO *)CoTaskMemAlloc(sizeof(MPEG1VIDEOINFO) + extra);
-    if (!mp1vi)
+    if (!mp1vi) {
         return nullptr;
+}
     memset(mp1vi, 0, sizeof(MPEG1VIDEOINFO));
 
     // The MPEG1VI is a thin wrapper around a VIH, so its easy!
@@ -414,8 +428,9 @@ MPEG2VIDEOINFO *CLAVFVideoHelper::CreateMPEG2VI(const AVStream *avstream, ULONG 
 
     // Create a VIH that we'll convert
     VIDEOINFOHEADER2 *vih2 = CreateVIH2(avstream, size, container);
-    if (!vih2)
+    if (!vih2) {
         return nullptr;
+}
 
     if (avstream->codecpar->extradata_size > 0)
     {
@@ -424,8 +439,9 @@ MPEG2VIDEOINFO *CLAVFVideoHelper::CreateMPEG2VI(const AVStream *avstream, ULONG 
     }
 
     MPEG2VIDEOINFO *mp2vi = (MPEG2VIDEOINFO *)CoTaskMemAlloc(sizeof(MPEG2VIDEOINFO) + max(extra - 4, 0));
-    if (!mp2vi)
+    if (!mp2vi) {
         return nullptr;
+}
     memset(mp2vi, 0, sizeof(MPEG2VIDEOINFO));
     memcpy(&mp2vi->hdr, vih2, sizeof(VIDEOINFOHEADER2));
     mp2vi->hdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -440,26 +456,29 @@ MPEG2VIDEOINFO *CLAVFVideoHelper::CreateMPEG2VI(const AVStream *avstream, ULONG 
         BOOL bCopyUntouched = FALSE;
         if (avstream->codecpar->codec_id == AV_CODEC_ID_H264)
         {
-            int ret = ProcessH264Extradata(extradata, extra, mp2vi, bConvertToAVC1);
-            if (ret < 0)
+            int const ret = ProcessH264Extradata(extradata, extra, mp2vi, bConvertToAVC1);
+            if (ret < 0) {
                 bCopyUntouched = TRUE;
+}
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_HEVC)
         {
-            int ret = ProcessHEVCExtradata(extradata, extra, mp2vi);
-            if (ret < 0)
+            int const ret = ProcessHEVCExtradata(extradata, extra, mp2vi);
+            if (ret < 0) {
                 bCopyUntouched = TRUE;
+}
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_VVC)
         {
-            int ret = ProcessVVCExtradata(extradata, extra, mp2vi);
-            if (ret < 0)
+            int const ret = ProcessVVCExtradata(extradata, extra, mp2vi);
+            if (ret < 0) {
                 bCopyUntouched = TRUE;
+}
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_MPEG2VIDEO)
         {
             CExtradataParser parser = CExtradataParser(extradata, extra);
-            mp2vi->cbSequenceHeader = (DWORD)parser.ParseMPEGSequenceHeader((BYTE *)&mp2vi->dwSequenceHeader[0]);
+            mp2vi->cbSequenceHeader = (DWORD)parser.ParseMPEGSequenceHeader((BYTE *)&mp2vi->dwSequenceHeader[0U]);
             mp2vi->hdr.bmiHeader.biPlanes = 1;
             mp2vi->hdr.bmiHeader.biCompression = 0;
         }
@@ -470,7 +489,7 @@ MPEG2VIDEOINFO *CLAVFVideoHelper::CreateMPEG2VI(const AVStream *avstream, ULONG 
         if (bCopyUntouched)
         {
             mp2vi->cbSequenceHeader = extra;
-            memcpy(&mp2vi->dwSequenceHeader[0], extradata, extra);
+            memcpy(&mp2vi->dwSequenceHeader[0U], extradata, extra);
         }
     }
 
@@ -485,12 +504,14 @@ HRESULT CLAVFVideoHelper::ProcessH264Extradata(BYTE *extradata, int extradata_si
 {
     if (*(char *)extradata == 1)
     {
-        if (extradata[1])
-            mp2vi->dwProfile = extradata[1];
-        if (extradata[3])
-            mp2vi->dwLevel = extradata[3];
-        mp2vi->dwFlags = (extradata[4] & 3) + 1;
-        mp2vi->cbSequenceHeader = avc_quant(extradata, (BYTE *)(&mp2vi->dwSequenceHeader[0]), extradata_size);
+        if (extradata[1U]) {
+            mp2vi->dwProfile = extradata[1U];
+}
+        if (extradata[3U]) {
+            mp2vi->dwLevel = extradata[3U];
+}
+        mp2vi->dwFlags = (extradata[4U] & 3) + 1;
+        mp2vi->cbSequenceHeader = avc_quant(extradata, (BYTE *)(&mp2vi->dwSequenceHeader[0U]), extradata_size);
     }
     else
     {
@@ -499,7 +520,7 @@ HRESULT CLAVFVideoHelper::ProcessH264Extradata(BYTE *extradata, int extradata_si
         {
             mp2vi->dwFlags = 4;
             mp2vi->cbSequenceHeader =
-                (DWORD)avc_parse_annexb(extradata, extradata_size, (BYTE *)(&mp2vi->dwSequenceHeader[0]));
+                (DWORD)avc_parse_annexb(extradata, extradata_size, (BYTE *)(&mp2vi->dwSequenceHeader[0U]));
         }
         else
         {
@@ -519,21 +540,24 @@ HRESULT CLAVFVideoHelper::ProcessH264MVCExtradata(BYTE *extradata, int extradata
         for (; i < extradata_size; i++)
         {
             state = (state << 8) | extradata[i];
-            if (state == MKBETAG('m', 'v', 'c', 'C'))
+            if (state == MKBETAG('m', 'v', 'c', 'C')) {
                 break;
+}
         }
 
-        if (i == extradata_size || i < 8)
+        if (i == extradata_size || i < 8) {
             return E_FAIL;
+}
 
         // Update pointers to the start of the mvcC atom
         extradata = extradata + i - 7;
         extradata_size = extradata_size - i + 7;
-        int sizeAtom = AV_RB32(extradata);
+        int const sizeAtom = AV_RB32(extradata);
 
         // verify size atom and actual size
-        if ((sizeAtom + 4) > extradata_size || extradata_size < 14)
+        if ((sizeAtom + 4) > extradata_size || extradata_size < 14) {
             return E_FAIL;
+}
 
         // Skip atom headers
         extradata += 8;
@@ -549,18 +573,18 @@ HRESULT CLAVFVideoHelper::ProcessH264MVCExtradata(BYTE *extradata, int extradata
 
 HRESULT CLAVFVideoHelper::ProcessHEVCExtradata(BYTE *extradata, int extradata_size, MPEG2VIDEOINFO *mp2vi)
 {
-    if (extradata[0] || extradata[1] || extradata[2] > 1 && extradata_size > 25)
+    if (extradata[0U] || extradata[1U] || extradata[2U] > 1 && extradata_size > 25)
     {
-        mp2vi->dwFlags = (extradata[21] & 3) + 1;
+        mp2vi->dwFlags = (extradata[21U] & 3) + 1;
     }
     return -1;
 }
 
 HRESULT CLAVFVideoHelper::ProcessVVCExtradata(BYTE *extradata, int extradata_size, MPEG2VIDEOINFO *mp2vi)
 {
-    if (extradata[0] || extradata[1] || extradata[2] > 1 && extradata_size > 25)
+    if (extradata[0U] || extradata[1U] || extradata[2U] > 1 && extradata_size > 25)
     {
-        mp2vi->dwFlags = (extradata[21] & 3) + 1;
+        mp2vi->dwFlags = (extradata[21U] & 3) + 1;
     }
     return -1;
 }

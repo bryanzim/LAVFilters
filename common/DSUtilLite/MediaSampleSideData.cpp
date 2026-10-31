@@ -67,9 +67,9 @@ STDMETHODIMP_(ULONG) CMediaSampleSideData::Release()
         /* Free all resources */
         if (m_dwFlags & Sample_TypeChanged)
         {
-            SetMediaType(NULL);
+            SetMediaType(nullptr);
         }
-        ASSERT(m_pMediaType == NULL);
+        ASSERT(m_pMediaType == nullptr);
         m_dwFlags = 0;
         m_dwTypeSpecificFlags = 0;
         m_dwStreamId = AM_STREAM_MEDIA;
@@ -85,9 +85,9 @@ STDMETHODIMP_(ULONG) CMediaSampleSideData::Release()
 
 void CMediaSampleSideData::ReleaseSideData()
 {
-    CAutoLock Lock(&m_csSideData);
+    CAutoLock const Lock(&m_csSideData);
 
-    for (auto it = m_SideData.begin(); it != m_SideData.end(); it++)
+    for (auto it = m_SideData.begin(); it != m_SideData.end(); ++it)
     {
         SideDataEntry *sd = &(it->second);
         _aligned_free(sd->pData);
@@ -99,12 +99,13 @@ void CMediaSampleSideData::ReleaseSideData()
 // IMediaSideData
 STDMETHODIMP CMediaSampleSideData::SetSideData(GUID guidType, const BYTE *pData, size_t size)
 {
-    if (!pData || !size)
+    if (!pData || !size) {
         return E_POINTER;
+}
 
-    CAutoLock Lock(&m_csSideData);
+    CAutoLock const Lock(&m_csSideData);
 
-    auto it = m_SideData.find(guidType);
+    auto const it = m_SideData.find(guidType);
     if (it != m_SideData.end())
     {
         SideDataEntry *sd = &(it->second);
@@ -142,12 +143,13 @@ STDMETHODIMP CMediaSampleSideData::SetSideData(GUID guidType, const BYTE *pData,
 
 STDMETHODIMP CMediaSampleSideData::GetSideData(GUID guidType, const BYTE **pData, size_t *pSize)
 {
-    if (!pData || !pSize)
+    if (!pData || !pSize) {
         return E_POINTER;
+}
 
-    CAutoLock Lock(&m_csSideData);
+    CAutoLock const Lock(&m_csSideData);
 
-    auto it = m_SideData.find(guidType);
+    auto const it = m_SideData.find(guidType);
     if (it != m_SideData.end())
     {
         *pData = it->second.pData;

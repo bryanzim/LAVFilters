@@ -45,7 +45,7 @@ ILAVDecoder *CreateDecoderWMV9MFT()
 ////////////////////////////////////////////////////////////////////////////////
 
 CDecWMV9MFT::CDecWMV9MFT(void)
-    : CDecBase()
+    : CDecBase{}
 {
     memset(&MF, 0, sizeof(MF));
 }
@@ -59,8 +59,8 @@ STDMETHODIMP CDecWMV9MFT::DestroyDecoder(bool bFull)
 {
     SAFE_DELETE(m_vc1Header);
     {
-        CAutoLock lock(&m_BufferCritSec);
-        for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); it++)
+        CAutoLock const lock(&m_BufferCritSec);
+        for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
         {
             SafeRelease(&(*it)->pBuffer);
             delete (*it);
@@ -71,8 +71,9 @@ STDMETHODIMP CDecWMV9MFT::DestroyDecoder(bool bFull)
     if (bFull)
     {
         SafeRelease(&m_pMFT);
-        if (MF.Shutdown)
+        if (MF.Shutdown) {
             MF.Shutdown();
+}
         FreeLibrary(MF.mfplat);
     }
     return S_OK;
@@ -139,12 +140,13 @@ static GUID VerifySubtype(AVCodecID codec, GUID subtype)
     }
     else
     {
-        if (subtype == MEDIASUBTYPE_WVC1 || subtype == MEDIASUBTYPE_wvc1)
+        if (subtype == MEDIASUBTYPE_WVC1 || subtype == MEDIASUBTYPE_wvc1) {
             return MEDIASUBTYPE_WVC1;
-        else if (subtype == MEDIASUBTYPE_WMVA || subtype == MEDIASUBTYPE_wmva)
+        } else if (subtype == MEDIASUBTYPE_WMVA || subtype == MEDIASUBTYPE_wmva) {
             return MEDIASUBTYPE_WMVA;
-        else // fallback
+        } else { // fallback
             return MEDIASUBTYPE_WVC1;
+}
     }
 }
 
@@ -172,11 +174,12 @@ STDMETHODIMP CDecWMV9MFT::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     if (codec == AV_CODEC_ID_VC1 && extralen)
     {
         size_t i = 0;
-        for (i = 0; i < (extralen - 4); i++)
+        for (i = 0; i < (extralen - 4); ++i)
         {
-            uint32_t code = AV_RB32(extra + i);
-            if ((code & ~0xFF) == 0x00000100)
+            uint32_t const code = AV_RB32(extra + i);
+            if ((code & ~0xFF) == 0x00000100) {
                 break;
+}
         }
         if (i == 0)
         {
@@ -295,7 +298,7 @@ IMFMediaBuffer *CDecWMV9MFT::CreateMediaBuffer(const BYTE *pData, DWORD dwDataLe
     }
 
     BYTE *pOutBuffer = nullptr;
-    hr = pBuffer->Lock(&pOutBuffer, NULL, NULL);
+    hr = pBuffer->Lock(&pOutBuffer, nullptr, nullptr);
     if (FAILED(hr))
     {
         SafeRelease(&pBuffer);
@@ -324,18 +327,20 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         DbgLog((LOG_TRACE, 10, L"-> GetInputStatus() failed with hr: 0x%x", hr));
         return S_FALSE;
     }
-    if (!(dwStatus & MFT_INPUT_STATUS_ACCEPT_DATA))
+    if (!(dwStatus & MFT_INPUT_STATUS_ACCEPT_DATA)) {
         return S_FALSE;
+}
 
     if (m_vc1Header && (m_bManualReorder || m_bNeedKeyFrame))
     {
-        AVPictureType pictype = m_vc1Header->ParseVC1PictureType(buffer, buflen);
+        AVPictureType const pictype = m_vc1Header->ParseVC1PictureType(buffer, buflen);
         if (m_bManualReorder)
         {
             if (pictype == AV_PICTURE_TYPE_I || pictype == AV_PICTURE_TYPE_P)
             {
-                if (m_bReorderBufferValid)
+                if (m_bReorderBufferValid) {
                     m_timestampQueue.push(m_rtReorderBuffer);
+}
                 m_rtReorderBuffer = rtStart;
                 m_bReorderBufferValid = TRUE;
             }
@@ -349,8 +354,9 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         {
             if (pictype != AV_PICTURE_TYPE_I)
             {
-                if (m_bManualReorder)
+                if (m_bManualReorder) {
                     m_timestampQueue.pop();
+}
                 return S_OK;
             }
             else
@@ -382,8 +388,9 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     if (rtStart != AV_NOPTS_VALUE)
     {
         pSample->SetSampleTime(rtStart);
-        if (rtStop != AV_NOPTS_VALUE && rtStop > (rtStart - 1))
+        if (rtStop != AV_NOPTS_VALUE && rtStop > (rtStart - 1)) {
             pSample->SetSampleDuration(rtStop - rtStart);
+}
     }
 
     pSample->SetUINT32(MFSampleExtension_CleanPoint, bSyncPoint);
@@ -412,7 +419,7 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
 
 static inline void memcpy_plane(BYTE *dst, const BYTE *src, ptrdiff_t width, ptrdiff_t stride, int height)
 {
-    for (int i = 0; i < height; i++)
+    for (int i = 0; i < height; ++i)
     {
         memcpy(dst, src, width);
         dst += stride;
@@ -422,11 +429,11 @@ static inline void memcpy_plane(BYTE *dst, const BYTE *src, ptrdiff_t width, ptr
 
 IMFMediaBuffer *CDecWMV9MFT::GetBuffer(DWORD dwRequiredSize)
 {
-    CAutoLock lock(&m_BufferCritSec);
+    CAutoLock const lock(&m_BufferCritSec);
     HRESULT hr;
 
     Buffer *buffer = nullptr;
-    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); it++)
+    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if (!(*it)->used)
         {
@@ -441,8 +448,9 @@ IMFMediaBuffer *CDecWMV9MFT::GetBuffer(DWORD dwRequiredSize)
         {
             SafeRelease(&buffer->pBuffer);
             hr = MF.CreateAlignedMemoryBuffer(dwRequiredSize, MF_32_BYTE_ALIGNMENT, &buffer->pBuffer);
-            if (FAILED(hr))
+            if (FAILED(hr)) {
                 return nullptr;
+}
             buffer->size = dwRequiredSize;
         }
     }
@@ -468,9 +476,9 @@ IMFMediaBuffer *CDecWMV9MFT::GetBuffer(DWORD dwRequiredSize)
 
 void CDecWMV9MFT::ReleaseBuffer(IMFMediaBuffer *pBuffer)
 {
-    CAutoLock lock(&m_BufferCritSec);
+    CAutoLock const lock(&m_BufferCritSec);
     Buffer *buffer = nullptr;
-    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); it++)
+    for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if ((*it)->pBuffer == pBuffer)
         {
@@ -484,7 +492,7 @@ void CDecWMV9MFT::ReleaseBuffer(IMFMediaBuffer *pBuffer)
 void CDecWMV9MFT::wmv9_buffer_destruct(LAVFrame *pFrame)
 {
     CDecWMV9MFT *pDec = (CDecWMV9MFT *)pFrame->priv_data;
-    IMFMediaBuffer *pMFBuffer = (IMFMediaBuffer *)pFrame->data[3];
+    IMFMediaBuffer *pMFBuffer = (IMFMediaBuffer *)pFrame->data[3U];
     pMFBuffer->Unlock();
     pDec->ReleaseBuffer(pMFBuffer);
 }
@@ -581,13 +589,14 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     pFrame->interlaced = MFGetAttributeUINT32(OutputBuffer.pSample, MFSampleExtension_Interlaced, FALSE);
     pFrame->repeat = MFGetAttributeUINT32(OutputBuffer.pSample, MFSampleExtension_RepeatFirstField, FALSE);
 
-    LAVDeintFieldOrder fo = m_pSettings->GetDeintFieldOrder();
+    LAVDeintFieldOrder const fo = m_pSettings->GetDeintFieldOrder();
     pFrame->tff = (fo == DeintFieldOrder_Auto)
                       ? !MFGetAttributeUINT32(OutputBuffer.pSample, MFSampleExtension_BottomFieldFirst, FALSE)
                       : (fo == DeintFieldOrder_TopFieldFirst);
 
-    if (pFrame->interlaced && !m_bInterlaced)
+    if (pFrame->interlaced && !m_bInterlaced) {
         m_bInterlaced = TRUE;
+}
 
     pFrame->interlaced =
         (pFrame->interlaced || (m_bInterlaced && m_pSettings->GetDeinterlacingMode() == DeintMode_Aggressive) ||
@@ -606,8 +615,9 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     // HACK: don't flag range=limited if its the only value set, since its also the implied default, this helps to avoid
     // a reconnect The MFT always sets this value, even if the bitstream says nothing about it, causing a reconnect on
     // every vc1/wmv3 file
-    if (pFrame->ext_format.value == 0x2000)
+    if (pFrame->ext_format.value == 0x2000) {
         pFrame->ext_format.value = 0;
+}
 
     // Timestamps
     if (m_bManualReorder)
@@ -646,11 +656,11 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
 
     // Lock memory in the buffer
     BYTE *pBuffer = nullptr;
-    pMFBuffer->Lock(&pBuffer, NULL, NULL);
+    pMFBuffer->Lock(&pBuffer, nullptr, nullptr);
 
     // Check alignment
     // If not properly aligned, we need to make the data aligned.
-    int alignment = (m_OutPixFmt == LAVPixFmt_NV12) ? 16 : 32;
+    int const alignment = (m_OutPixFmt == LAVPixFmt_NV12) ? 16 : 32;
     if ((pFrame->width % alignment) != 0)
     {
         hr = AllocLAVFrameBuffers(pFrame);
@@ -661,18 +671,18 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
             SafeRelease(&OutputBuffer.pSample);
             return hr;
         }
-        size_t ySize = pFrame->width * pFrame->height;
+        size_t const ySize = pFrame->width * pFrame->height;
 
-        memcpy_plane(pFrame->data[0], pBuffer, pFrame->width, pFrame->stride[0], pFrame->height);
+        memcpy_plane(pFrame->data[0U], pBuffer, pFrame->width, pFrame->stride[0U], pFrame->height);
         if (m_OutPixFmt == LAVPixFmt_NV12)
         {
-            memcpy_plane(pFrame->data[1], pBuffer + ySize, pFrame->width, pFrame->stride[1], pFrame->height / 2);
+            memcpy_plane(pFrame->data[1U], pBuffer + ySize, pFrame->width, pFrame->stride[1U], pFrame->height / 2);
         }
         else if (m_OutPixFmt == LAVPixFmt_YUV420)
         {
-            size_t uvSize = ySize / 4;
-            memcpy_plane(pFrame->data[2], pBuffer + ySize, pFrame->width / 2, pFrame->stride[2], pFrame->height / 2);
-            memcpy_plane(pFrame->data[1], pBuffer + ySize + uvSize, pFrame->width / 2, pFrame->stride[1],
+            size_t const uvSize = ySize / 4;
+            memcpy_plane(pFrame->data[2U], pBuffer + ySize, pFrame->width / 2, pFrame->stride[2U], pFrame->height / 2);
+            memcpy_plane(pFrame->data[1U], pBuffer + ySize + uvSize, pFrame->width / 2, pFrame->stride[1U],
                          pFrame->height / 2);
         }
         pMFBuffer->Unlock();
@@ -682,19 +692,19 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     {
         if (m_OutPixFmt == LAVPixFmt_NV12)
         {
-            pFrame->data[0] = pBuffer;
-            pFrame->data[1] = pBuffer + pFrame->width * pFrame->height;
-            pFrame->stride[0] = pFrame->stride[1] = pFrame->width;
+            pFrame->data[0U] = pBuffer;
+            pFrame->data[1U] = pBuffer + pFrame->width * pFrame->height;
+            pFrame->stride[0U] = pFrame->stride[1U] = pFrame->width;
         }
         else if (m_OutPixFmt == LAVPixFmt_YUV420)
         {
-            pFrame->data[0] = pBuffer;
-            pFrame->data[2] = pBuffer + pFrame->width * pFrame->height;
-            pFrame->data[1] = pFrame->data[2] + (pFrame->width / 2) * (pFrame->height / 2);
-            pFrame->stride[0] = pFrame->width;
-            pFrame->stride[1] = pFrame->stride[2] = pFrame->width / 2;
+            pFrame->data[0U] = pBuffer;
+            pFrame->data[2U] = pBuffer + pFrame->width * pFrame->height;
+            pFrame->data[1U] = pFrame->data[2U] + (pFrame->width / 2) * (pFrame->height / 2);
+            pFrame->stride[0U] = pFrame->width;
+            pFrame->stride[1U] = pFrame->stride[2U] = pFrame->width / 2;
         }
-        pFrame->data[3] = (BYTE *)pMFBuffer;
+        pFrame->data[3U] = (BYTE *)pMFBuffer;
         pFrame->destruct = wmv9_buffer_destruct;
         pFrame->priv_data = this;
     }
@@ -703,8 +713,9 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
 
     SafeRelease(&OutputBuffer.pSample);
 
-    if (OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_INCOMPLETE)
+    if (OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_INCOMPLETE) {
         return ProcessOutput();
+}
     return hr;
 }
 
@@ -723,8 +734,9 @@ STDMETHODIMP CDecWMV9MFT::Flush()
 
 STDMETHODIMP CDecWMV9MFT::EndOfStream()
 {
-    if (m_bReorderBufferValid)
+    if (m_bReorderBufferValid) {
         m_timestampQueue.push(m_rtReorderBuffer);
+}
     m_bReorderBufferValid = FALSE;
     m_rtReorderBuffer = AV_NOPTS_VALUE;
 
@@ -735,12 +747,15 @@ STDMETHODIMP CDecWMV9MFT::EndOfStream()
 
 STDMETHODIMP CDecWMV9MFT::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
 {
-    if (pPix)
+    if (pPix) {
         *pPix = (m_OutPixFmt != LAVPixFmt_None) ? m_OutPixFmt : LAVPixFmt_NV12;
-    if (pBpp)
+}
+    if (pBpp) {
         *pBpp = 8;
-    if (pPixSoftware)
+}
+    if (pPixSoftware) {
         *pPixSoftware = (m_OutPixFmt != LAVPixFmt_None) ? m_OutPixFmt : LAVPixFmt_NV12;
+}
     return S_OK;
 }
 

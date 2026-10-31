@@ -139,7 +139,7 @@ class CDecD3D11 : public CDecAvcodec
 
         HMODULE dxgilib;
         PFN_CREATE_DXGI_FACTORY1 mCreateDXGIFactory1;
-    } dx = {0};
+    } dx = {nullptr};
 
     DXGI_ADAPTER_DESC m_AdapterDesc = {0};
 

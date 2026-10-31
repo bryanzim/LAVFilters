@@ -61,7 +61,7 @@ static struct
 AVPixelFormat getFFPixelFormatFromLAV(LAVPixelFormat pixFmt, int bpp)
 {
     AVPixelFormat fmt = AV_PIX_FMT_NONE;
-    for (int i = 0; i < countof(lav_ff_pixfmt_map); i++)
+    for (int i = 0; i < countof(lav_ff_pixfmt_map); ++i)
     {
         if (lav_ff_pixfmt_map[i].pixfmt == pixFmt)
         {
@@ -104,22 +104,22 @@ AVPixelFormat getFFPixelFormatFromLAV(LAVPixelFormat pixFmt, int bpp)
 
 static void free_buffers(struct LAVFrame *pFrame)
 {
-    _aligned_free(pFrame->data[0]);
-    _aligned_free(pFrame->data[1]);
-    _aligned_free(pFrame->data[2]);
-    _aligned_free(pFrame->data[3]);
+    _aligned_free(pFrame->data[0U]);
+    _aligned_free(pFrame->data[1U]);
+    _aligned_free(pFrame->data[2U]);
+    _aligned_free(pFrame->data[3U]);
     memset(pFrame->data, 0, sizeof(pFrame->data));
 
-    _aligned_free(pFrame->stereo[0]);
-    _aligned_free(pFrame->stereo[1]);
-    _aligned_free(pFrame->stereo[2]);
-    _aligned_free(pFrame->stereo[3]);
+    _aligned_free(pFrame->stereo[0U]);
+    _aligned_free(pFrame->stereo[1U]);
+    _aligned_free(pFrame->stereo[2U]);
+    _aligned_free(pFrame->stereo[3U]);
     memset(pFrame->stereo, 0, sizeof(pFrame->stereo));
 }
 
 HRESULT AllocLAVFrameBuffers(LAVFrame *pFrame, ptrdiff_t stride)
 {
-    LAVPixFmtDesc desc = getPixelFormatDesc(pFrame->format);
+    LAVPixFmtDesc const desc = getPixelFormatDesc(pFrame->format);
 
     if (stride < pFrame->width)
     {
@@ -129,15 +129,15 @@ HRESULT AllocLAVFrameBuffers(LAVFrame *pFrame, ptrdiff_t stride)
 
     stride *= desc.codedbytes;
 
-    int alignedHeight = FFALIGN(pFrame->height, 2);
+    int const alignedHeight = FFALIGN(pFrame->height, 2);
 
     memset(pFrame->data, 0, sizeof(pFrame->data));
     memset(pFrame->stereo, 0, sizeof(pFrame->stereo));
     memset(pFrame->stride, 0, sizeof(pFrame->stride));
-    for (int plane = 0; plane < desc.planes; plane++)
+    for (int plane = 0; plane < desc.planes; ++plane)
     {
-        ptrdiff_t planeStride = stride / desc.planeWidth[plane];
-        size_t size = planeStride * (alignedHeight / desc.planeHeight[plane]);
+        ptrdiff_t const planeStride = stride / desc.planeWidth[plane];
+        size_t const size = planeStride * (alignedHeight / desc.planeHeight[plane]);
         pFrame->data[plane] = (BYTE *)_aligned_malloc(size + AV_INPUT_BUFFER_PADDING_SIZE, 64);
         if (pFrame->data[plane] == nullptr)
         {
@@ -149,9 +149,9 @@ HRESULT AllocLAVFrameBuffers(LAVFrame *pFrame, ptrdiff_t stride)
 
     if (pFrame->flags & LAV_FRAME_FLAG_MVC)
     {
-        for (int plane = 0; plane < desc.planes; plane++)
+        for (int plane = 0; plane < desc.planes; ++plane)
         {
-            size_t size = pFrame->stride[plane] * (alignedHeight / desc.planeHeight[plane]);
+            size_t const size = pFrame->stride[plane] * (alignedHeight / desc.planeHeight[plane]);
             pFrame->stereo[plane] = (BYTE *)_aligned_malloc(size + AV_INPUT_BUFFER_PADDING_SIZE, 64);
             if (pFrame->stereo[plane] == nullptr)
             {
@@ -181,7 +181,7 @@ HRESULT FreeLAVFrameBuffers(LAVFrame *pFrame)
     memset(pFrame->stereo, 0, sizeof(pFrame->stereo));
     memset(pFrame->stride, 0, sizeof(pFrame->stride));
 
-    for (int i = 0; i < pFrame->side_data_count; i++)
+    for (int i = 0; i < pFrame->side_data_count; ++i)
     {
         SAFE_CO_FREE(pFrame->side_data[i].data);
     }
@@ -193,28 +193,31 @@ HRESULT FreeLAVFrameBuffers(LAVFrame *pFrame)
 
 HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
 {
-    ASSERT(pSrc->format != LAVPixFmt_DXVA2 && pSrc->format != LAVPixFmt_D3D11);
+    ASSERT((pSrc->format != LAVPixFmt_DXVA2 && pSrc->format != LAVPixFmt_D3D11));
     *ppDst = (LAVFrame *)CoTaskMemAlloc(sizeof(LAVFrame));
-    if (!*ppDst)
+    if (!*ppDst) {
         return E_OUTOFMEMORY;
+}
     **ppDst = *pSrc;
 
     (*ppDst)->destruct = nullptr;
     (*ppDst)->priv_data = nullptr;
 
-    HRESULT hr = AllocLAVFrameBuffers(*ppDst);
-    if (FAILED(hr))
+    HRESULT const hr = AllocLAVFrameBuffers(*ppDst);
+    if (FAILED(hr)) {
         return hr;
+}
 
-    LAVPixFmtDesc desc = getPixelFormatDesc(pSrc->format);
-    for (int plane = 0; plane < desc.planes; plane++)
+    LAVPixFmtDesc const desc = getPixelFormatDesc(pSrc->format);
+    for (int plane = 0; plane < desc.planes; ++plane)
     {
-        size_t linesize = (pSrc->width / desc.planeWidth[plane]) * desc.codedbytes;
+        size_t const linesize = (pSrc->width / desc.planeWidth[plane]) * desc.codedbytes;
         BYTE *dst = (*ppDst)->data[plane];
         BYTE *src = pSrc->data[plane];
-        if (!dst || !src)
+        if (!dst || !src) {
             return E_FAIL;
-        for (int i = 0; i < (pSrc->height / desc.planeHeight[plane]); i++)
+}
+        for (int i = 0; i < (pSrc->height / desc.planeHeight[plane]); ++i)
         {
             memcpy(dst, src, linesize);
             dst += (*ppDst)->stride[plane];
@@ -225,9 +228,10 @@ HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
         {
             dst = (*ppDst)->stereo[plane];
             src = pSrc->stereo[plane];
-            if (!dst || !src)
+            if (!dst || !src) {
                 return E_FAIL;
-            for (int i = 0; i < (pSrc->height / desc.planeHeight[plane]); i++)
+}
+            for (int i = 0; i < (pSrc->height / desc.planeHeight[plane]); ++i)
             {
                 memcpy(dst, src, linesize);
                 dst += (*ppDst)->stride[plane];
@@ -238,11 +242,12 @@ HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
 
     (*ppDst)->side_data = nullptr;
     (*ppDst)->side_data_count = 0;
-    for (int i = 0; i < pSrc->side_data_count; i++)
+    for (int i = 0; i < pSrc->side_data_count; ++i)
     {
         BYTE *p = AddLAVFrameSideData(*ppDst, pSrc->side_data[i].guidType, pSrc->side_data[i].size);
-        if (p)
+        if (p) {
             memcpy(p, pSrc->side_data[i].data, pSrc->side_data[i].size);
+}
     }
 
     return S_OK;
@@ -261,16 +266,18 @@ HRESULT CopyLAVFrameInPlace(LAVFrame *pFrame)
 BYTE *AddLAVFrameSideData(LAVFrame *pFrame, GUID guidType, size_t size)
 {
     BYTE *ptr = (BYTE *)CoTaskMemRealloc(pFrame->side_data, sizeof(LAVFrameSideData) * (pFrame->side_data_count + 1));
-    if (!ptr)
-        return NULL;
+    if (!ptr) {
+        return nullptr;
+}
 
     pFrame->side_data = (LAVFrameSideData *)ptr;
     pFrame->side_data[pFrame->side_data_count].guidType = guidType;
     pFrame->side_data[pFrame->side_data_count].data = (BYTE *)CoTaskMemAlloc(size);
     pFrame->side_data[pFrame->side_data_count].size = size;
 
-    if (!pFrame->side_data[pFrame->side_data_count].data)
-        return NULL;
+    if (!pFrame->side_data[pFrame->side_data_count].data) {
+        return nullptr;
+}
 
     memset(pFrame->side_data[pFrame->side_data_count].data, 0, size);
 
@@ -281,12 +288,13 @@ BYTE *AddLAVFrameSideData(LAVFrame *pFrame, GUID guidType, size_t size)
 
 BYTE *GetLAVFrameSideData(LAVFrame *pFrame, GUID guidType, size_t *pSize)
 {
-    if (!pFrame || pFrame->side_data_count == 0)
-        return NULL;
+    if (!pFrame || pFrame->side_data_count == 0) {
+        return nullptr;
+}
 
     ASSERT(pSize);
 
-    for (int i = 0; i < pFrame->side_data_count; i++)
+    for (int i = 0; i < pFrame->side_data_count; ++i)
     {
         if (pFrame->side_data[i].guidType == guidType)
         {
@@ -295,30 +303,35 @@ BYTE *GetLAVFrameSideData(LAVFrame *pFrame, GUID guidType, size_t *pSize)
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 bool ValidateLAVFrameBuffers(LAVFrame* pFrame)
 {
-    if (pFrame->format >= LAVPixFmt_HWFormats)
+    if (pFrame->format >= LAVPixFmt_HWFormats) {
         return true;
+}
 
-    if (pFrame->format <= LAVPixFmt_None)
+    if (pFrame->format <= LAVPixFmt_None) {
         return false;
+}
 
     // direct doesn't use the pointers, but will provide them through callbacks
-    if (pFrame->direct)
+    if (pFrame->direct) {
         return true;
+}
 
-    LAVPixFmtDesc desc = getPixelFormatDesc(pFrame->format);
-    for (int i = 0; i < desc.planes; i++)
+    LAVPixFmtDesc const desc = getPixelFormatDesc(pFrame->format);
+    for (int i = 0; i < desc.planes; ++i)
     {
-        if (pFrame->data[i] == nullptr)
+        if (pFrame->data[i] == nullptr) {
             return false;
+}
 
-        ptrdiff_t min_linesize = (pFrame->width / desc.planeWidth[i]) * desc.codedbytes;
-        if (abs(pFrame->stride[i]) < min_linesize)
+        ptrdiff_t const min_linesize = (pFrame->width / desc.planeWidth[i]) * desc.codedbytes;
+        if (abs(pFrame->stride[i]) < min_linesize) {
             return false;
+}
     }
 
     return true;

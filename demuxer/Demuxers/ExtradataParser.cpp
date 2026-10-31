@@ -42,8 +42,9 @@ bool CExtradataParser::NextMPEGStartCode(BYTE &code)
     DWORD dw = (DWORD)-1;
     do
     {
-        if (!Remaining())
+        if (!Remaining()) {
             return false;
+}
         dw = (dw << 8) | (BYTE)BitRead(8);
     } while ((dw & 0xffffff00) != 0x00000100);
     code = (BYTE)(dw & 0xff);
@@ -66,7 +67,7 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
         return 0;
     }
 
-    size_t shpos = Pos() - 4;
+    size_t const shpos = Pos() - 4;
     BitRead(12); // Width
     BitRead(12); // Height
     BitRead(4);  // AR
@@ -78,7 +79,7 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
     // intra quantisizer matrix
     if (BitRead(1))
     {
-        for (uint8_t i = 0; i < 64; i++)
+        for (uint8_t i = 0; i < 64; ++i)
         {
             BitRead(8);
         }
@@ -86,13 +87,13 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
     // non-intra quantisizer matrix
     if (BitRead(1))
     {
-        for (uint8_t i = 0; i < 64; i++)
+        for (uint8_t i = 0; i < 64; ++i)
         {
             BitRead(8);
         }
     }
 
-    size_t shlen = Pos() - shpos;
+    size_t const shlen = Pos() - shpos;
 
     size_t shextpos = 0;
     size_t shextlen = 0;
@@ -101,7 +102,7 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
     { // sequence header ext
         shextpos = Pos() - 4;
 
-        int startcode = BitRead(4); // Start Code Id; TODO: DIfferent start code ids mean different length of da2a
+        int const startcode = BitRead(4); // Start Code Id; TODO: DIfferent start code ids mean different length of da2a
         ASSERT(startcode == 1);
 
         BitRead(1);  // Profile Level Escape

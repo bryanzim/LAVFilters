@@ -382,7 +382,7 @@ __forceinline static int yuv2rgb_convert_pixels(const uint8_t *&srcY, const uint
     if (dithertype == LAVDither_Random)
     {
         /* Load random dithering coeffs from the dithers buffer */
-        int offset = (pos % (DITHER_STEPS * 4 * 2)) * 6;
+        int const offset = (pos % (DITHER_STEPS * 4 * 2)) * 6;
         xmm2 = _mm_load_si128((const __m128i *)(dithers + 0 + offset));
         xmm3 = _mm_load_si128((const __m128i *)(dithers + 8 + offset));
         xmm4 = _mm_load_si128((const __m128i *)(dithers + 16 + offset));
@@ -436,7 +436,7 @@ __forceinline static int yuv2rgb_convert_pixels(const uint8_t *&srcY, const uint
     {
         // RGB 24 output is terribly inefficient due to the un-aligned size of 3 bytes per pixel
         uint32_t eax;
-        __declspec(align(16)) uint8_t rgbbuf[32];
+        __declspec(align(16)) uint8_t rgbbuf[32U];
         *(uint32_t *)rgbbuf = _mm_cvtsi128_si32(xmm1);
         xmm1 = _mm_srli_si128(xmm1, 4);
         *(uint32_t *)(rgbbuf + 3) = _mm_cvtsi128_si32(xmm1);
@@ -506,8 +506,9 @@ static int __stdcall yuv2rgb_convert(const uint8_t *srcY, const uint8_t *srcU, c
 
             line = 1;
         }
-        if (lastLine == height)
+        if (lastLine == height) {
             lastLine--;
+}
     }
     else if (lastLine == height && (lastLine & 1))
     {
@@ -517,8 +518,9 @@ static int __stdcall yuv2rgb_convert(const uint8_t *srcY, const uint8_t *srcU, c
 
     for (; line < lastLine; line += 2)
     {
-        if (dithertype == LAVDither_Random)
+        if (dithertype == LAVDither_Random) {
             lineDither = dithers + (line * 24 * DITHER_STEPS);
+}
         y = srcY + line * srcStrideY;
 
         if (inputFormat == LAVPixFmt_YUV420 || inputFormat == LAVPixFmt_NV12 || inputFormat == LAVPixFmt_P016)
@@ -548,8 +550,9 @@ static int __stdcall yuv2rgb_convert(const uint8_t *srcY, const uint8_t *srcU, c
     {
         if (sliceYEnd == height)
         {
-            if (dithertype == LAVDither_Random)
+            if (dithertype == LAVDither_Random) {
                 lineDither = dithers + ((height - 2) * 24 * DITHER_STEPS);
+}
             y = srcY + (height - 1) * srcStrideY;
             if (inputFormat == LAVPixFmt_YUV420 || inputFormat == LAVPixFmt_NV12 || inputFormat == LAVPixFmt_P016)
             {
@@ -578,8 +581,9 @@ static int __stdcall yuv2rgb_convert(const uint8_t *srcY, const uint8_t *srcU, c
 DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
 {
     const RGBCoeffs *coeffs = getRGBCoeffs(width, height);
-    if (coeffs == nullptr)
+    if (coeffs == nullptr) {
         return E_OUTOFMEMORY;
+}
 
     if (!m_bRGBConvInit)
     {
@@ -587,9 +591,9 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
         InitRGBConvDispatcher();
     }
 
-    BOOL bYCgCo = (m_ColorProps.VideoTransferMatrix == 7);
+    BOOL const bYCgCo = (m_ColorProps.VideoTransferMatrix == 7);
     int shift = max(bpp - 8, 0);
-    ASSERT(shift >= 0 && shift <= 8);
+    ASSERT((shift >= 0 && shift <= 8));
 
     int outFmt = -1;
     switch (outputFormat)
@@ -608,12 +612,14 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
     }
 
     // Map the bX formats to their normal counter part, the shift parameter controls this now
-    if (inputFormat == LAVPixFmt_YUV420bX || inputFormat == LAVPixFmt_YUV422bX || inputFormat == LAVPixFmt_YUV444bX)
+    if (inputFormat == LAVPixFmt_YUV420bX || inputFormat == LAVPixFmt_YUV422bX || inputFormat == LAVPixFmt_YUV444bX) {
         inputFormat = (LAVPixelFormat)(inputFormat - 1);
+}
 
     // P010 has the data in the high bits, so set shift appropriately
-    if (inputFormat == LAVPixFmt_P016)
+    if (inputFormat == LAVPixFmt_P016) {
         shift = 8;
+}
 
     YUVRGBConversionFunc convFn = m_RGBConvFuncs[outFmt][ditherMode][bYCgCo][inputFormat][shift];
     if (convFn == nullptr)
@@ -625,7 +631,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
     // run conversion, threaded
     if (m_NumThreads <= 1)
     {
-        convFn(src[0], src[1], src[2], dst[0], width, height, srcStride[0], srcStride[1], dstStride[0], 0, height,
+        convFn(src[0U], src[1U], src[2U], dst[0U], width, height, srcStride[0U], srcStride[1U], dstStride[0U], 0, height,
                coeffs, dithers);
     }
     else
@@ -637,7 +643,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
         Concurrency::parallel_for(0, m_NumThreads, [&](int i) {
             const ptrdiff_t starty = (i * lines_per_thread);
             const ptrdiff_t endy = (i == (m_NumThreads - 1)) ? height : starty + lines_per_thread + is_odd;
-            convFn(src[0], src[1], src[2], dst[0], width, height, srcStride[0], srcStride[1], dstStride[0],
+            convFn(src[0U], src[1U], src[2U], dst[0U], width, height, srcStride[0U], srcStride[1U], dstStride[0U],
                    starty + (i ? is_odd : 0), endy, coeffs, dithers);
         });
     }
@@ -691,8 +697,9 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
         if (!m_rgbCoeffs)
         {
             m_rgbCoeffs = (RGBCoeffs *)_aligned_malloc(sizeof(RGBCoeffs), 16);
-            if (m_rgbCoeffs == nullptr)
+            if (m_rgbCoeffs == nullptr) {
                 return nullptr;
+}
         }
 
         DXVA2_VideoTransferMatrix matrix = (DXVA2_VideoTransferMatrix)m_ColorProps.VideoTransferMatrix;
@@ -702,8 +709,8 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
                                                           : DXVA2_VideoTransferMatrix_BT601;
         }
 
-        BOOL inFullRange = (m_ColorProps.NominalRange == DXVA2_NominalRange_0_255);
-        BOOL outFullRange = (swsOutputRange == 0) ? inFullRange : (swsOutputRange == 2);
+        BOOL const inFullRange = (m_ColorProps.NominalRange == DXVA2_NominalRange_0_255);
+        BOOL const outFullRange = (swsOutputRange == 0) ? inFullRange : (swsOutputRange == 2);
 
         int inputWhite, inputBlack, inputChroma, outputWhite, outputBlack;
         if (inFullRange)
@@ -761,10 +768,10 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
             break;
         }
 
-        double in_y_range = inputWhite - inputBlack;
-        double chr_range = 128 - inputChroma;
+        double const in_y_range = inputWhite - inputBlack;
+        double const chr_range = 128 - inputChroma;
 
-        double cspOptionsRGBrange = outputWhite - outputBlack;
+        double const cspOptionsRGBrange = outputWhite - outputBlack;
 
         double y_mul, vr_mul, ug_mul, vg_mul, ub_mul;
         y_mul = cspOptionsRGBrange / in_y_range;
@@ -772,15 +779,15 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
         ug_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kb) * Kb / Kg;
         vg_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kr) * Kr / Kg;
         ub_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kb);
-        short sub = min(outputBlack, inputBlack);
-        short Ysub = inputBlack - sub;
-        short RGB_add1 = outputBlack - sub;
+        short const sub = min(outputBlack, inputBlack);
+        short const Ysub = inputBlack - sub;
+        short const RGB_add1 = outputBlack - sub;
 
-        short cy = short(y_mul * 16384 + 0.5);
-        short crv = short(vr_mul * 8192 + 0.5);
-        short cgu = short(-ug_mul * 8192 - 0.5);
-        short cgv = short(-vg_mul * 8192 - 0.5);
-        short cbu = short(ub_mul * 8192 + 0.5);
+        short const cy = short(y_mul * 16384 + 0.5);
+        short const crv = short(vr_mul * 8192 + 0.5);
+        short const cgu = short(-ug_mul * 8192 - 0.5);
+        short const cgv = short(-vg_mul * 8192 - 0.5);
+        short const cbu = short(ub_mul * 8192 + 0.5);
 
         m_rgbCoeffs->Ysub = _mm_set1_epi16(Ysub << 6);
         m_rgbCoeffs->cy = _mm_set1_epi16(cy);

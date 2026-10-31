@@ -116,10 +116,11 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
     m_llPos = 0;
     m_bURLSource = false;
 
-    if (FAILED(pPin->QueryInterface(&m_pStreamControl)))
+    if (FAILED(pPin->QueryInterface(&m_pStreamControl))) {
         m_pStreamControl = nullptr;
+}
 
-    PIN_INFO pinInfo = {0};
+    PIN_INFO pinInfo = {nullptr};
     if (SUCCEEDED(pPin->QueryPinInfo(&pinInfo)) && pinInfo.pFilter)
     {
         CLSID clsidFilter = GUID_NULL;
@@ -128,9 +129,11 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
             m_bURLSource = (clsidFilter == CLSID_URLReader);
         }
 
-        if (m_pStreamControl == nullptr)
-            if (FAILED(pinInfo.pFilter->QueryInterface(&m_pStreamControl)))
+        if (m_pStreamControl == nullptr) {
+            if (FAILED(pinInfo.pFilter->QueryInterface(&m_pStreamControl))) {
                 m_pStreamControl = nullptr;
+}
+}
 
         SafeRelease(&(pinInfo.pFilter));
     }
@@ -146,11 +149,12 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
 int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 {
     CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
-    CAutoLock lock(pin);
+    CAutoLock const lock(pin);
 
     // The URL source doesn't properly signal EOF in all cases, so make sure no stale data is in the buffer
-    if (pin->m_bURLSource)
+    if (pin->m_bURLSource) {
         memset(buf, 0, buf_size);
+}
 
     HRESULT hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, buf_size, buf);
     if (FAILED(hr))
@@ -204,7 +208,7 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 int64_t CLAVInputPin::Seek(void *opaque, int64_t offset, int whence)
 {
     CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
-    CAutoLock lock(pin);
+    CAutoLock const lock(pin);
 
     LONGLONG total = 0;
     LONGLONG available = 0;
@@ -226,13 +230,15 @@ int64_t CLAVInputPin::Seek(void *opaque, int64_t offset, int whence)
     {
         return total;
     }
-    else
+    else {
         return -1;
+}
 
-    if (pin->m_llPos > available)
+    if (pin->m_llPos > available) {
         pin->m_llPos = available;
-    else if (pin->m_llPos < 0)
+    } else if (pin->m_llPos < 0) {
         pin->m_llPos = 0;
+}
 
     return pin->m_llPos;
 }
@@ -249,7 +255,7 @@ HRESULT CLAVInputPin::GetAVIOContext(AVIOContext **ppContext)
 
         LONGLONG total = 0;
         LONGLONG available = 0;
-        HRESULT hr = m_pAsyncReader->Length(&total, &available);
+        HRESULT const hr = m_pAsyncReader->Length(&total, &available);
         if (FAILED(hr) || total == 0)
         {
             DbgLog((LOG_TRACE, 10, L"CLAVInputPin::GetAVIOContext(): getting file length failed, disabling seeking"));
@@ -276,7 +282,7 @@ STDMETHODIMP CLAVInputPin::EndFlush()
 STDMETHODIMP CLAVInputPin::SeekStream(REFERENCE_TIME rtPosition)
 {
     CheckPointer(m_pStreamControl, E_NOTIMPL);
-    HRESULT hr = m_pStreamControl->SeekStream(rtPosition);
+    HRESULT const hr = m_pStreamControl->SeekStream(rtPosition);
     if (SUCCEEDED(hr))
     {
         // flush the avio context to remove any buffered data

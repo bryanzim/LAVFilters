@@ -34,13 +34,15 @@ static inline const uint8_t *find_next_marker(const uint8_t *src, const uint8_t 
 {
     uint32_t mrk = 0xFFFFFFFF;
 
-    if (end - src < 4)
+    if (end - src < 4) {
         return end;
+}
     while (src < end)
     {
         mrk = (mrk << 8) | *src++;
-        if ((mrk & ~0xFF) == 0x00000100)
+        if ((mrk & ~0xFF) == 0x00000100) {
             return src - 4;
+}
     }
     return end;
 }
@@ -57,8 +59,9 @@ CMPEG2HeaderParser::~CMPEG2HeaderParser(void)
 
 void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, size_t length)
 {
-    if (length < 16)
+    if (length < 16) {
         return;
+}
 
     GetBitContext gb;
 
@@ -75,8 +78,9 @@ void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, size_t length)
     {
         next = find_next_marker(start + 4, end);
         size = (int)(next - start - 4);
-        if (size <= 0)
+        if (size <= 0) {
             continue;
+}
 
         init_get_bits(&gb, start + 4, (size - 4) * 8);
 
@@ -94,7 +98,7 @@ void CMPEG2HeaderParser::MPEG2ParseSequenceHeader(GetBitContext *gb)
 
 void CMPEG2HeaderParser::MPEG2ParseExtHeader(GetBitContext *gb)
 {
-    int startcode = get_bits(gb, 4); // Start Code
+    int const startcode = get_bits(gb, 4); // Start Code
     if (startcode == 1)
     {
         hdr.valid = 1;

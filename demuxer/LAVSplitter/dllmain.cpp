@@ -68,7 +68,7 @@ const AMOVIESETUP_PIN sudOutputPins[] = {{
                                              &CLSID_NULL,      // connects to filter (for bridge pins)
                                              nullptr,          // connects to pin (for bridge pins)
                                              1,                // count of registered media types
-                                             &sudMediaTypes[0] // list of registered media types
+                                             &sudMediaTypes[0U] // list of registered media types
                                          }};
 
 const AMOVIESETUP_FILTER sudFilterReg = {&__uuidof(CLAVSplitter), // filter clsid
@@ -99,7 +99,7 @@ CFactoryTemplate g_Templates[] = {
      nullptr},
     {L"LAV Splitter Input Formats", &CLSID_LAVSplitterFormatsProp, CreateInstance<CLAVSplitterFormatsProp>, nullptr,
      nullptr}};
-int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0]);
+int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0U]);
 
 // self-registration entrypoint
 STDAPI DllRegisterServer()

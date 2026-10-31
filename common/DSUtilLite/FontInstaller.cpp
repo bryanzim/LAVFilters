@@ -23,8 +23,8 @@
 #include "FontInstaller.h"
 
 CFontInstaller::CFontInstaller()
-    : pAddFontMemResourceEx(nullptr)
-    , pRemoveFontMemResourceEx(nullptr)
+    : pAddFontMemResourceEx{nullptr}
+    , pRemoveFontMemResourceEx{nullptr}
 {
     if (HMODULE hGdi = GetModuleHandle(_T("gdi32.dll")))
     {

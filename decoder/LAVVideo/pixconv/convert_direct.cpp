@@ -27,8 +27,8 @@
 // This function is only designed for NV12-like pixel formats, like NV12, P010, P016, ...
 DECLARE_CONV_FUNC_IMPL(plane_copy_direct_nv12_sse4)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const ptrdiff_t inStride = srcStride[0U];
+    const ptrdiff_t outStride = dstStride[0U];
     const ptrdiff_t chromaHeight = (height >> 1);
 
     const ptrdiff_t byteWidth =
@@ -41,10 +41,10 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_direct_nv12_sse4)
 
     ptrdiff_t line, i;
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        const uint8_t *y = (src[0] + line * inStride);
-        uint8_t *dy = (dst[0] + line * outStride);
+        const uint8_t *y = (src[0U] + line * inStride);
+        uint8_t *dy = (dst[0U] + line * outStride);
         for (i = 0; i < (stride - 63); i += 64)
         {
             PIXCONV_STREAM_LOAD(xmm0, y + i + 0);
@@ -67,10 +67,10 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_direct_nv12_sse4)
         }
     }
 
-    for (line = 0; line < chromaHeight; line++)
+    for (line = 0; line < chromaHeight; ++line)
     {
-        const uint8_t *uv = (src[1] + line * inStride);
-        uint8_t *duv = (dst[1] + line * outStride);
+        const uint8_t *uv = (src[1U] + line * inStride);
+        uint8_t *duv = (dst[1U] + line * outStride);
         for (i = 0; i < (stride - 63); i += 64)
         {
             PIXCONV_STREAM_LOAD(xmm0, uv + i + 0);
@@ -98,14 +98,14 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_direct_nv12_sse4)
 
 DECLARE_CONV_FUNC_IMPL(plane_copy_direct_sse4)
 {
-    LAVOutPixFmtDesc desc = lav_pixfmt_desc[outputFormat];
+    LAVOutPixFmtDesc const desc = lav_pixfmt_desc[outputFormat];
 
     const int widthBytes = width * desc.codedbytes;
     const int planes = max(desc.planes, 1);
 
     ptrdiff_t line, plane;
 
-    for (plane = 0; plane < planes; plane++)
+    for (plane = 0; plane < planes; ++plane)
     {
         const int planeWidth = widthBytes / desc.planeWidth[plane];
         const int planeHeight = height / desc.planeHeight[plane];
@@ -147,9 +147,9 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_direct_sse4)
 
 DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12_direct_sse4)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
-    const ptrdiff_t outChromaStride = dstStride[1];
+    const ptrdiff_t inStride = srcStride[0U];
+    const ptrdiff_t outStride = dstStride[0U];
+    const ptrdiff_t outChromaStride = dstStride[1U];
     const ptrdiff_t chromaHeight = (height >> 1);
 
     const ptrdiff_t stride = min(FFALIGN(width, 64), min(inStride, outStride));
@@ -161,10 +161,10 @@ DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12_direct_sse4)
 
     ptrdiff_t line, i;
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        const uint8_t *y = (src[0] + line * inStride);
-        uint8_t *dy = (dst[0] + line * outStride);
+        const uint8_t *y = (src[0U] + line * inStride);
+        uint8_t *dy = (dst[0U] + line * outStride);
         for (i = 0; i < (stride - 63); i += 64)
         {
             PIXCONV_STREAM_LOAD(xmm0, y + i + 0);
@@ -187,11 +187,11 @@ DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12_direct_sse4)
         }
     }
 
-    for (line = 0; line < chromaHeight; line++)
+    for (line = 0; line < chromaHeight; ++line)
     {
-        const uint8_t *uv = (src[1] + line * inStride);
-        uint8_t *dv = (dst[1] + line * outChromaStride);
-        uint8_t *du = (dst[2] + line * outChromaStride);
+        const uint8_t *uv = (src[1U] + line * inStride);
+        uint8_t *dv = (dst[1U] + line * outChromaStride);
+        uint8_t *du = (dst[2U] + line * outChromaStride);
         for (i = 0; i < (stride - 63); i += 64)
         {
             PIXCONV_STREAM_LOAD(xmm0, uv + i + 0);
@@ -246,8 +246,8 @@ DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12_direct_sse4)
 
 DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const ptrdiff_t inStride = srcStride[0U];
+    const ptrdiff_t outStride = dstStride[0U];
     const ptrdiff_t chromaHeight = (height >> 1);
 
     const ptrdiff_t byteWidth = width << 1;
@@ -255,8 +255,9 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
     const uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
-    if (dithers == nullptr)
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 
@@ -264,7 +265,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
 
     ptrdiff_t line, i;
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
@@ -280,8 +281,8 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
-        const uint8_t *y = (src[0] + line * inStride);
-        uint8_t *dy = (dst[0] + line * outStride);
+        const uint8_t *y = (src[0U] + line * inStride);
+        uint8_t *dy = (dst[0U] + line * outStride);
 
         for (i = 0; i < (stride - 63); i += 64)
         {
@@ -322,7 +323,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
         }
     }
 
-    for (line = 0; line < chromaHeight; line++)
+    for (line = 0; line < chromaHeight; ++line)
     {
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
@@ -338,8 +339,8 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
-        const uint8_t *uv = (src[1] + line * inStride);
-        uint8_t *duv = (dst[1] + line * outStride);
+        const uint8_t *uv = (src[1U] + line * inStride);
+        uint8_t *duv = (dst[1U] + line * outStride);
 
         for (i = 0; i < (stride - 63); i += 64)
         {
@@ -385,8 +386,8 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
 
 DECLARE_CONV_FUNC_IMPL(convert_y210_p210_direct_sse4)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const ptrdiff_t inStride = srcStride[0U];
+    const ptrdiff_t outStride = dstStride[0U];
 
     const ptrdiff_t byteWidth = width << 2;
     const ptrdiff_t stride = min(FFALIGN(byteWidth, 64), min(inStride, outStride << 1));
@@ -395,11 +396,11 @@ DECLARE_CONV_FUNC_IMPL(convert_y210_p210_direct_sse4)
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
     xmm7 = _mm_set1_epi32(0x0000FFFF);
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        const uint8_t *srcLine = src[0] + line * inStride;
-        uint8_t *dstY = dst[0] + line * dstStride[0];
-        uint8_t *dstUV = dst[1] + line * dstStride[1];
+        const uint8_t *srcLine = src[0U] + line * inStride;
+        uint8_t *dstY = dst[0U] + line * dstStride[0U];
+        uint8_t *dstUV = dst[1U] + line * dstStride[1U];
         for (i = 0; i < (stride - 63); i += 64)
         {
             PIXCONV_STREAM_LOAD(xmm0, srcLine + i + 0); // Y0 U Y1 V
@@ -438,8 +439,8 @@ DECLARE_CONV_FUNC_IMPL(convert_y210_p210_direct_sse4)
 
 DECLARE_CONV_FUNC_IMPL(convert_yuy2_yv16_direct_sse4)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const ptrdiff_t inStride = srcStride[0U];
+    const ptrdiff_t outStride = dstStride[0U];
 
     const ptrdiff_t byteWidth = width << 1;
     const ptrdiff_t stride = min(FFALIGN(byteWidth, 64), min(inStride, outStride << 1));
@@ -448,12 +449,12 @@ DECLARE_CONV_FUNC_IMPL(convert_yuy2_yv16_direct_sse4)
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
     xmm7 = _mm_set1_epi16(0x00FF);
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        const uint8_t *srcLine = src[0] + line * inStride;
-        uint8_t *dstY = dst[0] + line * dstStride[0];
-        uint8_t *dstV = dst[1] + line * dstStride[1];
-        uint8_t *dstU = dst[2] + line * dstStride[2];
+        const uint8_t *srcLine = src[0U] + line * inStride;
+        uint8_t *dstY = dst[0U] + line * dstStride[0U];
+        uint8_t *dstV = dst[1U] + line * dstStride[1U];
+        uint8_t *dstU = dst[2U] + line * dstStride[2U];
         for (i = 0; i < (stride - 63); i += 64)
         {
             PIXCONV_STREAM_LOAD(xmm0, srcLine + i + 0); // Y0 U Y1 V

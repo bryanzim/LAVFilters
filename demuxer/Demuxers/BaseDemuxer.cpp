@@ -24,7 +24,7 @@
 
 CBaseDemuxer::CBaseDemuxer(LPCTSTR pName, CCritSec *pLock)
     : CUnknown(pName, nullptr)
-    , m_pLock(pLock)
+    , m_pLock{pLock}
 {
     for (int i = 0; i < unknown; ++i)
     {
@@ -118,11 +118,12 @@ void CBaseDemuxer::CStreamList::Clear()
 
 CBaseDemuxer::stream *CBaseDemuxer::FindStream(DWORD pid)
 {
-    for (int i = 0; i < StreamType::unknown; i++)
+    for (int i = 0; i < StreamType::unknown; ++i)
     {
         stream *pStream = m_streams[i].FindStream(pid);
-        if (pStream)
+        if (pStream) {
             return pStream;
+}
     }
     return nullptr;
 }

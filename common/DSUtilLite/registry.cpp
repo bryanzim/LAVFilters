@@ -49,8 +49,9 @@ CRegistry::CRegistry(HKEY hkeyRoot, LPCTSTR pszSubKey, HRESULT &hr, BOOL bReadOn
 
 CRegistry::~CRegistry()
 {
-    if (m_key)
+    if (m_key) {
         RegCloseKey(*m_key);
+}
     delete m_key;
 }
 
@@ -65,8 +66,9 @@ HRESULT CRegistry::Open(HKEY hkeyRoot, LPCTSTR pszSubKey, BOOL bReadOnly, BOOL b
 
     m_key = new HKEY();
     REGSAM sam = bReadOnly ? KEY_READ : KEY_READ | KEY_WRITE;
-    if (b64Bit)
+    if (b64Bit) {
         sam |= KEY_WOW64_64KEY;
+}
     lRet = RegOpenKeyEx(hkeyRoot, pszSubKey, 0, sam, m_key);
     if (lRet != ERROR_SUCCESS)
     {
@@ -151,7 +153,7 @@ DWORD CRegistry::ReadDWORD(LPCTSTR pszKey, HRESULT &hr)
         return 0;
     }
 
-    lRet = RegQueryValueEx(*m_key, pszKey, 0, nullptr, (LPBYTE)&dwVal, &dwSize);
+    lRet = RegQueryValueEx(*m_key, pszKey, nullptr, nullptr, (LPBYTE)&dwVal, &dwSize);
 
     if (lRet != ERROR_SUCCESS)
     {
@@ -183,7 +185,7 @@ HRESULT CRegistry::WriteDWORD(LPCTSTR pszKey, DWORD dwValue)
 
 BOOL CRegistry::ReadBOOL(LPCTSTR pszKey, HRESULT &hr)
 {
-    DWORD dwVal = ReadDWORD(pszKey, hr);
+    DWORD const dwVal = ReadDWORD(pszKey, hr);
     return dwVal ? TRUE : FALSE;
 }
 

@@ -159,7 +159,7 @@ class CDecDXVA2 : public CDecAvcodec
     D3DFORMAT m_eSurfaceFormat = D3DFMT_UNKNOWN;
     DWORD m_dwVendorId = 0;
     DWORD m_dwDeviceId = 0;
-    char m_cDeviceName[512] = {0};
+    char m_cDeviceName[512U] = {0};
     GUID m_guidDecoderDevice = GUID_NULL;
     int m_DisplayDelay = DXVA2_QUEUE_SURFACES;
 

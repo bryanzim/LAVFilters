@@ -25,7 +25,7 @@
 #include "../decoders/ILAVDecoder.h"
 
 #define BLEND_FUNC_PARAMS                                                                                \
-    (BYTE * video[4], ptrdiff_t videoStride[4], RECT vidRect, BYTE * subData[4], ptrdiff_t subStride[4], \
+    (BYTE * video[4U], ptrdiff_t videoStride[4U], RECT vidRect, BYTE * subData[4U], ptrdiff_t subStride[4U], \
      POINT position, SIZE size, LAVPixelFormat pixFmt, int bpp)
 
 #define DECLARE_BLEND_FUNC(name) HRESULT name BLEND_FUNC_PARAMS
@@ -73,8 +73,11 @@ class CLAVSubtitleConsumer
 
     STDMETHODIMP DisconnectProvider()
     {
-        if (m_pProvider)
+        if (m_pProvider) { { {
             m_pProvider->Disconnect();
+}
+}
+}
         SafeRelease(&m_pProvider);
         return S_OK;
     }
@@ -88,8 +91,8 @@ class CLAVSubtitleConsumer
     }
 
   private:
-    STDMETHODIMP ProcessSubtitleBitmap(LAVPixelFormat pixFmt, int bpp, RECT videoRect, BYTE *videoData[4],
-                                       ptrdiff_t videoStride[4], RECT subRect, POINT subPosition, SIZE subSize,
+    STDMETHODIMP ProcessSubtitleBitmap(LAVPixelFormat pixFmt, int bpp, RECT videoRect, BYTE *videoData[4U],
+                                       ptrdiff_t videoStride[4U], RECT subRect, POINT subPosition, SIZE subSize,
                                        const uint8_t *rgbData, ptrdiff_t pitch);
 
     STDMETHODIMP SelectBlendFunction();

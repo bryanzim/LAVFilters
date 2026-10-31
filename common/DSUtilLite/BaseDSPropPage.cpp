@@ -40,8 +40,9 @@ HWND CBaseDSPropPage::createHintWindow(HWND parent, int timePop, int timeInit, i
 
 TOOLINFO CBaseDSPropPage::addHint(int id, const LPWSTR text)
 {
-    if (!m_hHint)
+    if (!m_hHint) {
         m_hHint = createHintWindow(m_Dlg, 15000);
+}
     TOOLINFO ti;
     ti.cbSize = sizeof(TOOLINFO);
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
@@ -78,8 +79,9 @@ HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter, HWND hwndOwner
         FILTER_INFO FilterInfo;
         hr = pFilter->QueryFilterInfo(&FilterInfo);
         // We don't need the graph, so don't sit on a ref to it
-        if (FilterInfo.pGraph)
+        if (FilterInfo.pGraph) {
             FilterInfo.pGraph->Release();
+}
 
         IUnknown *pFilterUnk = nullptr;
         pFilter->QueryInterface<IUnknown>(&pFilterUnk);

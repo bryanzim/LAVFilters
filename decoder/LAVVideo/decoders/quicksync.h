@@ -52,8 +52,9 @@ class CDecQuickSync : public CDecBase
     {
         CheckPointer(pstrDeviceName, E_POINTER);
         *pstrDeviceName = SysAllocString(L"Intel\xae QuickSync");
-        if (!*pstrDeviceName)
+        if (!*pstrDeviceName) {
             return E_OUTOFMEMORY;
+}
         return S_OK;
     }
 

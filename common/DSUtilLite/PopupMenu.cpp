@@ -27,14 +27,16 @@ CPopupMenu::CPopupMenu(void)
 
 CPopupMenu::~CPopupMenu(void)
 {
-    if (m_hMenu)
+    if (m_hMenu) {
         DestroyMenu(m_hMenu);
+}
 }
 
 HRESULT CPopupMenu::AddItem(UINT id, LPWSTR caption, BOOL checked, BOOL enabled)
 {
-    if (!m_hMenu)
+    if (!m_hMenu) {
         return E_UNEXPECTED;
+}
     MENUITEMINFO mii;
     mii.cbSize = sizeof(mii);
     mii.fMask = MIIM_ID | MIIM_STATE | MIIM_FTYPE | MIIM_STRING;
@@ -49,8 +51,9 @@ HRESULT CPopupMenu::AddItem(UINT id, LPWSTR caption, BOOL checked, BOOL enabled)
 
 HRESULT CPopupMenu::AddSeparator()
 {
-    if (!m_hMenu)
+    if (!m_hMenu) {
         return E_UNEXPECTED;
+}
     MENUITEMINFO mii;
     mii.cbSize = sizeof(mii);
     mii.fMask = MIIM_TYPE;
@@ -61,8 +64,9 @@ HRESULT CPopupMenu::AddSeparator()
 
 HRESULT CPopupMenu::AddSubmenu(HMENU hSubMenu, LPWSTR caption)
 {
-    if (!m_hMenu)
+    if (!m_hMenu) {
         return E_UNEXPECTED;
+}
     MENUITEMINFO mii;
     mii.cbSize = sizeof(mii);
     mii.fMask = MIIM_FTYPE | MIIM_STRING | MIIM_SUBMENU;

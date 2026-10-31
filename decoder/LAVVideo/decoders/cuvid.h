@@ -125,13 +125,13 @@ class CDecCuvid : public CDecBase
     IDirect3D9 *m_pD3D9 = nullptr;
     IDirect3DDevice9 *m_pD3DDevice9 = nullptr;
 
-    CUcontext m_cudaContext = 0;
-    CUvideoctxlock m_cudaCtxLock = 0;
+    CUcontext m_cudaContext = nullptr;
+    CUvideoctxlock m_cudaCtxLock = nullptr;
 
-    CUvideoparser m_hParser = 0;
+    CUvideoparser m_hParser = nullptr;
     CUVIDEOFORMATEX m_VideoParserExInfo;
 
-    CUvideodecoder m_hDecoder = 0;
+    CUvideodecoder m_hDecoder = nullptr;
     CUVIDDECODECREATEINFO m_VideoDecoderInfo;
 
     CUVIDEOFORMAT m_VideoFormat;
@@ -142,7 +142,7 @@ class CDecCuvid : public CDecBase
     CUVIDPICPARAMS m_PicParams[MAX_PIC_INDEX];
 
     BOOL m_bVDPAULevelC = FALSE;
-    char m_cudaDeviceName[256] = {0};
+    char m_cudaDeviceName[256U] = {0};
 
     BOOL m_bForceSequenceUpdate = FALSE;
     BOOL m_bInterlaced = FALSE;

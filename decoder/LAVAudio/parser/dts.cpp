@@ -49,12 +49,14 @@ struct DTSParserContext
 
 int init_dts_parser(DTSParserContext **pContext)
 {
-    if (!pContext)
+    if (!pContext) {
         return -1;
+}
 
     *pContext = (DTSParserContext *)malloc(sizeof(DTSParserContext));
-    if (*pContext == nullptr)
+    if (*pContext == nullptr) {
         return -1;
+}
     memset(*pContext, 0, sizeof(DTSParserContext));
 
     (*pContext)->gb = new GetBitContext();
@@ -64,8 +66,9 @@ int init_dts_parser(DTSParserContext **pContext)
 
 int close_dts_parser(DTSParserContext **pContext)
 {
-    if (!pContext)
+    if (!pContext) {
         return -1;
+}
 
     delete (*pContext)->gb;
     free(*pContext);
@@ -135,8 +138,8 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
 
     get_bits(gb, 32);                   /* DCA_HD_MARKER */
     get_bits(gb, 8);                    /* Unknown */
-    unsigned SubIdx = get_bits(gb, 2);  /* Substream Index */
-    unsigned blownUp = get_bits(gb, 1); /* Blown Up Header */
+    unsigned const SubIdx = get_bits(gb, 2);  /* Substream Index */
+    unsigned const blownUp = get_bits(gb, 1); /* Blown Up Header */
     if (blownUp)
     {
         get_bits(gb, 12); /* Header Size */
@@ -147,38 +150,43 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
         get_bits(gb, 8);  /* Header Size */
         get_bits(gb, 16); /* HD Size */
     }
-    unsigned staticFields = get_bits(gb, 1); /* Static fields present */
+    unsigned const staticFields = get_bits(gb, 1); /* Static fields present */
     if (staticFields)
     {
         std::vector<uint32_t> ActiveExSSMasks;
 
         get_bits(gb, 2);                 /* Reference clock code */
         get_bits(gb, 3);                 /* ExSS frame duration code */
-        if (get_bits(gb, 1))             /* Timestamp flag */
+        if (get_bits(gb, 1)) {             /* Timestamp flag */
             get_bits(gb, 36);            /* Timestamp */
+}
         NumAudio = get_bits(gb, 3) + 1;  /* Num audio present */
         NumAssets = get_bits(gb, 3) + 1; /* Num assets */
-        for (uint8_t Pos = 0; Pos < NumAudio; Pos++)
+        for (uint8_t Pos = 0; Pos < NumAudio; ++Pos)
         {
             uint32_t mask = get_bits(gb, SubIdx + 1); /* Active ExSS masks */
             ActiveExSSMasks.push_back(mask);
         }
-        for (uint8_t Pos = 0; Pos < NumAudio; Pos++)
-            for (uint8_t Pos2 = 0; Pos2 < SubIdx + 1; Pos2 += 2)
-                if (ActiveExSSMasks[Pos] % 2)
+        for (uint8_t Pos = 0; Pos < NumAudio; ++Pos) {
+            for (uint8_t Pos2 = 0; Pos2 < SubIdx + 1; Pos2 += 2) {
+                if (ActiveExSSMasks[Pos] % 2) {
                     get_bits(gb, 8); /* Active ExSS masks 2 */
+}
+}
+}
         if (get_bits(gb, 1))
         {                                    /* Mix Metadata Flag */
             get_bits(gb, 2);                 /* Mix Metadata Adjustment Level */
             unsigned bits = get_bits(gb, 2); /* Bits4Mix Mask */
             bits = 4 + bits * 4;
-            unsigned num = get_bits(gb, 2) + 1; /* Num Configs */
-            for (uint8_t Pos = 0; Pos < num; Pos++)
+            unsigned const num = get_bits(gb, 2) + 1; /* Num Configs */
+            for (uint8_t Pos = 0; Pos < num; ++Pos) {
                 get_bits(gb, bits); /* Mix Out Ch Mask */
+}
         }
     } /* END: Static Fields */
     // Sizes
-    for (uint8_t Pos = 0; Pos < NumAssets; Pos++)
+    for (uint8_t Pos = 0; Pos < NumAssets; ++Pos)
     {
         if (blownUp)
         {
@@ -190,21 +198,24 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
         }
     }
 
-    for (uint8_t Pos = 0; Pos < NumAssets; Pos++)
+    for (uint8_t Pos = 0; Pos < NumAssets; ++Pos)
     {
         get_bits(gb, 9); /* Asset Size */
         get_bits(gb, 3); /* Asset Descriptor Data */
         if (staticFields)
         {
-            if (get_bits(gb, 1))  /* Asset type descriptor present */
+            if (get_bits(gb, 1)) {  /* Asset type descriptor present */
                 get_bits(gb, 4);  /* Asset type descriptor */
-            if (get_bits(gb, 1))  /* Language descriptor present */
+}
+            if (get_bits(gb, 1)) {  /* Language descriptor present */
                 get_bits(gb, 24); /* Language descriptor */
+}
             if (get_bits(gb, 1))
             {                                          /* Info text present */
-                unsigned bytes = get_bits(gb, 10) + 1; /* Info text size */
-                for (unsigned Pos = 0; Pos < bytes; Pos++)
+                unsigned const bytes = get_bits(gb, 10) + 1; /* Info text size */
+                for (unsigned Pos = 0; Pos < bytes; ++Pos) {
                     get_bits(gb, 8); /* Info Text */
+}
             }
             get_bits(gb, 5);                                /* Bit Resolution */
             get_bits(gb, 4);                                /* Maximum Sample Rate */
@@ -212,10 +223,12 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
             if (get_bits(gb, 1))
             { /* 1 to 1 speaker map present */
                 unsigned SpeakerActivityMaskBits = 0, SpeakerRemapSetsCount;
-                if (pHeader->HDTotalChannels > 2)
+                if (pHeader->HDTotalChannels > 2) {
                     get_bits(gb, 1); /* Embedded stereo flag */
-                if (pHeader->HDTotalChannels > 6)
+}
+                if (pHeader->HDTotalChannels > 6) {
                     get_bits(gb, 1); /* Embedded 6 channels flag */
+}
                 if (get_bits(gb, 1))
                 {                                              /* Speaker Mask Flag */
                     SpeakerActivityMaskBits = get_bits(gb, 2); /* Speaker mask bits */
@@ -223,10 +236,11 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
                     pHeader->HDSpeakerMask = get_bits(gb, SpeakerActivityMaskBits); /* Speaker activity Mask */
                 }
                 SpeakerRemapSetsCount = get_bits(gb, 3); /* Speaker remap sets count */
-                for (uint8_t Pos = 0; Pos < SpeakerRemapSetsCount; Pos++)
+                for (uint8_t Pos = 0; Pos < SpeakerRemapSetsCount; ++Pos) {
                     get_bits(gb, SpeakerActivityMaskBits); /* Standard Speaker Layout mask */
+}
                                                            /* unfinished
-                                                           for (uint8_t Pos = 0; Pos < SpeakerRemapSetsCount; Pos++)
+                                                           for (uint8_t Pos = 0; Pos < SpeakerRemapSetsCount; ++Pos)
                                                            get_bits(gb, 5);                            /* NumDecCh4Remap
                                                            */
             }
@@ -238,17 +252,19 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
 
 int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pBuffer, unsigned uSize)
 {
-    if (!pContext)
+    if (!pContext) {
         return -1;
-    if (!pHeader)
+}
+    if (!pHeader) {
         return -1;
+}
 
     unsigned ExtDescriptor = 0, ExtCoding = 0;
 
     uint8_t dts_buffer[32 + AV_INPUT_BUFFER_PADDING_SIZE] = {0};
-    int ret = avpriv_dca_convert_bitstream(pBuffer, uSize, dts_buffer, 32);
+    int const ret = avpriv_dca_convert_bitstream(pBuffer, uSize, dts_buffer, 32);
 
-    bool is16be = (AV_RB32(pBuffer) == DCA_MARKER_RAW_BE);
+    bool const is16be = (AV_RB32(pBuffer) == DCA_MARKER_RAW_BE);
 
     /* Parse Core Header */
     if (ret >= 0)
@@ -265,7 +281,7 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pB
         pHeader->Blocks = get_bits(gb, 7) + 1;          /* Number of Blocks */
         pHeader->FrameSize = get_bits(gb, 14) + 1;      /* Primary (core) Frame Size */
         pHeader->ChannelLayout = get_bits(gb, 6);       /* Channel configuration */
-        unsigned sample_index = get_bits(gb, 4);        /* Sample frequency index */
+        unsigned const sample_index = get_bits(gb, 4);        /* Sample frequency index */
         pHeader->SampleRate = ff_dca_sample_rates[sample_index];
         skip_bits(gb, 5);                /* Bitrate index */
         skip_bits1(gb);                  /* Down mix */
@@ -278,8 +294,9 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pB
         skip_bits1(gb);                  /* ASPF */
         pHeader->LFE = get_bits(gb, 2);  /* LFE */
         skip_bits1(gb);                  /* Predictor History */
-        if (pHeader->CRCPresent)
+        if (pHeader->CRCPresent) {
             skip_bits(gb, 16);       /* CRC */
+}
         skip_bits1(gb);              /* Multirate Interpolator */
         skip_bits(gb, 4);            /* Encoder Software Revision */
         skip_bits(gb, 2);            /* Copy history */
@@ -290,16 +307,18 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pB
         skip_bits(gb, 4);            /* Dialog Normalization Parameter or Unspecified (dependent on encoder version) */
 
         // Check some basic validity
-        if (uSize < pHeader->FrameSize)
+        if (uSize < pHeader->FrameSize) {
             return -1;
+}
     }
     else
     {
         pHeader->HasCore = 0;
     }
 
-    if (pHeader->HasCore && !is16be)
+    if (pHeader->HasCore && !is16be) {
         return 0;
+}
 
     // DTS-HD parsing
     const uint8_t *pHD = nullptr;
@@ -317,20 +336,20 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pB
     if (pHD)
     {
         pHeader->IsHD = 1;
-        size_t remaining = uSize - (pHD - pBuffer);
+        size_t const remaining = uSize - (pHD - pBuffer);
         parse_dts_hd_header(pContext, pHeader, pHD, (unsigned)remaining);
 
         const uint8_t *pXChHD = find_marker32_position(pHD, remaining, DCA_XCH_MARKER);
         if (pXChHD)
         {
-            size_t remaining = uSize - (pXChHD - pBuffer);
+            size_t const remaining = uSize - (pXChHD - pBuffer);
             parse_dts_xch_hd_header(pContext, pHeader, pXChHD, (unsigned)remaining);
         }
 
         const uint8_t *pXXChHD = find_marker32_position(pHD, remaining, DCA_XXCH_MARKER);
         if (pXXChHD)
         {
-            size_t remaining = uSize - (pXXChHD - pBuffer);
+            size_t const remaining = uSize - (pXXChHD - pBuffer);
             parse_dts_xxch_hd_header(pContext, pHeader, pXXChHD, (unsigned)remaining);
         }
     }
@@ -338,13 +357,13 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pB
     // Handle DTS extensions
     if (ExtCoding)
     {
-        size_t coreSize = pHD ? (pHD - pBuffer) : uSize;
+        size_t const coreSize = pHD ? (pHD - pBuffer) : uSize;
         if (ExtDescriptor == 0 || ExtDescriptor == 3)
         {
             const uint8_t *pXCh = find_marker32_position(pBuffer, coreSize, DCA_XCH_MARKER);
             if (pXCh)
             {
-                size_t remaining = coreSize - (pXCh - pBuffer);
+                size_t const remaining = coreSize - (pXCh - pBuffer);
                 parse_dts_xch_header(pContext, pHeader, pXCh, (unsigned)remaining);
             }
         }
@@ -353,7 +372,7 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pB
             const uint8_t *pXXCh = find_marker32_position(pBuffer, coreSize, DCA_XXCH_MARKER);
             if (pXXCh)
             {
-                size_t remaining = coreSize - (pXXCh - pBuffer);
+                size_t const remaining = coreSize - (pXXCh - pBuffer);
                 parse_dts_xxch_header(pContext, pHeader, pXXCh, (unsigned)remaining);
             }
         }

@@ -23,7 +23,7 @@
 
 CVideoOutputPin::CVideoOutputPin(LPCTSTR pObjectName, CLAVVideo *pFilter, HRESULT *phr, LPCWSTR pName)
     : CTransformOutputPin(pObjectName, (CTransformFilter *)pFilter, phr, pName)
-    , m_pFilter(pFilter)
+    , m_pFilter{pFilter}
 {
 }
 
@@ -36,8 +36,9 @@ HRESULT CVideoOutputPin::InitAllocator(IMemAllocator **ppAlloc)
     HRESULT hr = S_FALSE;
     hr = m_pFilter->m_Decoder.InitAllocator(ppAlloc);
 
-    if (hr != S_OK)
+    if (hr != S_OK) {
         hr = __super::InitAllocator(ppAlloc);
+}
 
     return hr;
 }

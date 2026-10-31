@@ -28,9 +28,9 @@ extern "C"
 
 CD3D11MediaSample::CD3D11MediaSample(CD3D11SurfaceAllocator *pAllocator, AVFrame *pFrame, HRESULT *phr)
     : CMediaSampleSideData(NAME("CD3D11MediaSample"), (CBaseAllocator *)pAllocator, phr, nullptr, 0)
-    , m_pFrame(pFrame)
+    , m_pFrame{pFrame}
 {
-    ASSERT(m_pFrame && m_pFrame->format == AV_PIX_FMT_D3D11);
+    ASSERT((m_pFrame && m_pFrame->format == AV_PIX_FMT_D3D11));
     pAllocator->AddRef();
 
     m_pAllocatorCookie = pAllocator->m_pFramesCtx;
@@ -68,7 +68,7 @@ STDMETHODIMP_(ULONG) CD3D11MediaSample::AddRef()
 STDMETHODIMP_(ULONG) CD3D11MediaSample::Release()
 {
     // Return a temporary variable for thread safety.
-    ULONG cRef = __super::Release();
+    ULONG const cRef = __super::Release();
     return cRef;
 }
 
@@ -78,13 +78,14 @@ STDMETHODIMP CD3D11MediaSample::GetD3D11Texture(int nView, ID3D11Texture2D **ppT
     CheckPointer(pArraySlice, E_POINTER);
 
     // only view 0 is implemented at this time
-    if (nView != 0)
+    if (nView != 0) {
         return E_INVALIDARG;
+}
 
     if (m_pFrame)
     {
-        *ppTexture = (ID3D11Texture2D *)m_pFrame->data[0];
-        *pArraySlice = (UINT)(intptr_t)m_pFrame->data[1];
+        *ppTexture = (ID3D11Texture2D *)m_pFrame->data[0U];
+        *pArraySlice = (UINT)(intptr_t)m_pFrame->data[1U];
 
         (*ppTexture)->AddRef();
 
@@ -105,21 +106,23 @@ STDMETHODIMP CD3D11MediaSample::GetAVFrameBuffer(AVFrame *pFrame)
     CheckPointer(pFrame, E_POINTER);
 
     // reference bufs
-    for (int i = 0; i < AV_NUM_DATA_POINTERS; i++)
+    for (int i = 0; i < AV_NUM_DATA_POINTERS; ++i)
     {
         // copy existing refs
         if (m_pFrame->buf[i])
         {
             pFrame->buf[i] = av_buffer_ref(m_pFrame->buf[i]);
-            if (pFrame->buf[i] == 0)
+            if (pFrame->buf[i] == nullptr) {
                 return E_OUTOFMEMORY;
+}
         }
         else
         {
             // and add a ref to this sample
             pFrame->buf[i] = av_buffer_create((uint8_t *)this, 1, bufref_release_sample, this, 0);
-            if (pFrame->buf[i] == 0)
+            if (pFrame->buf[i] == nullptr) {
                 return E_OUTOFMEMORY;
+}
 
             AddRef();
             break;
@@ -130,9 +133,9 @@ STDMETHODIMP CD3D11MediaSample::GetAVFrameBuffer(AVFrame *pFrame)
     pFrame->hw_frames_ctx = av_buffer_ref(m_pFrame->hw_frames_ctx);
 
     // copy data into the new frame
-    pFrame->data[0] = m_pFrame->data[0];
-    pFrame->data[1] = m_pFrame->data[1];
-    pFrame->data[3] = (uint8_t *)this;
+    pFrame->data[0U] = m_pFrame->data[0U];
+    pFrame->data[1U] = m_pFrame->data[1U];
+    pFrame->data[3U] = (uint8_t *)this;
 
     pFrame->format = AV_PIX_FMT_D3D11;
 
@@ -141,7 +144,7 @@ STDMETHODIMP CD3D11MediaSample::GetAVFrameBuffer(AVFrame *pFrame)
 
 CD3D11SurfaceAllocator::CD3D11SurfaceAllocator(CDecD3D11 *pDec, HRESULT *phr)
     : CBaseAllocator(NAME("CD3D11SurfaceAllocator"), nullptr, phr)
-    , m_pDec(pDec)
+    , m_pDec{pDec}
 {
 }
 
@@ -154,14 +157,16 @@ HRESULT CD3D11SurfaceAllocator::Alloc(void)
     DbgLog((LOG_TRACE, 10, L"CD3D11SurfaceAllocator::Alloc()"));
     HRESULT hr = S_OK;
 
-    CAutoLock cObjectLock(this);
+    CAutoLock const cObjectLock(this);
 
-    if (m_pDec == nullptr)
+    if (m_pDec == nullptr) {
         return E_FAIL;
+}
 
     hr = __super::Alloc();
-    if (FAILED(hr))
+    if (FAILED(hr)) {
         return hr;
+}
 
     // free old resources
     // m_pDec->FlushFromAllocator();
@@ -169,18 +174,20 @@ HRESULT CD3D11SurfaceAllocator::Alloc(void)
 
     // get the frames context from the decoder
     AVBufferRef *pDecoderFramesCtx = m_pDec->m_pFramesCtx;
-    if (pDecoderFramesCtx == nullptr)
+    if (pDecoderFramesCtx == nullptr) {
         return S_FALSE;
+}
 
     m_pFramesCtx = av_buffer_ref(pDecoderFramesCtx);
-    if (m_pFramesCtx == nullptr)
+    if (m_pFramesCtx == nullptr) {
         return E_FAIL;
+}
 
     // create samples
-    for (int i = 0; i < m_lCount; i++)
+    for (int i = 0; i < m_lCount; ++i)
     {
         AVFrame *pFrame = av_frame_alloc();
-        int ret = av_hwframe_get_buffer(m_pFramesCtx, pFrame, 0);
+        int const ret = av_hwframe_get_buffer(m_pFramesCtx, pFrame, 0);
         if (ret < 0)
         {
             av_frame_free(&pFrame);
@@ -207,7 +214,7 @@ HRESULT CD3D11SurfaceAllocator::Alloc(void)
 
 void CD3D11SurfaceAllocator::Free(void)
 {
-    CAutoLock lock(this);
+    CAutoLock const lock(this);
     CMediaSample *pSample = nullptr;
 
     do
@@ -241,10 +248,11 @@ STDMETHODIMP CD3D11SurfaceAllocator::ReleaseBuffer(IMediaSample *pSample)
 STDMETHODIMP_(void) CD3D11SurfaceAllocator::ForceDecommit()
 {
     {
-        CAutoLock lock(this);
+        CAutoLock const lock(this);
 
-        if (m_bCommitted || !m_bDecommitInProgress)
+        if (m_bCommitted || !m_bDecommitInProgress) {
             return;
+}
 
         // actually free all the samples that are already back
         Free();

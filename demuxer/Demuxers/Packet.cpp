@@ -32,8 +32,9 @@ Packet::~Packet()
 
 int Packet::SetDataSize(int len)
 {
-    if (len < 0)
+    if (len < 0) {
         return -1;
+}
 
     if (len <= GetDataSize())
     {
@@ -44,13 +45,15 @@ int Packet::SetDataSize(int len)
     if (!m_Packet)
     {
         m_Packet = av_packet_alloc();
-        if (av_new_packet(m_Packet, len) < 0)
+        if (av_new_packet(m_Packet, len) < 0) {
             return -1;
+}
     }
     else
     {
-        if (av_grow_packet(m_Packet, (len - m_Packet->size)) < 0)
+        if (av_grow_packet(m_Packet, (len - m_Packet->size)) < 0) {
             return -1;
+}
     }
 
     return 0;
@@ -58,11 +61,13 @@ int Packet::SetDataSize(int len)
 
 int Packet::SetData(const void *ptr, int len)
 {
-    if (!ptr || len < 0)
+    if (!ptr || len < 0) {
         return -1;
-    int ret = SetDataSize(len);
-    if (ret < 0)
+}
+    int const ret = SetDataSize(len);
+    if (ret < 0) {
         return ret;
+}
 
     memcpy(m_Packet->data, ptr, len);
     return 0;
@@ -73,8 +78,9 @@ int Packet::SetPacket(AVPacket *pkt)
     ASSERT(!m_Packet);
 
     m_Packet = av_packet_alloc();
-    if (!m_Packet)
+    if (!m_Packet) {
         return -1;
+}
 
     return av_packet_ref(m_Packet, pkt);
 }
@@ -86,10 +92,11 @@ int Packet::Append(Packet *ptr)
 
 int Packet::AppendData(const void *ptr, int len)
 {
-    int prevSize = GetDataSize();
-    int ret = SetDataSize(prevSize + len);
-    if (ret < 0)
+    int const prevSize = GetDataSize();
+    int const ret = SetDataSize(prevSize + len);
+    if (ret < 0) {
         return ret;
+}
     memcpy(m_Packet->data + prevSize, ptr, len);
     return 0;
 }
@@ -111,8 +118,9 @@ bool Packet::CopyProperties(const Packet *src)
     rtStop = src->rtStop;
     rtPTS = src->rtPTS;
     rtDTS = src->rtDTS;
-    if (src->pmt)
+    if (src->pmt) {
         pmt = CreateMediaType(src->pmt);
+}
     dwFlags = src->dwFlags;
 
     return true;

@@ -29,7 +29,7 @@ static const SubRenderOption options[] = {
   { "name",              OFFSET(name),              SROPT_TYPE_STRING, SROPT_FLAG_READONLY },
   { "version",           OFFSET(version),           SROPT_TYPE_STRING, SROPT_FLAG_READONLY },
   { "originalVideoSize", OFFSET(originalVideoSize), SROPT_TYPE_SIZE,   SROPT_FLAG_READONLY },
-  { 0 }
+  { nullptr }
 };
 // clang-format on
 
@@ -38,7 +38,7 @@ static const SubRenderOption options[] = {
 CLAVSubtitleConsumer::CLAVSubtitleConsumer(CLAVVideo *pLAVVideo)
     : CSubRenderOptionsImpl(::options, &context)
     , CUnknown(L"CLAVSubtitleConsumer", nullptr)
-    , m_pLAVVideo(pLAVVideo)
+    , m_pLAVVideo{pLAVVideo}
 {
     ZeroMemory(&context, sizeof(context));
     context.name = TEXT(LAV_VIDEO);
@@ -86,8 +86,9 @@ STDMETHODIMP CLAVSubtitleConsumer::DeliverFrame(REFERENCE_TIME start, REFERENCE_
                                                 ISubRenderFrame *subtitleFrame)
 {
     ASSERT(m_SubtitleFrame == nullptr);
-    if (subtitleFrame)
+    if (subtitleFrame) {
         subtitleFrame->AddRef();
+}
     m_SubtitleFrame = subtitleFrame;
     m_evFrame.Set();
 
@@ -109,7 +110,7 @@ STDMETHODIMP CLAVSubtitleConsumer::RequestFrame(REFERENCE_TIME rtStart, REFERENC
 STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
 {
     CheckPointer(m_pProvider, E_FAIL);
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
     LPDIRECT3DSURFACE9 pSurface = nullptr;
 
     // Wait for the requested frame
@@ -129,10 +130,10 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
             return S_FALSE;
         }
 
-        BYTE *data[4] = {0};
-        ptrdiff_t stride[4] = {0};
-        LAVPixelFormat format = pFrame->format;
-        int bpp = pFrame->bpp;
+        BYTE *data[4U] = {nullptr};
+        ptrdiff_t stride[4U] = {0};
+        LAVPixelFormat const format = pFrame->format;
+        int const bpp = pFrame->bpp;
 
         if (pFrame->format == LAVPixFmt_DXVA2)
         {
@@ -165,7 +166,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
         SIZE size;
         const uint8_t *rgbData;
         int pitch;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < count; ++i)
         {
             if (FAILED(m_SubtitleFrame->GetBitmap(i, &id, &position, &size, (LPCVOID *)&rgbData, &pitch)))
             {
@@ -175,8 +176,9 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
             ProcessSubtitleBitmap(format, bpp, videoRect, data, stride, subRect, position, size, rgbData, pitch);
         }
 
-        if (pSurface)
+        if (pSurface) {
             pSurface->UnlockRect();
+}
 
         SafeRelease(&m_SubtitleFrame);
         return S_OK;
@@ -221,8 +223,8 @@ static LAVPixFmtDesc getFFSubPixelFormatDesc(AVPixelFormat pixFmt)
 
 static AVPixelFormat getFFPixFmtForSubtitle(LAVPixelFormat pixFmt)
 {
-    AVPixelFormat fmt = AV_PIX_FMT_NONE;
-    for (int i = 0; i < countof(lav_ff_subtitle_pixfmt_map); i++)
+    AVPixelFormat const fmt = AV_PIX_FMT_NONE;
+    for (int i = 0; i < countof(lav_ff_subtitle_pixfmt_map); ++i)
     {
         if (lav_ff_subtitle_pixfmt_map[i].pixfmt == pixFmt)
         {
@@ -254,7 +256,7 @@ STDMETHODIMP CLAVSubtitleConsumer::SelectBlendFunction()
 }
 
 STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, int bpp, RECT videoRect,
-                                                         BYTE *videoData[4], ptrdiff_t videoStride[4], RECT subRect,
+                                                         BYTE *videoData[4U], ptrdiff_t videoStride[4U], RECT subRect,
                                                          POINT subPosition, SIZE subSize, const uint8_t *rgbData,
                                                          ptrdiff_t pitch)
 {
@@ -283,11 +285,12 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
     }
 
     // P010/P016 is always handled like its 16 bpp to compensate for having the data in the high bits
-    if (pixFmt == LAVPixFmt_P016)
+    if (pixFmt == LAVPixFmt_P016) {
         bpp = 16;
+}
 
-    BYTE *subData[4] = {nullptr, nullptr, nullptr, nullptr};
-    ptrdiff_t subStride[4] = {0, 0, 0, 0};
+    BYTE *subData[4U] = {nullptr, nullptr, nullptr, nullptr};
+    ptrdiff_t subStride[4U] = {0, 0, 0, 0};
 
     // If we need scaling (either scaling or pixel conversion), do it here before starting the blend process
     if (bNeedScaling)
@@ -299,7 +302,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
         // We must ensure that the scaled subs still fit into the video
 
         // HACK: Scale to video size. In the future, we should take AR and the likes into account
-        RECT newRect = videoRect;
+        RECT const newRect = videoRect;
         /*
         float subAR = (float)subRect.right / (float)subRect.bottom;
         if (newRect.right != videoRect.right) {
@@ -323,19 +326,20 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
             sws_getCachedContext(m_pSwsContext, subSize.cx, subSize.cy, AV_PIX_FMT_BGRA, newSize.cx, newSize.cy,
                                  avPixFmt, SWS_BILINEAR | SWS_FULL_CHR_H_INP, nullptr, nullptr, nullptr);
 
-        const uint8_t *src[4] = {(const uint8_t *)rgbData, nullptr, nullptr, nullptr};
-        const ptrdiff_t srcStride[4] = {pitch, 0, 0, 0};
+        const uint8_t *src[4U] = {(const uint8_t *)rgbData, nullptr, nullptr, nullptr};
+        const ptrdiff_t srcStride[4U] = {pitch, 0, 0, 0};
 
         const LAVPixFmtDesc desc = getFFSubPixelFormatDesc(avPixFmt);
         const ptrdiff_t stride = FFALIGN(newSize.cx, 64) * desc.codedbytes;
 
-        for (int plane = 0; plane < desc.planes; plane++)
+        for (int plane = 0; plane < desc.planes; ++plane)
         {
             subStride[plane] = stride / desc.planeWidth[plane];
             const size_t size = subStride[plane] * FFALIGN(newSize.cy, 2) / desc.planeHeight[plane];
             subData[plane] = (BYTE *)av_mallocz(size + AV_INPUT_BUFFER_PADDING_SIZE);
-            if (subData[plane] == nullptr)
+            if (subData[plane] == nullptr) {
                 goto fail;
+}
         }
 
         // Un-pre-multiply alpha for YUV formats
@@ -343,48 +347,51 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
         if (avPixFmt != AV_PIX_FMT_BGRA)
         {
             tmpBuf = (uint8_t *)av_malloc(pitch * subSize.cy);
-            if (tmpBuf == nullptr)
+            if (tmpBuf == nullptr) {
                 goto fail;
+}
 
             memcpy(tmpBuf, rgbData, pitch * subSize.cy);
-            for (int line = 0; line < subSize.cy; line++)
+            for (int line = 0; line < subSize.cy; ++line)
             {
                 uint8_t *p = tmpBuf + line * pitch;
-                for (int col = 0; col < subSize.cx; col++)
+                for (int col = 0; col < subSize.cx; ++col)
                 {
-                    if (p[3] != 0 && p[3] != 255)
+                    if (p[3U] != 0 && p[3U] != 255)
                     {
-                        p[0] = av_clip_uint8(p[0] * 255 / p[3]);
-                        p[1] = av_clip_uint8(p[1] * 255 / p[3]);
-                        p[2] = av_clip_uint8(p[2] * 255 / p[3]);
+                        p[0U] = av_clip_uint8(p[0U] * 255 / p[3U]);
+                        p[1U] = av_clip_uint8(p[1U] * 255 / p[3U]);
+                        p[2U] = av_clip_uint8(p[2U] * 255 / p[3U]);
                     }
                     p += 4;
                 }
             }
-            src[0] = tmpBuf;
+            src[0U] = tmpBuf;
         }
 
-        int ret = sws_scale2(m_pSwsContext, src, srcStride, 0, subSize.cy, subData, subStride);
+        int const ret = sws_scale2(m_pSwsContext, src, srcStride, 0, subSize.cy, subData, subStride);
         subSize = newSize;
 
-        if (tmpBuf)
+        if (tmpBuf) {
             av_free(tmpBuf);
+}
     }
     else
     {
-        subData[0] = (BYTE *)rgbData;
-        subStride[0] = pitch;
+        subData[0U] = (BYTE *)rgbData;
+        subStride[0U] = pitch;
     }
 
     ASSERT((subPosition.x + subSize.cx) <= videoRect.right);
     ASSERT((subPosition.y + subSize.cy) <= videoRect.bottom);
 
-    if (blend)
+    if (blend) {
         (this->*blend)(videoData, videoStride, videoRect, subData, subStride, subPosition, subSize, pixFmt, bpp);
+}
 
     if (bNeedScaling)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 4; ++i)
         {
             av_freep(&subData[i]);
         }
@@ -393,7 +400,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
     return S_OK;
 
 fail:
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; ++i)
     {
         av_freep(&subData[i]);
     }

@@ -34,8 +34,8 @@ extern "C"
 #pragma warning(pop)
 
 CByteParser::CByteParser(const BYTE *pData, size_t length)
-    : m_pData(pData)
-    , m_pEnd(pData + length)
+    : m_pData{pData}
+    , m_pEnd{pData + length}
 {
     m_gbCtx = (GetBitContext *)av_mallocz(sizeof(GetBitContext));
     init_get_bits8(m_gbCtx, pData, (int)length);
@@ -48,28 +48,32 @@ CByteParser::~CByteParser()
 
 unsigned int CByteParser::BitRead(unsigned int numBits, bool peek)
 {
-    if (numBits == 0)
+    if (numBits == 0) {
         return 0;
+}
 
-    if (peek)
+    if (peek) {
         return show_bits_long(m_gbCtx, numBits);
-    else
+    } else {
         return get_bits_long(m_gbCtx, numBits);
+}
 }
 
 void CByteParser::BitSkip(unsigned int numBits)
 {
-    if (numBits == 0)
+    if (numBits == 0) {
         return;
+}
 
     skip_bits_long(m_gbCtx, numBits);
 }
 
 size_t CByteParser::RemainingBits() const
 {
-    int bits = get_bits_left(m_gbCtx);
-    if (bits < 0)
+    int const bits = get_bits_left(m_gbCtx);
+    if (bits < 0) {
         return 0;
+}
     return (size_t)bits;
 }
 
@@ -85,27 +89,29 @@ size_t CByteParser::Pos() const
 unsigned CByteParser::UExpGolombRead()
 {
     int n = -1;
-    for (BYTE b = 0; !b && RemainingBits(); n++)
+    for (BYTE b = 0; !b && RemainingBits(); ++n)
     {
         b = get_bits1(m_gbCtx);
     }
-    if (!RemainingBits())
+    if (!RemainingBits()) {
         return 0;
+}
     return ((1 << n) | BitRead(n)) - 1;
 }
 
 int CByteParser::SExpGolombRead()
 {
-    int k = UExpGolombRead() + 1;
+    int const k = UExpGolombRead() + 1;
     // Negative numbers are interleaved in the series
     // unsigned: 0, 1,  2, 3,  4, 5,  6, ...
     //   signed: 0, 1, -1, 2, -2, 3, -3, ....
     // So all even numbers are negative (last bit = 0)
     // Note that we added 1 to the unsigned value already, so the check is inverted
-    if (k & 1)
+    if (k & 1) {
         return -(k >> 1);
-    else
+    } else {
         return (k >> 1);
+}
 }
 
 void CByteParser::BitByteAlign()

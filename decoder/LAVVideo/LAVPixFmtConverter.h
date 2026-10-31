@@ -25,7 +25,7 @@
 #include <emmintrin.h>
 
 #define CONV_FUNC_PARAMS                                                                                       \
-    (const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], const ptrdiff_t dstStride[4], \
+    (const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], const ptrdiff_t dstStride[4U], \
      int width, int height, LAVPixelFormat inputFormat, int bpp, LAVOutPixFmts outputFormat)
 
 #define DECLARE_CONV_FUNC(name) HRESULT name CONV_FUNC_PARAMS
@@ -40,8 +40,8 @@ typedef struct
     int bpp;
     int codedbytes;
     int planes;
-    int planeHeight[4];
-    int planeWidth[4];
+    int planeHeight[4U];
+    int planeWidth[4U];
 } LAVOutPixFmtDesc;
 
 typedef struct _RGBCoeffs
@@ -72,7 +72,7 @@ class CLAVPixFmtConverter
 
     BOOL SetInputFmt(enum LAVPixelFormat pixfmt, int bpp)
     {
-        ASSERT(pixfmt != LAVPixFmt_None && pixfmt != LAVPixFmt_D3D11 && pixfmt != LAVPixFmt_DXVA2);
+        ASSERT((pixfmt != LAVPixFmt_None && pixfmt != LAVPixFmt_D3D11 && pixfmt != LAVPixFmt_DXVA2));
         if (m_InputPixFmt != pixfmt || m_InBpp != bpp)
         {
             m_InputPixFmt = pixfmt;
@@ -110,7 +110,7 @@ class CLAVPixFmtConverter
                       REFERENCE_TIME rtAvgTime, BOOL bInterlaced = TRUE, BOOL bVIH1 = FALSE);
     BOOL IsAllowedSubtype(const GUID *guid);
 
-    HRESULT Convert(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst, int width, int height,
+    HRESULT Convert(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst, int width, int height,
                     ptrdiff_t dstStride, int planeHeight);
     HRESULT ConvertDirect(LAVFrame *pFrame, uint8_t *dst, int width, int height, ptrdiff_t dstStride, int planeHeight);
 
@@ -129,34 +129,37 @@ class CLAVPixFmtConverter
     void SelectConvertFunctionDirect();
 
     // Helper functions for convert_generic
-    HRESULT swscale_scale(enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, const uint8_t *const src[4],
-                          const ptrdiff_t srcStride[4], uint8_t *dst[4], int width, int height,
-                          const ptrdiff_t dstStride[4], LAVOutPixFmtDesc pixFmtDesc, bool swapPlanes12 = false);
-    HRESULT ConvertTo422Packed(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                               int height, const ptrdiff_t dstStride[4]);
-    HRESULT ConvertToAYUV(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                          int height, const ptrdiff_t dstStride[4]);
-    HRESULT ConvertToPX1X(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                          int height, const ptrdiff_t dstStride[4], int chromaVertical);
-    HRESULT ConvertToY410(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                          int height, const ptrdiff_t dstStride[4]);
-    HRESULT ConvertToY416(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                          int height, const ptrdiff_t dstStride[4]);
-    HRESULT ConvertTov210(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                          int height, const ptrdiff_t dstStride[4]);
-    HRESULT ConvertTov410(const uint8_t *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst[4], int width,
-                          int height, const ptrdiff_t dstStride[4]);
+    HRESULT swscale_scale(enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, const uint8_t *const src[4U],
+                          const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width, int height,
+                          const ptrdiff_t dstStride[4U], LAVOutPixFmtDesc pixFmtDesc, bool swapPlanes12 = false);
+    HRESULT ConvertTo422Packed(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                               int height, const ptrdiff_t dstStride[4U]);
+    HRESULT ConvertToAYUV(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                          int height, const ptrdiff_t dstStride[4U]);
+    HRESULT ConvertToPX1X(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                          int height, const ptrdiff_t dstStride[4U], int chromaVertical);
+    HRESULT ConvertToY410(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                          int height, const ptrdiff_t dstStride[4U]);
+    HRESULT ConvertToY416(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                          int height, const ptrdiff_t dstStride[4U]);
+    HRESULT ConvertTov210(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                          int height, const ptrdiff_t dstStride[4U]);
+    HRESULT ConvertTov410(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
+                          int height, const ptrdiff_t dstStride[4U]);
 
     void DestroySWScale()
     {
-        if (m_pSwsContext)
+        if (m_pSwsContext) {
             sws_freeContext(m_pSwsContext);
+}
         m_pSwsContext = nullptr;
-        if (m_rgbCoeffs)
+        if (m_rgbCoeffs) {
             _aligned_free(m_rgbCoeffs);
+}
         m_rgbCoeffs = nullptr;
-        if (m_pRandomDithers)
+        if (m_pRandomDithers) {
             _aligned_free(m_pRandomDithers);
+}
         m_pRandomDithers = nullptr;
     };
     SwsContext *GetSWSContext(int width, int height, enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, int flags);
@@ -235,7 +238,7 @@ class CLAVPixFmtConverter
     BOOL m_bRGBConvInit = FALSE;
 
     // [out32][dithermode][ycgco][format][shift]
-    YUVRGBConversionFunc m_RGBConvFuncs[2][2][2][LAVPixFmt_NB][9];
+    YUVRGBConversionFunc m_RGBConvFuncs[2U][2U][2U][LAVPixFmt_NB][9U];
 
     uint16_t *m_pRandomDithers = nullptr;
     int m_ditherWidth = 0;

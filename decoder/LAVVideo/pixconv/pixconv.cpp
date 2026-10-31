@@ -24,7 +24,7 @@
 // 8x8 Bayes ordered dithering table, scaled to the 0-255 range for 16->8 conversion
 // stored as 16-bit unsigned for optimized SIMD access
 // clang-format off
-__declspec(align(16)) const uint16_t dither_8x8_256[8][8] = {
+__declspec(align(16)) const uint16_t dither_8x8_256[8U][8U] = {
   {   0, 192,  48, 240,  12, 204,  60, 252 },
   { 128,  64, 176, 112, 140,  76, 188, 124 },
   {  32, 224,  16, 208,  44, 236,  28, 220 },
@@ -38,14 +38,14 @@ __declspec(align(16)) const uint16_t dither_8x8_256[8][8] = {
 
 DECLARE_CONV_FUNC_IMPL(plane_copy)
 {
-    LAVOutPixFmtDesc desc = lav_pixfmt_desc[outputFormat];
+    LAVOutPixFmtDesc const desc = lav_pixfmt_desc[outputFormat];
 
     const int widthBytes = width * desc.codedbytes;
     const int planes = max(desc.planes, 1);
 
     ptrdiff_t line, plane;
 
-    for (plane = 0; plane < planes; plane++)
+    for (plane = 0; plane < planes; ++plane)
     {
         const int planeWidth = widthBytes / desc.planeWidth[plane];
         const int planeHeight = height / desc.planeHeight[plane];
@@ -65,14 +65,14 @@ DECLARE_CONV_FUNC_IMPL(plane_copy)
 
 DECLARE_CONV_FUNC_IMPL(plane_copy_sse2)
 {
-    LAVOutPixFmtDesc desc = lav_pixfmt_desc[outputFormat];
+    LAVOutPixFmtDesc const desc = lav_pixfmt_desc[outputFormat];
 
     const int widthBytes = width * desc.codedbytes;
     const int planes = max(desc.planes, 1);
 
     ptrdiff_t line, plane;
 
-    for (plane = 0; plane < planes; plane++)
+    for (plane = 0; plane < planes; ++plane)
     {
         const int planeWidth = widthBytes / desc.planeWidth[plane];
         const int planeHeight = height / desc.planeHeight[plane];

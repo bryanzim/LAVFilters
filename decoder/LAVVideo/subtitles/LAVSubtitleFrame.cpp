@@ -29,7 +29,7 @@ CLAVSubtitleFrame::CLAVSubtitleFrame(void)
 
 CLAVSubtitleFrame::~CLAVSubtitleFrame(void)
 {
-    for (int i = 0; i < m_NumBitmaps; i++)
+    for (int i = 0; i < m_NumBitmaps; ++i)
     {
         m_Bitmaps[i]->Release();
     }
@@ -91,8 +91,9 @@ STDMETHODIMP CLAVSubtitleFrame::GetBitmapCount(int *count)
 STDMETHODIMP CLAVSubtitleFrame::GetBitmap(int index, ULONGLONG *id, POINT *position, SIZE *size, LPCVOID *pixels,
                                           int *pitch)
 {
-    if (index < 0 || index >= m_NumBitmaps)
+    if (index < 0 || index >= m_NumBitmaps) {
         return E_INVALIDARG;
+}
     CheckPointer(id, E_POINTER);
     CheckPointer(position, E_POINTER);
     CheckPointer(size, E_POINTER);

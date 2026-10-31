@@ -39,8 +39,8 @@ static const LAV_TYPE_MAP lav_subtitle_codecs[] = {
 CLAVVideoSubtitleInputPin::CLAVVideoSubtitleInputPin(TCHAR *pObjectName, CLAVVideo *pFilter, CCritSec *pcsFilter,
                                                      HRESULT *phr, LPWSTR pName)
     : CBaseInputPin(pObjectName, pFilter, pcsFilter, phr, pName)
-    , m_pLAVVideo(pFilter)
-    , CDeCSSPinHelper()
+    , m_pLAVVideo{pFilter}
+    , CDeCSSPinHelper{}
 {
 }
 
@@ -59,7 +59,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::NonDelegatingQueryInterface(REFIID riid,
 
 HRESULT CLAVVideoSubtitleInputPin::CheckMediaType(const CMediaType *mtIn)
 {
-    for (int i = 0; i < countof(lav_subtitle_codecs); i++)
+    for (int i = 0; i < countof(lav_subtitle_codecs); ++i)
     {
         if (*lav_subtitle_codecs[i].clsMajorType == mtIn->majortype &&
             *lav_subtitle_codecs[i].clsMinorType == mtIn->subtype &&
@@ -73,14 +73,14 @@ HRESULT CLAVVideoSubtitleInputPin::CheckMediaType(const CMediaType *mtIn)
 
 HRESULT CLAVVideoSubtitleInputPin::SetMediaType(const CMediaType *pmt)
 {
-    CAutoLock lock(&m_csReceive);
+    CAutoLock const lock(&m_csReceive);
     SetCSSMediaType(pmt);
 
     ASSERT(m_pConsumer);
     SafeRelease(&m_pProvider);
 
     AVCodecID codecId = AV_CODEC_ID_NONE;
-    for (int i = 0; i < countof(lav_subtitle_codecs); i++)
+    for (int i = 0; i < countof(lav_subtitle_codecs); ++i)
     {
         if (*lav_subtitle_codecs[i].clsMajorType == pmt->majortype &&
             *lav_subtitle_codecs[i].clsMinorType == pmt->subtype)
@@ -89,12 +89,13 @@ HRESULT CLAVVideoSubtitleInputPin::SetMediaType(const CMediaType *pmt)
         }
     }
 
-    if (codecId == AV_CODEC_ID_NONE)
+    if (codecId == AV_CODEC_ID_NONE) {
         return VFW_E_TYPE_NOT_ACCEPTED;
+}
 
     m_pProvider = new CLAVSubtitleProvider(m_pLAVVideo, m_pConsumer);
     m_pProvider->AddRef();
-    HRESULT hr = m_pProvider->InitDecoder(pmt, codecId);
+    HRESULT const hr = m_pProvider->InitDecoder(pmt, codecId);
     if (FAILED(hr))
     {
         DbgLog((LOG_TRACE, 10, L"Subtitle Decoder Init failed...."));
@@ -120,7 +121,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::BeginFlush()
 
 STDMETHODIMP CLAVVideoSubtitleInputPin::EndFlush()
 {
-    CAutoLock lock(&m_csReceive);
+    CAutoLock const lock(&m_csReceive);
     DbgLog((LOG_TRACE, 10, L"CLAVVideoSubtitleInputPin::EndFlush()"));
     if (m_pProvider)
     {
@@ -131,8 +132,9 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::EndFlush()
 
 HRESULT CLAVVideoSubtitleInputPin::SetSubtitleConsumer(ISubRenderConsumer *pConsumer)
 {
-    if (pConsumer == m_pConsumer)
+    if (pConsumer == m_pConsumer) {
         return S_OK;
+}
 
     SafeRelease(&m_pConsumer);
     m_pConsumer = pConsumer;
@@ -149,7 +151,7 @@ HRESULT CLAVVideoSubtitleInputPin::SetSubtitleConsumer(ISubRenderConsumer *pCons
 
 STDMETHODIMP CLAVVideoSubtitleInputPin::Receive(IMediaSample *pSample)
 {
-    CAutoLock lock(&m_csReceive);
+    CAutoLock const lock(&m_csReceive);
     HRESULT hr = S_OK;
     Decrypt(pSample);
 

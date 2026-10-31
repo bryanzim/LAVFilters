@@ -154,8 +154,9 @@ static LAV_INOUT_PIXFMT_MAP *lookupFormatMap(LAVPixelFormat informat, int bpp, B
             return &lav_pixfmt_map[i];
         }
     }
-    if (bFallbackToDefault)
-        return &lav_pixfmt_map[0];
+    if (bFallbackToDefault) {
+        return &lav_pixfmt_map[0U];
+}
     return nullptr;
 }
 
@@ -193,12 +194,14 @@ int CLAVPixFmtConverter::GetFilteredFormatCount()
     int count = 0;
     for (int i = 0; i < LAVOutPixFmt_NB; ++i)
     {
-        if (m_pSettings->GetPixelFormat(pixFmtMap->lav_pix_fmts[i]))
+        if (m_pSettings->GetPixelFormat(pixFmtMap->lav_pix_fmts[i])) {
             count++;
+}
     }
 
-    if (count == 0)
+    if (count == 0) {
         count = LAVOutPixFmt_NB;
+}
 
     return count;
 }
@@ -209,16 +212,19 @@ LAVOutPixFmts CLAVPixFmtConverter::GetFilteredFormat(int index)
     int actualIndex = -1;
     for (int i = 0; i < LAVOutPixFmt_NB; ++i)
     {
-        if (m_pSettings->GetPixelFormat(pixFmtMap->lav_pix_fmts[i]))
+        if (m_pSettings->GetPixelFormat(pixFmtMap->lav_pix_fmts[i])) {
             actualIndex++;
-        if (index == actualIndex)
+}
+        if (index == actualIndex) {
             return pixFmtMap->lav_pix_fmts[i];
+}
     }
 
     // If no format is enabled, we use the fallback formats to avoid catastrophic failure
-    if (index >= LAVOutPixFmt_NB)
+    if (index >= LAVOutPixFmt_NB) {
         index = 0;
-    return lav_pixfmt_map[0].lav_pix_fmts[index];
+}
+    return lav_pixfmt_map[0U].lav_pix_fmts[index];
 }
 
 LAVOutPixFmts CLAVPixFmtConverter::GetPreferredOutput()
@@ -234,12 +240,13 @@ int CLAVPixFmtConverter::GetNumMediaTypes()
 void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, LONG biHeight, DWORD dwAspectX,
                                        DWORD dwAspectY, REFERENCE_TIME rtAvgTime, BOOL bInterlaced, BOOL bVIH1)
 {
-    if (index < 0 || index >= GetFilteredFormatCount())
+    if (index < 0 || index >= GetFilteredFormatCount()) {
         index = 0;
+}
 
-    LAVOutPixFmts pixFmt = GetFilteredFormat(index);
+    LAVOutPixFmts const pixFmt = GetFilteredFormat(index);
 
-    GUID guid = lav_pixfmt_desc[pixFmt].subtype;
+    GUID const guid = lav_pixfmt_desc[pixFmt].subtype;
 
     mt->SetType(&MEDIATYPE_Video);
     mt->SetSubtype(&guid);
@@ -282,8 +289,9 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
         vih2->dwPictAspectRatioX = dwX;
         vih2->dwPictAspectRatioY = dwY;
 
-        if (bInterlaced)
+        if (bInterlaced) {
             vih2->dwInterlaceFlags = AMINTERLACE_IsInterlaced | AMINTERLACE_DisplayModeBobOrWeave;
+}
 
         pBIH = &vih2->bmiHeader;
     }
@@ -313,8 +321,9 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
 
 DWORD CLAVPixFmtConverter::GetImageSize(int width, int height, LAVOutPixFmts pixFmt)
 {
-    if (pixFmt == LAVOutPixFmt_None)
+    if (pixFmt == LAVOutPixFmt_None) {
         pixFmt = m_OutputPixFmt;
+}
 
     if (pixFmt == LAVOutPixFmt_None)
     {
@@ -323,9 +332,9 @@ DWORD CLAVPixFmtConverter::GetImageSize(int width, int height, LAVOutPixFmts pix
         return width * height * 16;
     }
 
-    if (pixFmt == LAVOutPixFmt_v210)
+    if (pixFmt == LAVOutPixFmt_v210) {
         return ((width + 47) / 48) * 128 * height;
-    else
+    } else
     {
         return (width * height * lav_pixfmt_desc[pixFmt].bpp) >> 3;
     }
@@ -335,8 +344,9 @@ BOOL CLAVPixFmtConverter::IsAllowedSubtype(const GUID *guid)
 {
     for (int i = 0; i < GetFilteredFormatCount(); ++i)
     {
-        if (lav_pixfmt_desc[GetFilteredFormat(i)].subtype == *guid)
+        if (lav_pixfmt_desc[GetFilteredFormat(i)].subtype == *guid) {
             return TRUE;
+}
     }
 
     return FALSE;
@@ -348,7 +358,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
     m_bRGBConverter = FALSE;
     convert = nullptr;
 
-    int cpu = av_get_cpu_flags();
+    int const cpu = av_get_cpu_flags();
     if (m_OutputPixFmt == LAVOutPixFmt_v210 || m_OutputPixFmt == LAVOutPixFmt_v410)
     {
         // We assume that every filter that understands v210 will also properly handle it
@@ -366,10 +376,11 @@ void CLAVPixFmtConverter::SelectConvertFunction()
              ((m_OutputPixFmt == LAVOutPixFmt_P010 || m_OutputPixFmt == LAVOutPixFmt_P016) &&
               m_InputPixFmt == LAVPixFmt_P016))
     {
-        if (cpu & AV_CPU_FLAG_SSE2)
+        if (cpu & AV_CPU_FLAG_SSE2) {
             convert = &CLAVPixFmtConverter::plane_copy_sse2;
-        else
+        } else {
             convert = &CLAVPixFmtConverter::plane_copy;
+}
         m_RequiredAlignment = 0;
     }
     else if (m_InputPixFmt == LAVPixFmt_RGB48 && m_OutputPixFmt == LAVOutPixFmt_RGB32 && (cpu & AV_CPU_FLAG_SSSE3))
@@ -484,10 +495,11 @@ void CLAVPixFmtConverter::SelectConvertFunction()
         else if (m_InputPixFmt == LAVPixFmt_RGB48 &&
                  (m_OutputPixFmt == LAVOutPixFmt_RGB24 || m_OutputPixFmt == LAVOutPixFmt_RGB32))
         {
-            if (m_OutputPixFmt == LAVOutPixFmt_RGB32)
+            if (m_OutputPixFmt == LAVOutPixFmt_RGB32) {
                 convert = &CLAVPixFmtConverter::convert_rgb48_rgb<1>;
-            else
+            } else {
                 convert = &CLAVPixFmtConverter::convert_rgb48_rgb<0>;
+}
         }
         else if (m_InputPixFmt == LAVPixFmt_P016 && m_OutputPixFmt == LAVOutPixFmt_NV12)
         {
@@ -519,62 +531,69 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
     convert_direct = nullptr;
     m_bDirectMode = FALSE;
 
-    int cpu = av_get_cpu_flags();
+    int const cpu = av_get_cpu_flags();
     if ((m_InputPixFmt == LAVPixFmt_NV12 && m_OutputPixFmt == LAVOutPixFmt_NV12) ||
         (m_InputPixFmt == LAVPixFmt_P016 &&
          (m_OutputPixFmt == LAVOutPixFmt_P010 || m_OutputPixFmt == LAVOutPixFmt_P016)))
     {
-        if (cpu & AV_CPU_FLAG_SSE4)
+        if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::plane_copy_direct_nv12_sse4;
-        else if (cpu & AV_CPU_FLAG_SSE2)
+        } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::plane_copy_sse2;
-        else
+        } else {
             convert_direct = &CLAVPixFmtConverter::plane_copy;
+}
     }
     else if ((m_InputPixFmt == LAVPixFmt_YUY2 && m_OutputPixFmt == LAVOutPixFmt_YUY2) ||
         (m_InputPixFmt == LAVPixFmt_AYUV && m_OutputPixFmt == LAVOutPixFmt_AYUV) ||
         (m_InputPixFmt == LAVPixFmt_Y410 && m_OutputPixFmt == LAVOutPixFmt_Y410) ||
         (m_InputPixFmt == LAVPixFmt_Y416 && m_OutputPixFmt == LAVOutPixFmt_Y416))
     {
-        if (cpu & AV_CPU_FLAG_SSE4)
+        if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::plane_copy_direct_sse4;
-        else if (cpu & AV_CPU_FLAG_SSE2)
+        } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::plane_copy_sse2;
-        else
+        } else {
             convert_direct = &CLAVPixFmtConverter::plane_copy;
+}
     }
     else if (m_InputPixFmt == LAVPixFmt_P016 && m_OutputPixFmt == LAVOutPixFmt_NV12)
     {
-        if (cpu & AV_CPU_FLAG_SSE4)
+        if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::convert_p010_nv12_direct_sse4;
-        else if (cpu & AV_CPU_FLAG_SSE2)
+        } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::convert_p010_nv12_sse2;
+}
     }
     else if (m_InputPixFmt == LAVPixFmt_NV12 && m_OutputPixFmt == LAVOutPixFmt_YV12)
     {
-        if (cpu & AV_CPU_FLAG_SSE4)
+        if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::convert_nv12_yv12_direct_sse4;
-        else if (cpu & AV_CPU_FLAG_SSE2)
+        } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::convert_nv12_yv12;
+}
     }
     else if (m_InputPixFmt == LAVPixFmt_Y216 && (m_OutputPixFmt == LAVOutPixFmt_P210 || m_OutputPixFmt == LAVOutPixFmt_P216))
     {
-        if (cpu & AV_CPU_FLAG_SSE4)
+        if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::convert_y210_p210_direct_sse4;
+}
     }
     else if (m_InputPixFmt == LAVPixFmt_YUY2 && m_OutputPixFmt == LAVOutPixFmt_YV16)
     {
-        if (cpu & AV_CPU_FLAG_SSE4)
+        if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::convert_yuy2_yv16_direct_sse4;
-        else if (cpu & AV_CPU_FLAG_SSE2)
+        } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::convert_yuy2_yv16_sse2;
+}
     }
 
-    if (convert_direct != nullptr)
+    if (convert_direct != nullptr) {
         m_bDirectMode = TRUE;
 }
+}
 
-HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4], const ptrdiff_t srcStride[4], uint8_t *dst, int width,
+HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst, int width,
                                      int height, ptrdiff_t dstStride, int planeHeight)
 {
     uint8_t *out = dst;
@@ -584,7 +603,7 @@ HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4], const ptrdiff_t s
     if (m_RequiredAlignment && (FFALIGN(dstStride, m_RequiredAlignment) != dstStride || ((uintptr_t)dst % 16u)))
     {
         outStride = FFALIGN(dstStride, m_RequiredAlignment);
-        size_t requiredSize = (outStride * planeHeight * lav_pixfmt_desc[m_OutputPixFmt].bpp) >> 3;
+        size_t const requiredSize = (outStride * planeHeight * lav_pixfmt_desc[m_OutputPixFmt].bpp) >> 3;
         if (requiredSize > m_nAlignedBufferSize || !m_pAlignedBuffer)
         {
             DbgLog((LOG_TRACE, 10,
@@ -601,12 +620,12 @@ HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4], const ptrdiff_t s
         out = m_pAlignedBuffer;
     }
 
-    uint8_t *dstArray[4] = {0};
-    ptrdiff_t dstStrideArray[4] = {0};
-    ptrdiff_t byteStride = outStride * lav_pixfmt_desc[m_OutputPixFmt].codedbytes;
+    uint8_t *dstArray[4U] = {nullptr};
+    ptrdiff_t dstStrideArray[4U] = {0};
+    ptrdiff_t const byteStride = outStride * lav_pixfmt_desc[m_OutputPixFmt].codedbytes;
 
-    dstArray[0] = out;
-    dstStrideArray[0] = byteStride;
+    dstArray[0U] = out;
+    dstStrideArray[0U] = byteStride;
 
     for (i = 1; i < lav_pixfmt_desc[m_OutputPixFmt].planes; ++i)
     {
@@ -615,7 +634,7 @@ HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4], const ptrdiff_t s
         dstStrideArray[i] = byteStride / lav_pixfmt_desc[m_OutputPixFmt].planeWidth[i];
     }
 
-    HRESULT hr = (this->*convert)(src, srcStride, dstArray, dstStrideArray, width, height, m_InputPixFmt, m_InBpp,
+    HRESULT const hr = (this->*convert)(src, srcStride, dstArray, dstStrideArray, width, height, m_InputPixFmt, m_InBpp,
                                   m_OutputPixFmt);
     if (out != dst)
     {
@@ -627,8 +646,9 @@ HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4], const ptrdiff_t s
 BOOL CLAVPixFmtConverter::IsDirectModeSupported(uintptr_t dst, ptrdiff_t stride)
 {
     const int stride_align = ((m_OutputPixFmt == LAVOutPixFmt_YV12 || m_OutputPixFmt == LAVOutPixFmt_YV16) ? 32 : 16);
-    if (FFALIGN(stride, stride_align) != stride || (dst % 16u))
+    if (FFALIGN(stride, stride_align) != stride || (dst % 16u)) {
         return false;
+}
     return m_bDirectMode;
 }
 
@@ -637,17 +657,17 @@ HRESULT CLAVPixFmtConverter::ConvertDirect(LAVFrame *pFrame, uint8_t *dst, int w
 {
     HRESULT hr = S_OK;
     planeHeight = max(height, planeHeight);
-    ASSERT(pFrame->direct && pFrame->direct_lock && pFrame->direct_unlock);
+    ASSERT((pFrame->direct && pFrame->direct_lock && pFrame->direct_unlock));
 
     LAVDirectBuffer buffer{};
     if (pFrame->direct_lock(pFrame, &buffer))
     {
-        uint8_t *dstArray[4] = {0};
-        ptrdiff_t dstStrideArray[4] = {0};
-        ptrdiff_t byteStride = dstStride * lav_pixfmt_desc[m_OutputPixFmt].codedbytes;
+        uint8_t *dstArray[4U] = {nullptr};
+        ptrdiff_t dstStrideArray[4U] = {0};
+        ptrdiff_t const byteStride = dstStride * lav_pixfmt_desc[m_OutputPixFmt].codedbytes;
 
-        dstArray[0] = dst;
-        dstStrideArray[0] = byteStride;
+        dstArray[0U] = dst;
+        dstStrideArray[0U] = byteStride;
 
         for (int i = 1; i < lav_pixfmt_desc[m_OutputPixFmt].planes; ++i)
         {
@@ -667,7 +687,7 @@ HRESULT CLAVPixFmtConverter::ConvertDirect(LAVFrame *pFrame, uint8_t *dst, int w
 void CLAVPixFmtConverter::ChangeStride(const uint8_t *src, ptrdiff_t srcStride, uint8_t *dst, ptrdiff_t dstStride,
                                        int width, int height, int planeHeight, LAVOutPixFmts format)
 {
-    LAVOutPixFmtDesc desc = lav_pixfmt_desc[format];
+    LAVOutPixFmtDesc const desc = lav_pixfmt_desc[format];
 
     int line = 0;
 
@@ -702,21 +722,24 @@ void CLAVPixFmtConverter::ChangeStride(const uint8_t *src, ptrdiff_t srcStride, 
 
 const uint16_t *CLAVPixFmtConverter::GetRandomDitherCoeffs(int height, int coeffs, int bits, int line)
 {
-    if (m_pSettings->GetDitherMode() != LAVDither_Random)
+    if (m_pSettings->GetDitherMode() != LAVDither_Random) {
         return nullptr;
+}
 
-    int totalWidth = 8 * coeffs;
+    int const totalWidth = 8 * coeffs;
     if (!m_pRandomDithers || totalWidth > m_ditherWidth || height > m_ditherHeight || bits != m_ditherBits)
     {
-        if (m_pRandomDithers)
+        if (m_pRandomDithers) {
             _aligned_free(m_pRandomDithers);
+}
         m_pRandomDithers = nullptr;
         m_ditherWidth = totalWidth;
         m_ditherHeight = height;
         m_ditherBits = bits;
         m_pRandomDithers = (uint16_t *)_aligned_malloc(m_ditherWidth * m_ditherHeight * 2, 16);
-        if (m_pRandomDithers == nullptr)
+        if (m_pRandomDithers == nullptr) {
             return nullptr;
+}
 
 #ifdef DEBUG
         LARGE_INTEGER frequency, start, end;
@@ -731,28 +754,29 @@ const uint16_t *CLAVPixFmtConverter::GetRandomDitherCoeffs(int height, int coeff
         srand_sse((unsigned int)seed);
 
         bits = (1 << bits);
-        for (int i = 0; i < m_ditherHeight; i++)
+        for (int i = 0; i < m_ditherHeight; ++i)
         {
             uint16_t *ditherline = m_pRandomDithers + (m_ditherWidth * i);
             for (int j = 0; j < m_ditherWidth; j += 4)
             {
-                int rnds[4];
+                int rnds[4U];
                 rand_sse(rnds);
-                ditherline[j + 0] = rnds[0] % bits;
-                ditherline[j + 1] = rnds[1] % bits;
-                ditherline[j + 2] = rnds[2] % bits;
-                ditherline[j + 3] = rnds[3] % bits;
+                ditherline[j + 0] = rnds[0U] % bits;
+                ditherline[j + 1] = rnds[1U] % bits;
+                ditherline[j + 2] = rnds[2U] % bits;
+                ditherline[j + 3] = rnds[3U] % bits;
             }
         }
 #ifdef DEBUG
         QueryPerformanceCounter(&end);
-        double diff = (end.QuadPart - start.QuadPart) * 1000.0 / frequency.QuadPart;
+        double const diff = (end.QuadPart - start.QuadPart) * 1000.0 / frequency.QuadPart;
         DbgLog((LOG_TRACE, 10, L"Finished creating dither matrix (took %2.3fms)", diff));
 #endif
     }
 
-    if (line < 0 || line >= m_ditherHeight)
+    if (line < 0 || line >= m_ditherHeight) {
         line = rand() % m_ditherHeight;
+}
 
     return &m_pRandomDithers[line * m_ditherWidth];
 }

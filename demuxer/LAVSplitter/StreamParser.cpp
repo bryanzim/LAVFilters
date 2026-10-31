@@ -40,8 +40,8 @@ extern "C"
 //#define DEBUG_PGS_PARSER
 
 CStreamParser::CStreamParser(CLAVOutputPin *pPin, const char *szContainer)
-    : m_pPin(pPin)
-    , m_strContainer(szContainer)
+    : m_pPin{pPin}
+    , m_strContainer{szContainer}
 {
 }
 
@@ -178,7 +178,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
             break;
         }
 
-        size_t size = next - start;
+        size_t const size = next - start;
 
         CH264Nalu Nalu;
         Nalu.SetBuffer(start, (int)size, 0);
@@ -205,8 +205,9 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
             }
         }
 
-        if (!p2)
+        if (!p2) {
             break;
+}
 
         p2->StreamId = m_pPacketBuffer->StreamId;
         p2->bDiscontinuity = m_pPacketBuffer->bDiscontinuity;
@@ -277,12 +278,12 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
             Packet *p = *it;
             BYTE *pData = p->GetData();
 
-            if ((pData[4] & 0x1f) == 0x09)
+            if ((pData[4U] & 0x1f) == 0x09)
             {
                 m_bHasAccessUnitDelimiters = true;
             }
 
-            if ((pData[4] & 0x1f) == 0x09 || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME))
+            if ((pData[4U] & 0x1f) == 0x09 || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME))
             {
                 pPacket = p;
                 if (p->rtStart == Packet::INVALID_TIME && rtStart != Packet::INVALID_TIME)
@@ -366,7 +367,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
             // 2 bytes id
             // 1 byte composition state (0x00 = normal, 0x40 = ACQU_POINT (?), 0x80 = epoch start (new frame), 0xC0 =
             // epoch continue) 2 unknown bytes 1 byte object number
-            uint8_t objectNumber = buf[10];
+            uint8_t const objectNumber = buf[10U];
             // 2 bytes object ref id
             if (objectNumber == 0)
             {
@@ -376,7 +377,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
             {
                 // 1 byte window_id
                 // 1 byte object_cropped_flag: 0x80, forced_on_flag = 0x040, 6bit reserved
-                uint8_t forced_flag = buf[14];
+                uint8_t const forced_flag = buf[14U];
                 m_bPGSDropState = !(forced_flag & 0x40);
                 // 2 bytes x
                 // 2 bytes y
@@ -384,7 +385,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
             }
 #ifdef DEBUG_PGS_PARSER
             DbgLog((LOG_TRACE, 50, L"::ParsePGS(): Presentation Segment! obj.num: %d; state: 0x%x; dropping: %d",
-                    objectNumber, buf[7], m_bPGSDropState));
+                    objectNumber, buf[7U], m_bPGSDropState));
 #endif
         }
         if (!m_bPGSDropState)
@@ -411,11 +412,11 @@ done:
 
 HRESULT CStreamParser::ParseMOVText(Packet *pPacket)
 {
-    size_t avail = pPacket->GetDataSize();
+    size_t const avail = pPacket->GetDataSize();
     BYTE *ptr = pPacket->GetData();
     if (avail > 2)
     {
-        unsigned size = (ptr[0] << 8) | ptr[1];
+        unsigned const size = (ptr[0U] << 8) | ptr[1U];
         if (size <= avail - 2)
         {
             pPacket->RemoveHead(2);
@@ -438,7 +439,7 @@ HRESULT CStreamParser::ParseAAC(Packet *pPacket)
     {
         skip_bits1(&gb);              /* id */
         skip_bits(&gb, 2);            /* layer */
-        int crc_abs = get_bits1(&gb); /* protection_absent */
+        int const crc_abs = get_bits1(&gb); /* protection_absent */
 
         pPacket->RemoveHead(AAC_ADTS_HEADER_SIZE + 2 * !crc_abs);
     }
@@ -449,10 +450,10 @@ static const char *read_srt_ts(const char *buf, int *ts_start, int *ts_end, int 
 {
     int i, hs, ms, ss, he, me, se;
 
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < 2; ++i)
     {
         /* try to read timestamps in either the first or second line */
-        int c = sscanf_s(buf,
+        int const c = sscanf_s(buf,
                          "%d:%2d:%2d%*1[,.]%3d --> %d:%2d:%2d%*1[,.]%3d"
                          "%*[ ]X1:%u X2:%u Y1:%u Y2:%u",
                          &hs, &ms, &ss, ts_start, &he, &me, &se, ts_end, x1, x2, y1, y2);
@@ -474,8 +475,9 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
     const char *ptr = (const char *)pPacket->GetData();
     const char *end = ptr + pPacket->GetDataSize();
 
-    if (pPacket->GetDataSize() == 0)
+    if (pPacket->GetDataSize() == 0) {
         return S_FALSE;
+}
 
     while (ptr && end > ptr && *ptr)
     {
@@ -492,11 +494,12 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
                 }
                 else
                 {
-                    if (*ptr++ == '\n')
+                    if (*ptr++ == '\n') {
                         break;
+}
                 }
             }
-            size_t size = ptr - linestart;
+            size_t const size = ptr - linestart;
 
             Packet *p = new Packet();
             p->pmt = pPacket->pmt;
@@ -517,28 +520,29 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
 
 HRESULT CStreamParser::ParsePlanarPCM(Packet *pPacket)
 {
-    CMediaType mt = m_pPin->GetActiveMediaType();
+    CMediaType const mt = m_pPin->GetActiveMediaType();
 
     WORD nChannels = 0, nBPS = 0, nBlockAlign = 0;
     audioFormatTypeHandler(mt.Format(), mt.FormatType(), nullptr, &nChannels, &nBPS, &nBlockAlign, nullptr, nullptr);
 
     // Mono needs no special handling
-    if (nChannels == 1)
+    if (nChannels == 1) {
         return Queue(pPacket);
+}
 
     Packet *out = new Packet();
     out->CopyProperties(pPacket);
     out->SetDataSize(pPacket->GetDataSize());
 
-    int nBytesPerChannel = nBPS / 8;
-    int nAudioBlocks = pPacket->GetDataSize() / nChannels;
+    int const nBytesPerChannel = nBPS / 8;
+    int const nAudioBlocks = pPacket->GetDataSize() / nChannels;
     BYTE *out_data = out->GetData();
     const BYTE *in_data = pPacket->GetData();
 
     for (int i = 0; i < nAudioBlocks; i += nBytesPerChannel)
     {
         // interleave the channels into audio blocks
-        for (int c = 0; c < nChannels; c++)
+        for (int c = 0; c < nChannels; ++c)
         {
             memcpy(out_data + (c * nBytesPerChannel), in_data + (nAudioBlocks * c), nBytesPerChannel);
         }

@@ -49,7 +49,7 @@ class CVideoInputPin
 
     AM_SimpleRateChange GetDVDRateChange()
     {
-        CAutoLock cAutoLock(&m_csRateLock);
+        CAutoLock const cAutoLock(&m_csRateLock);
         return m_ratechange;
     }
 

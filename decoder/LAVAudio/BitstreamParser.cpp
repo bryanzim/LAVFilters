@@ -67,9 +67,10 @@ HRESULT CBitstreamParser::Parse(AVCodecID codec, BYTE *pBuffer, DWORD dwSize)
 
 HRESULT CBitstreamParser::ParseDTS(BYTE *pBuffer, DWORD dwSize)
 {
-    int ret = parse_dts_header((DTSParserContext *)m_pParserContext, &m_DTSHeader, pBuffer, (unsigned)dwSize);
-    if (ret < 0)
+    int const ret = parse_dts_header((DTSParserContext *)m_pParserContext, &m_DTSHeader, pBuffer, (unsigned)dwSize);
+    if (ret < 0) {
         return E_FAIL;
+}
 
     m_bDTSHD = m_bDTSHD || m_DTSHeader.IsHD;
 
@@ -94,8 +95,9 @@ HRESULT CBitstreamParser::ParseAC3(BYTE *pBuffer, DWORD dwSize)
     }
     else
     {
-        if (m_dwSampleRate == 0) // not seen a valid frame yet, error out
+        if (m_dwSampleRate == 0) { // not seen a valid frame yet, error out
             return E_FAIL;
+}
     }
 
     return S_OK;
@@ -105,7 +107,7 @@ HRESULT CBitstreamParser::ParseTrueHD(BYTE *pBuffer, DWORD dwSize)
 {
     if (AV_RB32(pBuffer + 4) == 0xf8726fba)
     {
-        int nRatebits = pBuffer[8] >> 4;
+        int const nRatebits = pBuffer[8U] >> 4;
 
         m_dwSampleRate = (nRatebits & 8 ? 44100 : 48000) << (nRatebits & 7);
         m_dwSamples = 24 * (40 << (nRatebits & 7));

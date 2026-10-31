@@ -250,7 +250,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     HRESULT Create61Conformity(DWORD dwLayout);
     HRESULT Create71Conformity(DWORD dwLayout);
 
-    LAVAudioSampleFormat GetBestAvailableSampleFormat(LAVAudioSampleFormat inFormat, int *bits = NULL,
+    LAVAudioSampleFormat GetBestAvailableSampleFormat(LAVAudioSampleFormat inFormat, int *bits = nullptr,
                                                       BOOL bNoFallback = FALSE);
     HRESULT Truncate32Buffer(BufferDetails *buffer);
     HRESULT PadTo32(BufferDetails *buffer);

@@ -70,7 +70,7 @@ class CLAVFDemuxer
     }
 
     // CBaseDemuxer
-    STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = NULL, LPCOLESTR pszReferrer = NULL);
+    STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
     STDMETHODIMP Start();
     STDMETHODIMP AbortOpening(int mode = 1, int timeout = 0);
     REFERENCE_TIME GetDuration() const;
@@ -137,8 +137,9 @@ class CLAVFDemuxer
     STDMETHODIMP get_Description(BSTR *pbstrDescription)
     {
         HRESULT hr = GetBSTRMetadata("comment", pbstrDescription);
-        if (hr == VFW_E_NOT_FOUND)
+        if (hr == VFW_E_NOT_FOUND) {
             hr = GetBSTRMetadata("description", pbstrDescription);
+}
         return hr;
     }
     STDMETHODIMP get_Copyright(BSTR *pbstrCopyright) { return GetBSTRMetadata("copyright", pbstrCopyright); }
@@ -157,7 +158,7 @@ class CLAVFDemuxer
 
     STDMETHODIMP OpenInputStream(AVIOContext *byteContext, LPCOLESTR pszFileName = nullptr,
                                  const char *format = nullptr, BOOL bForce = FALSE, BOOL bFileSource = FALSE,
-                                 LPCOLESTR pszUserAgent = NULL, LPCOLESTR pszReferrer = NULL);
+                                 LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
     STDMETHODIMP SeekByte(int64_t pos, int flags);
 
     AVStream *GetAVStreamByPID(int pid);
@@ -252,7 +253,7 @@ class CLAVFDemuxer
 
     struct
     {
-        AVBSFContext *bsf = NULL;
+        AVBSFContext *bsf = nullptr;
 
         int nBLStreamId = -1;
         int nELStreamId = -1;

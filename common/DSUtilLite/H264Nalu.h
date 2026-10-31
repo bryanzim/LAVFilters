@@ -67,7 +67,7 @@ class CH264Nalu
     const BYTE *GetDataBuffer() { return m_pBuffer + m_nNALDataPos; }
     size_t GetRoundedDataLength() const
     {
-        size_t nSize = m_nCurPos - m_nNALDataPos;
+        size_t const nSize = m_nCurPos - m_nNALDataPos;
         return nSize + 128 - (nSize % 128);
     }
 

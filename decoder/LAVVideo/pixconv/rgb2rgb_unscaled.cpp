@@ -26,25 +26,26 @@
 
 DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
 {
-    const uint16_t *rgb = (const uint16_t *)src[0];
-    const ptrdiff_t inStride = srcStride[0] >> 1;
-    const ptrdiff_t outStride = dstStride[0];
+    const uint16_t *rgb = (const uint16_t *)src[0U];
+    const ptrdiff_t inStride = srcStride[0U] >> 1;
+    const ptrdiff_t outStride = dstStride[0U];
     ptrdiff_t line, i;
 
-    int processWidth = width * 3;
+    int const processWidth = width * 3;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
     const uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
-    if (dithers == nullptr)
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
-    __m128i mask = _mm_setr_epi8(4, 5, 2, 3, 0, 1, -1, -1, 10, 11, 8, 9, 6, 7, -1, -1);
+    __m128i const mask = _mm_setr_epi8(4, 5, 2, 3, 0, 1, -1, -1, 10, 11, 8, 9, 6, 7, -1, -1);
 
     _mm_sfence();
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        __m128i *dst128 = (__m128i *)(dst[0] + line * outStride);
+        __m128i *dst128 = (__m128i *)(dst[0U] + line * outStride);
 
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
@@ -91,25 +92,27 @@ DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
 template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
 {
     // Byte Swap to BGR layout
-    uint8_t *dstBS[4] = {nullptr};
-    dstBS[0] = (BYTE *)av_malloc(height * srcStride[0]);
-    if (dstBS[0] == nullptr)
+    uint8_t *dstBS[4U] = {nullptr};
+    dstBS[0U] = (BYTE *)av_malloc(height * srcStride[0U]);
+    if (dstBS[0U] == nullptr) {
         return E_OUTOFMEMORY;
+}
 
     SwsContext *ctx = GetSWSContext(width, height, GetFFInput(), AV_PIX_FMT_BGR48LE, SWS_POINT);
     sws_scale2(ctx, src, srcStride, 0, height, dstBS, srcStride);
 
     // Dither to RGB24/32 with SSE2
-    const uint16_t *rgb = (const uint16_t *)dstBS[0];
-    const ptrdiff_t inStride = srcStride[0] >> 1;
-    const ptrdiff_t outStride = dstStride[0];
+    const uint16_t *rgb = (const uint16_t *)dstBS[0U];
+    const ptrdiff_t inStride = srcStride[0U] >> 1;
+    const ptrdiff_t outStride = dstStride[0U];
     ptrdiff_t line, i;
-    int processWidth = width * 3;
+    int const processWidth = width * 3;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
     const uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
-    if (dithers == nullptr)
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
     __m128i xmm0, xmm1, xmm6, xmm7;
 
@@ -119,13 +122,13 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         rgb24buffer = (uint8_t *)av_malloc(outStride + AV_INPUT_BUFFER_PADDING_SIZE);
         if (rgb24buffer == nullptr)
         {
-            av_freep(&dstBS[0]);
+            av_freep(&dstBS[0U]);
             return E_OUTOFMEMORY;
         }
     }
 
     _mm_sfence();
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
         __m128i *dst128 = nullptr;
         if (out32)
@@ -134,7 +137,7 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         }
         else
         {
-            dst128 = (__m128i *)(dst[0] + line * outStride);
+            dst128 = (__m128i *)(dst[0U] + line * outStride);
         }
 
         // Load dithering coefficients for this line
@@ -165,12 +168,12 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         if (out32)
         {
             uint32_t *src24 = (uint32_t *)rgb24buffer;
-            uint32_t *dst32 = (uint32_t *)(dst[0] + line * outStride);
+            uint32_t *dst32 = (uint32_t *)(dst[0U] + line * outStride);
             for (i = 0; i < width; i += 4)
             {
-                uint32_t sa = src24[0];
-                uint32_t sb = src24[1];
-                uint32_t sc = src24[2];
+                uint32_t const sa = src24[0U];
+                uint32_t const sb = src24[1U];
+                uint32_t const sc = src24[2U];
 
                 dst32[i + 0] = sa;
                 dst32[i + 1] = (sa >> 24) | (sb << 8);
@@ -182,9 +185,10 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         }
     }
 
-    if (out32)
+    if (out32) {
         av_freep(&rgb24buffer);
-    av_freep(&dstBS[0]);
+}
+    av_freep(&dstBS[0U]);
 
     return S_OK;
 }

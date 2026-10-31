@@ -61,7 +61,7 @@ CFactoryTemplate g_Templates[] = {
     // This entry is for the property page.
     {L"LAV Video Properties", &CLSID_LAVVideoSettingsProp, CreateInstance<CLAVVideoSettingsProp>, nullptr, nullptr},
     {L"LAV Video Format Settings", &CLSID_LAVVideoFormatsProp, CreateInstance<CLAVVideoFormatsProp>, nullptr, nullptr}};
-int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0]);
+int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0U]);
 
 // self-registration entrypoint
 STDAPI DllRegisterServer()

@@ -31,9 +31,9 @@
 CLAVOutputPin::CLAVOutputPin(std::deque<CMediaType> &mts, LPCWSTR pName, CBaseFilter *pFilter, CCritSec *pLock,
                              HRESULT *phr, CBaseDemuxer::StreamType pinType, const char *container)
     : CBaseOutputPin(NAME("lavf dshow output pin"), pFilter, pLock, phr, pName)
-    , m_mts(mts)
-    , m_containerFormat(container)
-    , m_pinType(pinType)
+    , m_mts{mts}
+    , m_containerFormat{container}
+    , m_pinType{pinType}
     , m_Parser(this, container)
 {
     SetQueueSizes();
@@ -83,7 +83,7 @@ void CLAVOutputPin::SetQueueSizes()
 
 HRESULT CLAVOutputPin::GetQueueSize(int &samples, int &size)
 {
-    CAutoLock lock(&m_queue);
+    CAutoLock const lock(&m_queue);
     samples = (int)m_queue.Size();
     size = (int)m_queue.DataSize();
     return S_OK;
@@ -189,10 +189,12 @@ HRESULT CLAVOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERT
 
     // Sanity checks
     ALLOCATOR_PROPERTIES Actual;
-    if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual)))
+    if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) {
         return hr;
-    if (Actual.cbBuffer < pProperties->cbBuffer)
+}
+    if (Actual.cbBuffer < pProperties->cbBuffer) {
         return E_FAIL;
+}
     ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
     return S_OK;
@@ -202,8 +204,9 @@ HRESULT CLAVOutputPin::CheckMediaType(const CMediaType *pmt)
 {
     for (auto it = m_mts.begin(); it != m_mts.end(); ++it)
     {
-        if (*pmt == *it)
+        if (*pmt == *it) {
             return S_OK;
+}
     }
 
     return E_INVALIDARG;
@@ -213,12 +216,14 @@ HRESULT CLAVOutputPin::GetMediaType(int iPosition, CMediaType *pmt)
 {
     DbgLog((LOG_TRACE, 10, L"CLAVOutputPin::GetMediaType(): %s, position: %d",
             CBaseDemuxer::CStreamList::ToStringW(m_pinType), iPosition));
-    CAutoLock cAutoLock(m_pLock);
+    CAutoLock const cAutoLock(m_pLock);
 
-    if (iPosition < 0)
+    if (iPosition < 0) {
         return E_INVALIDARG;
-    if ((size_t)iPosition >= m_mts.size())
+}
+    if ((size_t)iPosition >= m_mts.size()) {
         return VFW_S_NO_MORE_ITEMS;
+}
 
     *pmt = m_mts[iPosition];
 
@@ -229,10 +234,11 @@ HRESULT CLAVOutputPin::Active()
 {
     DbgLog((LOG_TRACE, 30, L"CLAVOutputPin::Active() - activated %s pin",
             CBaseDemuxer::CStreamList::ToStringW(m_pinType)));
-    CAutoLock cAutoLock(m_pLock);
+    CAutoLock const cAutoLock(m_pLock);
 
-    if (m_Connected)
+    if (m_Connected) {
         Create();
+}
 
     return __super::Active();
 }
@@ -241,7 +247,7 @@ HRESULT CLAVOutputPin::Inactive()
 {
     DbgLog((LOG_TRACE, 30, L"CLAVOutputPin::Inactive() - de-activated %s pin",
             CBaseDemuxer::CStreamList::ToStringW(m_pinType)));
-    CAutoLock cAutoLock(m_pLock);
+    CAutoLock const cAutoLock(m_pLock);
 
     CAMThread::CallWorker(CMD_EXIT);
     CAMThread::Close();
@@ -289,16 +295,17 @@ HRESULT CLAVOutputPin::DeliverBeginFlush()
     m_fFlushing = true;
     m_hrDeliver = S_FALSE;
     m_queue.Clear();
-    HRESULT hr = IsConnected() ? GetConnected()->BeginFlush() : S_OK;
-    if (hr != S_OK)
+    HRESULT const hr = IsConnected() ? GetConnected()->BeginFlush() : S_OK;
+    if (hr != S_OK) {
         m_eEndFlush.Set();
+}
     return hr;
 }
 
 HRESULT CLAVOutputPin::DeliverEndFlush()
 {
     DbgLog((LOG_TRACE, 20, L"::DeliverEndFlush on %s Pin", CBaseDemuxer::CStreamList::ToStringW(m_pinType)));
-    HRESULT hr = IsConnected() ? GetConnected()->EndFlush() : S_OK;
+    HRESULT const hr = IsConnected() ? GetConnected()->EndFlush() : S_OK;
 
     m_Parser.Flush();
 
@@ -316,15 +323,18 @@ HRESULT CLAVOutputPin::DeliverNewSegment(REFERENCE_TIME tStart, REFERENCE_TIME t
     DbgLog((LOG_TRACE, 20, L"::DeliverNewSegment on %s Pin (rtStart: %I64d; rtStop: %I64d)",
             CBaseDemuxer::CStreamList::ToStringW(m_pinType), tStart, tStop));
     m_rtPrev = AV_NOPTS_VALUE;
-    if (m_fFlushing)
+    if (m_fFlushing) {
         return S_FALSE;
-    if (!ThreadExists())
+}
+    if (!ThreadExists()) {
         return S_FALSE;
+}
 
     m_BitRate.rtLastDeliverTime = Packet::INVALID_TIME;
     hr = __super::DeliverNewSegment(tStart, tStop, dRate);
-    if (hr != S_OK)
+    if (hr != S_OK) {
         return hr;
+}
 
     MakeISCRHappy();
 
@@ -369,8 +379,9 @@ HRESULT CLAVOutputPin::QueuePacket(Packet *pPacket)
     // The queue has a "soft" limit of MAX_PACKETS_IN_QUEUE, and a hard limit of MAX_PACKETS_IN_QUEUE * 16 (and a memory limit)
     // That means, even if one pin is drying, we'll never exceed MAX_PACKETS_IN_QUEUE * 16
     while (S_OK == m_hrDeliver && (m_queue.DataSize() > m_nQueueMaxMem || m_queue.Size() > 16 * m_nQueueHigh ||
-                                   (m_queue.Size() > m_nQueueHigh && !pSplitter->IsAnyPinDrying())))
+                                   (m_queue.Size() > m_nQueueHigh && !pSplitter->IsAnyPinDrying()))) {
         Sleep(10);
+}
 
     if (S_OK != m_hrDeliver)
     {
@@ -379,7 +390,7 @@ HRESULT CLAVOutputPin::QueuePacket(Packet *pPacket)
     }
 
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         if (m_newMT && pPacket)
         {
             DbgLog((LOG_TRACE, 10, L"::QueuePacket() - Found new Media Type"));
@@ -403,7 +414,7 @@ bool CLAVOutputPin::IsDiscontinuous()
 
 DWORD CLAVOutputPin::ThreadProc()
 {
-    std::string name = "CLAVOutputPin " + std::string(CBaseDemuxer::CStreamList::ToString(m_pinType));
+    std::string const name = "CLAVOutputPin " + std::string(CBaseDemuxer::CStreamList::ToString(m_pinType));
     SetThreadName(-1, name.c_str());
 
     m_hrDeliver = S_OK;
@@ -431,7 +442,7 @@ DWORD CLAVOutputPin::ThreadProc()
 
             // Get a packet from the queue (scoped for lock)
             {
-                CAutoLock cAutoLock(&m_queue);
+                CAutoLock const cAutoLock(&m_queue);
                 if ((cnt = m_queue.Size()) > 0)
                 {
                     pPacket = m_queue.Get();
@@ -445,7 +456,7 @@ DWORD CLAVOutputPin::ThreadProc()
                 m_fFlushed = false;
 
                 // flushing can still start here, to release a blocked deliver call
-                HRESULT hr = pPacket ? DeliverPacket(pPacket) : DeliverEndOfStream();
+                HRESULT const hr = pPacket ? DeliverPacket(pPacket) : DeliverEndOfStream();
 
                 // .. so, wait until flush finished
                 m_eEndFlush.Wait();
@@ -483,7 +494,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
     HRESULT hr = S_OK;
     IMediaSample *pSample = nullptr;
 
-    long nBytes = (long)pPacket->GetDataSize();
+    long const nBytes = (long)pPacket->GetDataSize();
 
     if (nBytes == 0)
     {
@@ -523,8 +534,9 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 
         // Fill the sample
         BYTE *pData = nullptr;
-        if (FAILED(hr = pSample->GetPointer(&pData)) || !pData)
+        if (FAILED(hr = pSample->GetPointer(&pData)) || !pData) {
             goto done;
+}
 
         memcpy(pData, pPacket->GetData(), nBytes);
     }
@@ -535,8 +547,8 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
         pSample->SetMediaType(pPacket->pmt);
         pPacket->bDiscontinuity = true;
 
-        CAutoLock cAutoLock(m_pLock);
-        CMediaType pmt = *(pPacket->pmt);
+        CAutoLock const cAutoLock(m_pLock);
+        CMediaType const pmt = *(pPacket->pmt);
         m_mts.clear();
         m_mts.push_back(pmt);
         pPacket->pmt = nullptr;
@@ -544,7 +556,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
         SetMediaType(&pmt);
     }
 
-    bool fTimeValid = pPacket->rtStart != Packet::INVALID_TIME;
+    bool const fTimeValid = pPacket->rtStart != Packet::INVALID_TIME;
 
     // IBitRateInfo
     m_BitRate.nBytesSinceLastDeliverTime += nBytes;
@@ -559,7 +571,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 
         if (m_BitRate.rtLastDeliverTime + 10000000 < pPacket->rtStart)
         {
-            REFERENCE_TIME rtDiff = pPacket->rtStart - m_BitRate.rtLastDeliverTime;
+            REFERENCE_TIME const rtDiff = pPacket->rtStart - m_BitRate.rtLastDeliverTime;
 
             double dSecs, dBits;
 

@@ -151,7 +151,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
 {
     CheckPointer(pActual, E_POINTER);
     ValidateReadWritePtr(pActual, sizeof(ALLOCATOR_PROPERTIES));
-    CAutoLock cObjectLock(this);
+    CAutoLock const cObjectLock(this);
 
     ZeroMemory(pActual, sizeof(ALLOCATOR_PROPERTIES));
 
@@ -197,7 +197,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
     // round length up to alignment - remember that prefix is included in
     // the alignment
     LONG lSize = pRequest->cbBuffer + pRequest->cbPrefix;
-    LONG lRemainder = lSize % pRequest->cbAlign;
+    LONG const lRemainder = lSize % pRequest->cbAlign;
     if (lRemainder != 0)
     {
         lSize = lSize - lRemainder + pRequest->cbAlign;
@@ -214,7 +214,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
 
 HRESULT CPacketAllocator::Alloc(void)
 {
-    CAutoLock lck(this);
+    CAutoLock const lck(this);
 
     /* Check he has called SetProperties */
     HRESULT hr = CBaseAllocator::Alloc();
@@ -280,11 +280,11 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
     UNREFERENCED_PARAMETER(dwFlags);
     CMediaSample *pSample;
 
-    *ppBuffer = NULL;
+    *ppBuffer = nullptr;
     for (;;)
     {
         { // scope for lock
-            CAutoLock cObjectLock(this);
+            CAutoLock const cObjectLock(this);
 
             /* Check we are committed */
             if (!m_bCommitted)
@@ -294,7 +294,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
             pSample = (CMediaSample *)m_lFree.RemoveHead();
 
             /* if no sample was available, allocate a new one */
-            if (pSample == NULL)
+            if (pSample == nullptr)
             {
                 HRESULT hr = S_OK;
                 pSample = new CMediaPacketSample(NAME("LAV Package media sample"), this, &hr);
@@ -318,7 +318,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
         {
             return VFW_E_TIMEOUT;
         }
-        ASSERT(m_hSem != NULL);
+        ASSERT(m_hSem != nullptr);
         WaitForSingleObject(m_hSem, INFINITE);
     }
 

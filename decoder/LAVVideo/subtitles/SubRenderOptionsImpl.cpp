@@ -22,10 +22,12 @@
 
 static const SubRenderOption *sropt_next(const SubRenderOption *options, const SubRenderOption *last)
 {
-    if (!last && options[0].name)
+    if (!last && options[0U].name) {
         return options;
-    if (last && last[1].name)
+}
+    if (last && last[1U].name) {
         return ++last;
+}
     return nullptr;
 }
 

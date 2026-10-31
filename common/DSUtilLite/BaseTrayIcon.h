@@ -53,11 +53,11 @@ class CBaseTrayIcon
   private:
     CAMEvent m_evSetupFinished{TRUE};
 
-    HANDLE m_hThread = 0;
-    HWND m_hWnd = 0;
+    HANDLE m_hThread = nullptr;
+    HWND m_hWnd = nullptr;
     BOOL m_bPropPageOpen = FALSE;
 
-    WCHAR m_wszClassName[64];
+    WCHAR m_wszClassName[64U];
     const WCHAR *m_wszName = nullptr;
     int m_resIcon = 0;
 

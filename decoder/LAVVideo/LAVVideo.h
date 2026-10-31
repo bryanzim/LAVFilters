@@ -189,10 +189,11 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     STDMETHODIMP_(LPWSTR) GetFileExtension();
     STDMETHODIMP_(BOOL) FilterInGraph(PIN_DIRECTION dir, const GUID &clsid)
     {
-        if (dir == PINDIR_INPUT)
+        if (dir == PINDIR_INPUT) {
             return FilterInGraphSafe(m_pInput, clsid);
-        else
+        } else {
             return FilterInGraphSafe(m_pOutput, clsid);
+}
     }
     STDMETHODIMP_(DWORD) GetDecodeFlags() { return m_dwDecodeFlags; }
     STDMETHODIMP_(CMediaType &) GetInputMediaType() { return m_pInput->CurrentMediaType(); }

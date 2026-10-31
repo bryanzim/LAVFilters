@@ -34,12 +34,12 @@
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv)
 {
-    const uint8_t *y = (const uint8_t *)src[0];
-    const uint8_t *u = (const uint8_t *)src[1];
-    const uint8_t *v = (const uint8_t *)src[2];
+    const uint8_t *y = (const uint8_t *)src[0U];
+    const uint8_t *u = (const uint8_t *)src[1U];
+    const uint8_t *v = (const uint8_t *)src[2U];
 
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const ptrdiff_t inStride = srcStride[0U];
+    const ptrdiff_t outStride = dstStride[0U];
 
     ptrdiff_t line, i;
 
@@ -51,7 +51,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv)
 
     for (line = 0; line < height; ++line)
     {
-        __m128i *dst128 = (__m128i *)(dst[0] + line * outStride);
+        __m128i *dst128 = (__m128i *)(dst[0U] + line * outStride);
 
         for (i = 0; i < width; i += 16)
         {
@@ -92,17 +92,18 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv)
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
 {
-    const uint16_t *y = (const uint16_t *)src[0];
-    const uint16_t *u = (const uint16_t *)src[1];
-    const uint16_t *v = (const uint16_t *)src[2];
+    const uint16_t *y = (const uint16_t *)src[0U];
+    const uint16_t *u = (const uint16_t *)src[1U];
+    const uint16_t *v = (const uint16_t *)src[2U];
 
-    const ptrdiff_t inStride = srcStride[0] >> 1;
-    const ptrdiff_t outStride = dstStride[0];
+    const ptrdiff_t inStride = srcStride[0U] >> 1;
+    const ptrdiff_t outStride = dstStride[0U];
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
     const uint16_t *dithers = GetRandomDitherCoeffs(height, 3, 8, 0);
-    if (dithers == nullptr)
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
     ptrdiff_t line, i;
 
@@ -127,7 +128,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
             xmm4 = xmm5 = xmm6;
         }
 
-        __m128i *dst128 = (__m128i *)(dst[0] + line * outStride);
+        __m128i *dst128 = (__m128i *)(dst[0U] + line * outStride);
 
         for (i = 0; i < width; i += 8)
         {

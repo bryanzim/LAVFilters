@@ -92,7 +92,7 @@ class CDecAvcodec : public CDecBase
     BOOL m_bInputPadded = FALSE;
 
     BOOL m_bBFrameDelay = TRUE;
-    TimingCache m_tcBFrameDelay[2];
+    TimingCache m_tcBFrameDelay[2U];
     int m_nBFramePos = 0;
 
     TimingCache m_tcThreadBuffer[AVCODEC_MAX_THREADS];

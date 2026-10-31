@@ -23,7 +23,7 @@
 
 CVideoInputPin::CVideoInputPin(TCHAR *pObjectName, CLAVVideo *pFilter, HRESULT *phr, LPWSTR pName)
     : CDeCSSTransformInputPin(pObjectName, pFilter, phr, pName)
-    , m_pLAVVideo(pFilter)
+    , m_pLAVVideo{pFilter}
 {
 }
 
@@ -36,7 +36,7 @@ STDMETHODIMP CVideoInputPin::NonDelegatingQueryInterface(REFIID riid, void **ppv
 
 STDMETHODIMP CVideoInputPin::NotifyAllocator(IMemAllocator *pAllocator, BOOL bReadOnly)
 {
-    HRESULT hr = __super::NotifyAllocator(pAllocator, bReadOnly);
+    HRESULT const hr = __super::NotifyAllocator(pAllocator, bReadOnly);
 
     m_bDynamicAllocator = FALSE;
     if (SUCCEEDED(hr) && pAllocator)
@@ -54,7 +54,7 @@ STDMETHODIMP CVideoInputPin::NotifyAllocator(IMemAllocator *pAllocator, BOOL bRe
 
 STDMETHODIMP CVideoInputPin::EndOfSegment()
 {
-    CAutoLock lck(&m_pLAVVideo->m_csReceive);
+    CAutoLock const lck(&m_pLAVVideo->m_csReceive);
     HRESULT hr = CheckStreaming();
     if (S_OK == hr)
     {
@@ -82,7 +82,7 @@ STDMETHODIMP CVideoInputPin::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceData
         {
             return E_PROP_ID_UNSUPPORTED;
         }
-        CAutoLock cAutoLock(&m_csRateLock);
+        CAutoLock const cAutoLock(&m_csRateLock);
         m_ratechange = *p;
     }
     break;
@@ -117,7 +117,7 @@ STDMETHODIMP CVideoInputPin::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceData
     {
     case AM_RATE_SimpleRateChange: {
         AM_SimpleRateChange *p = (AM_SimpleRateChange *)pPropertyData;
-        CAutoLock cAutoLock(&m_csRateLock);
+        CAutoLock const cAutoLock(&m_csRateLock);
         *p = m_ratechange;
         *pBytesReturned = sizeof(AM_SimpleRateChange);
     }
