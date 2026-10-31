@@ -1368,11 +1368,11 @@ STDMETHODIMP CLAVSplitter::ReselectSubs(int streamId)
                       (long)m_pDemuxer->GetStreams(CBaseDemuxer::StreamType::audio)->size();
 
         auto subpics = m_pDemuxer->GetStreams(CBaseDemuxer::StreamType::subpic);
-        for (int i = 0; i < subpics->size(); ++i)
+        for (size_t i = 0; i < subpics->size(); ++i)
         {
             if (subpics->at(i).pid == subtitleStream->pid)
             {
-                lIndex += i;
+                lIndex += static_cast<long>(i);
                 break;
             }
         }

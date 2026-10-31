@@ -629,7 +629,9 @@ HRESULT CLAVVideo::DecideBufferSize(IMemAllocator *pAllocator, ALLOCATOR_PROPERT
     // try to honor the requested number of downstream buffers, but cap at the decoders maximum
     long decoderBuffersMax = LONG_MAX;
     long const decoderBuffs = m_Decoder.GetBufferCount(&decoderBuffersMax);
+#ifdef DEBUG
     long const downstreamBuffers = pProperties->cBuffers;
+#endif
     pProperties->cBuffers = min(max(pProperties->cBuffers, 2) + decoderBuffs, decoderBuffersMax);
     pProperties->cbBuffer = pBIH ? pBIH->biSizeImage : 3110400;
     pProperties->cbAlign = 1;

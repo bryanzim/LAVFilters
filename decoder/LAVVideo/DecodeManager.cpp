@@ -138,6 +138,9 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
         bHWDecBlackList = true;
 }
 
+    // Declared above the reuse goto. That jump would otherwise skip this initialization.
+    LAVHWAccel const hwAccel = m_pLAVVideo->GetHWAccel();
+
     // Try reusing the current HW decoder
     if (m_pDecoder && m_bHWDecoder && !bHWDecBlackList && !m_bHWDecoderFailed && HWFORMAT_ENABLED && HWRESOLUTION_ENABLED)
     {
@@ -147,7 +150,6 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
     }
     SAFE_DELETE(m_pDecoder);
 
-    LAVHWAccel const hwAccel = m_pLAVVideo->GetHWAccel();
     if (!bHWDecBlackList && hwAccel != HWAccel_None && !m_bHWDecoderFailed && HWFORMAT_ENABLED && HWRESOLUTION_ENABLED)
     {
         DbgLog((LOG_TRACE, 10, L"-> Trying Hardware Codec %d", hwAccel));

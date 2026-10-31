@@ -738,7 +738,7 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
         }
 
         double Kr, Kg, Kb;
-        switch (matrix)
+        switch (static_cast<int>(matrix))
         {
         case DXVA2_VideoTransferMatrix_BT601:
             Kr = 0.299;

@@ -79,7 +79,12 @@ function(lav_add_variant target_name compiler_tag platform toolset ffmpeg_target
             -DLAV_FFMPEG_LIB_DIR=${ffmpeg_prefix}/lib
             -DLAV_FFMPEG_BIN_DIR=${ffmpeg_prefix}
             -DLAV_FFMPEG_BUILD_DIR=${ffmpeg_build}
-        BUILD_COMMAND "${CMAKE_COMMAND}" --build "<BINARY_DIR>" --config Release --parallel
+        # Apply the libbluray and qsdecoder patches only while this build runs,
+        # then take them back off so those checkouts stay clean in Explorer.
+        BUILD_COMMAND "${CMAKE_COMMAND}"
+            -DLAV_ROOT=${CMAKE_SOURCE_DIR}
+            -DBINARY_DIR=<BINARY_DIR>
+            -P "${CMAKE_SOURCE_DIR}/cmake/run_patched_build.cmake"
         INSTALL_COMMAND ""
         BUILD_ALWAYS TRUE
         USES_TERMINAL_CONFIGURE TRUE

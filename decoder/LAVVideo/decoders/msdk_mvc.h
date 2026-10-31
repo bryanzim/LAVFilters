@@ -37,7 +37,7 @@
 
 typedef struct _MVCBuffer
 {
-    mfxFrameSurface1 surface = {0};
+    mfxFrameSurface1 surface = {};
     bool queued = false;
     mfxSyncPoint sync = nullptr;
 } MVCBuffer;
@@ -107,14 +107,14 @@ class CDecMSDKMVC : public CDecBase
 
   private:
     mfxSession m_mfxSession = nullptr;
-    mfxVersion m_mfxVersion = {0};
+    mfxVersion m_mfxVersion = {};
     mfxIMPL m_mfxImpl = 0;
 
     BOOL m_bDecodeReady = FALSE;
     mfxVideoParam m_mfxVideoParams = {0};
 
     mfxExtBuffer *m_mfxExtParam[1U] = {nullptr};
-    mfxExtMVCSeqDesc m_mfxExtMVCSeq = {0};
+    mfxExtMVCSeqDesc m_mfxExtMVCSeq = {};
 
     CCritSec m_BufferCritSec;
     std::vector<MVCBuffer *> m_BufferQueue;

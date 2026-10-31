@@ -614,7 +614,6 @@ LAV_TARGET("sse4.1")
 DECLARE_CONV_FUNC_IMPL(convert_y210_p210_sse4)
 {
     const ptrdiff_t inStride = srcStride[0U];
-    const ptrdiff_t outStride = dstStride[0U];
 
     const ptrdiff_t byteWidth = width << 2;
 
@@ -679,7 +678,6 @@ DECLARE_CONV_FUNC_IMPL(convert_y210_p210_sse4)
 DECLARE_CONV_FUNC_IMPL(convert_yuy2_yv16_sse2)
 {
     const ptrdiff_t inStride = srcStride[0U];
-    const ptrdiff_t outStride = dstStride[0U];
 
     const ptrdiff_t byteWidth = width << 1;
 

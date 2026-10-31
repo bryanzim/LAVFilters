@@ -300,7 +300,6 @@ LPSTR CoTaskGetMultiByteFromWideChar(UINT CodePage, DWORD dwFlags, LPCWSTR lpMul
 
 BSTR ConvertCharToBSTR(const char *sz)
 {
-    bool const acp = false;
     if (!sz || strlen(sz) == 0) {
         return nullptr;
 }
@@ -557,11 +556,9 @@ BOOL HasSourceWithType(IPin *pPin, const GUID &mediaType)
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
 
-        HRESULT const hrFilter = E_NOINTERFACE;
         IEnumPins *pPinEnum = nullptr;
         pFilter->EnumPins(&pPinEnum);
 
-        HRESULT const hrPin = E_FAIL;
         for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
         {
             if (pOtherPin2 != pOtherPin)
@@ -617,12 +614,10 @@ BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &me
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
 
-        HRESULT const hrFilter = E_NOINTERFACE;
         IEnumPins *pPinEnum = nullptr;
         pFilter->EnumPins(&pPinEnum);
 
         // Iterate over pins of the filter..
-        HRESULT const hrPin = E_FAIL;
         for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
         {
             // ignore the pint we're connected to
@@ -822,7 +817,6 @@ void getExtraData(const BYTE *format, const GUID *formattype, const size_t forma
     else if (*formattype == FORMAT_VorbisFormat2)
     {
         VORBISFORMAT2 *vf2 = (VORBISFORMAT2 *)format;
-        BYTE *start = nullptr, *end = nullptr;
         unsigned offset = 1;
         if (extra)
         {

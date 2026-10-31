@@ -34,7 +34,7 @@ static const SubRenderOption *sropt_next(const SubRenderOption *options, const S
 static const SubRenderOption *sropt_find_option(const SubRenderOption *options, LPCSTR name, int flags)
 {
     const SubRenderOption *o = nullptr;
-    while (o = sropt_next(options, o))
+    while ((o = sropt_next(options, o)))
     {
         if (!_stricmp(o->name, name) && !(o->flags & flags))
         {

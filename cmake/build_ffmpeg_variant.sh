@@ -135,16 +135,29 @@ EXTRA_LDFLAGS="${EXTRA_LDFLAGS} -LIBPATH:${ZLIB_OUT_WIN}"
 # intrinsics never enable SSE and the clang build fails. FFmpeg is an external
 # checkout, so that change is a patch applied here instead of a fork commit.
 # All four variants share that checkout, so the apply is serialized.
-FFMPEG_PATCH="$ROOT_U/cmake/patches/0001-clang-cl-hevc-intrinsic-targets.patch"
+# cygpath -m: Git for Windows does not accept an MSYS /f/ path, and the
+# build disables MSYS path conversion.
+FFMPEG_REPO=$(cygpath -m "$ROOT_U/ffmpeg")
+FFMPEG_PATCH=$(cygpath -m "$ROOT_U/cmake/patches/0001-clang-cl-hevc-intrinsic-targets.patch")
 PATCH_LOCK="$ROOT_U/build/.ffmpeg-patch.lock"
 mkdir -p "$(dirname "$PATCH_LOCK")"
 while ! mkdir "$PATCH_LOCK" 2>/dev/null; do
     sleep 1
 done
-if ! git -C "$ROOT_U/ffmpeg" apply --reverse --check "$FFMPEG_PATCH" >/dev/null 2>&1; then
-    git -C "$ROOT_U/ffmpeg" apply "$FFMPEG_PATCH"
+# Always put the checkout back, including when configure or make fails,
+# so Explorer does not keep a modified ffmpeg folder.
+restore_ffmpeg_patch() {
+    status=$?
+    if git -C "$FFMPEG_REPO" apply --reverse --check "$FFMPEG_PATCH" >/dev/null 2>&1; then
+        git -C "$FFMPEG_REPO" apply --reverse "$FFMPEG_PATCH" || true
+    fi
+    rmdir "$PATCH_LOCK" 2>/dev/null || true
+    exit "$status"
+}
+trap restore_ffmpeg_patch EXIT
+if ! git -C "$FFMPEG_REPO" apply --reverse --check "$FFMPEG_PATCH" >/dev/null 2>&1; then
+    git -C "$FFMPEG_REPO" apply "$FFMPEG_PATCH"
 fi
-rmdir "$PATCH_LOCK"
 
 if [ ! -f config.h ]; then
     # shellcheck disable=SC2086
@@ -186,6 +199,20 @@ if [ ! -f config.h ]; then
             exit 1
         }
     cat config.out
+fi
+
+# FFmpeg appends -W3 after --extra-cflags, so /w has to land at the end of
+# CFLAGS. Upstream diagnostics stay out of the LAV build log. cl warns D9025
+# when -W3 and /w are both present, so the MSVC builds drop -W3.
+if [ -f ffbuild/config.mak ]; then
+    if ! grep -q LAV_WARN_SILENCE ffbuild/config.mak; then
+        sed -i 's/^\(CFLAGS=.*\)$/\1 \/w/' ffbuild/config.mak
+        sed -i 's/^\(CXXFLAGS=.*\)$/\1 \/w/' ffbuild/config.mak
+        printf '\n# LAV_WARN_SILENCE\n' >> ffbuild/config.mak
+    fi
+    if [ "$COMPILER" = "msvc" ]; then
+        sed -i 's/ -W3 / /' ffbuild/config.mak
+    fi
 fi
 
 make -j"${NUMBER_OF_PROCESSORS:-4}"

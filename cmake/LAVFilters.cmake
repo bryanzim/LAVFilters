@@ -58,7 +58,29 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         /clang:-Wno-nonportable-include-path
         /clang:-Wno-logical-op-parentheses
         /clang:-Wno-deprecated-declarations
-        /clang:-Wno-register)
+        /clang:-Wno-register
+        /clang:-Wno-writable-strings
+        /clang:-Wno-microsoft-goto
+        /clang:-Wno-missing-braces
+        /clang:-Wno-array-parameter
+        /clang:-Wno-unused-variable
+        /clang:-Wno-unused-but-set-variable
+        /clang:-Wno-unused-const-variable
+        /clang:-Wno-unused-function
+        /clang:-Wno-unused-private-field
+        /clang:-Wno-unused-value
+        /clang:-Wno-switch
+        /clang:-Wno-parentheses
+        /clang:-Wno-sometimes-uninitialized
+        /clang:-Wno-implicit-const-int-float-conversion
+        /clang:-Wno-tautological-constant-out-of-range-compare
+        /clang:-Wno-invalid-source-encoding
+        /clang:-Wno-comment
+        /clang:-Wno-self-assign
+        /clang:-Wno-unknown-pragmas
+        /clang:-Wno-delete-non-abstract-non-virtual-dtor
+        /clang:-Wno-deprecated-non-prototype
+        /clang:-Wno-ignored-attributes)
 endif()
 
 set(LAV_FFMPEG_BUILD_DIR "" CACHE PATH
@@ -528,6 +550,8 @@ if(LAV_FFMPEG_FOUND AND LAV_FFMPEG_HEADERS_READY)
         ${LAV_SYSTEM_LIBS} gdi32 d3d9 mfuuid dmoguids)
     if(LAV_WITH_MFX)
         target_link_libraries(LAVVideo PRIVATE "${LAV_LIBMFX}")
+        # The Intel import library ships without libmfx.pdb.
+        target_link_options(LAVVideo PRIVATE "/ignore:4099")
     endif()
     lav_configure_shared(LAVVideo)
     lav_enable_sse2(LAVVideo)

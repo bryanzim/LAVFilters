@@ -104,7 +104,7 @@ void CSSdescramble(unsigned char *sec, unsigned char *tkey)
     unsigned int t1, t2, t3, t4, t5, t6;
     unsigned char *end = sec + 0x800;
 
-    t1 = tkey[0U] ^ sec[0x54] | 0x100;
+    t1 = (tkey[0U] ^ sec[0x54]) | 0x100;
     t2 = tkey[1U] ^ sec[0x55];
     t3 = (*((unsigned int *)(tkey + 2))) ^ (*((unsigned int *)(sec + 0x56)));
     t4 = t3 & 7;

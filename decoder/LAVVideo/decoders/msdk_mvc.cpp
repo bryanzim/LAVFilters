@@ -310,7 +310,6 @@ MVCBuffer *CDecMSDKMVC::GetBuffer()
 MVCBuffer *CDecMSDKMVC::FindBuffer(mfxFrameSurface1 *pSurface)
 {
     CAutoLock const lock(&m_BufferCritSec);
-    bool const bFound = false;
     for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if (&(*it)->surface == pSurface)
@@ -370,7 +369,6 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         // MSDK's SEI reading functionality is slightly buggy
         CH264Nalu nalu;
         nalu.SetBuffer(buffer, buflen, m_nMP4NALUSize);
-        BOOL const bNeedFilter = FALSE;
         while (nalu.ReadNext())
         {
             // Don't include End-of-Sequence or AUD NALUs

@@ -65,12 +65,12 @@ class CD3D11SurfaceAllocator : public CBaseAllocator
 
     STDMETHODIMP_(BOOL) DecommitInProgress()
     {
-        CAutoLock const const cal(this);
+        CAutoLock const cal(this);
         return m_bDecommitInProgress;
     }
     STDMETHODIMP_(BOOL) IsCommited()
     {
-        CAutoLock const const cal(this);
+        CAutoLock const cal(this);
         return m_bCommitted;
     }
 
@@ -79,7 +79,7 @@ class CD3D11SurfaceAllocator : public CBaseAllocator
     // LAV interface
     STDMETHODIMP_(void) DecoderDestruct()
     {
-        CAutoLock const const cal(this);
+        CAutoLock const cal(this);
         m_pDec = nullptr;
     }
 

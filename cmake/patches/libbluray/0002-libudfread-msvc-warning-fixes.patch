@@ -1,0 +1,64 @@
+diff --git a/src/default_blockinput.c b/src/default_blockinput.c
+index c75ada8..df6c31c 100644
+--- a/src/default_blockinput.c
++++ b/src/default_blockinput.c
+@@ -74,7 +74,7 @@ static ssize_t pread(int fd, void *buf, size_t count, off_t offset)
+     memset(&ov, 0, sizeof(ov));
+     ov.Offset     = (DWORD)offset;
+     ov.OffsetHigh = (offset >> 32);
+-    if (!ReadFile(handle, buf, count, &got, &ov)) {
++    if (!ReadFile(handle, buf, (DWORD)count, &got, &ov)) {
+         return -1;
+     }
+     return got;
+@@ -118,7 +118,11 @@ static int _def_close(udfread_block_input *p_gen)
+ 
+     if (p) {
+         if (p->fd >= 0) {
++#ifdef _MSC_VER
++            result = _close(p->fd);
++#else
+             result = close(p->fd);
++#endif
+         }
+         free(p);
+     }
+@@ -159,14 +163,14 @@ static int _def_read(udfread_block_input *p_gen, uint32_t lba, void *buf, uint32
+                 continue;
+             }
+             if (got < UDF_BLOCK_SIZE) {
+-                return ret;
++                return (int)ret;
+             }
+             break;
+         }
+         got += (size_t)ret;
+     }
+ 
+-    return got / UDF_BLOCK_SIZE;
++    return (int)(got / UDF_BLOCK_SIZE);
+ }
+ 
+ #ifdef _WIN32
+diff --git a/src/udfread.c b/src/udfread.c
+index 5bfbc1c..7e9a9fe 100644
+--- a/src/udfread.c
++++ b/src/udfread.c
+@@ -1597,7 +1597,7 @@ uint32_t udfread_read_blocks(UDFFILE *p, void *buf, uint32_t file_block, uint32_
+ 
+         if (!lba) {
+             /* unallocated/unwritten block or EOF */
+-            uint32_t file_blocks = (udfread_file_size(p) + UDF_BLOCK_SIZE - 1) / UDF_BLOCK_SIZE;
++            uint32_t file_blocks = (uint32_t)((udfread_file_size(p) + UDF_BLOCK_SIZE - 1) / UDF_BLOCK_SIZE);
+             if (file_block + i < file_blocks) {
+                 udf_trace("zero-fill unallocated / unwritten block %u\n", file_block + i);
+                 memset(block, 0, UDF_BLOCK_SIZE);
+@@ -1651,7 +1651,7 @@ static ssize_t _read(UDFFILE *p, void *buf, size_t bytes)
+ 
+     /* read full block(s) ? */
+     if (bytes >= UDF_BLOCK_SIZE) {
+-        uint32_t num_blocks = bytes / UDF_BLOCK_SIZE;
++        uint32_t num_blocks = (uint32_t)(bytes / UDF_BLOCK_SIZE);
+         num_blocks = udfread_read_blocks(p, buf, file_block, num_blocks, 0);
+         if (num_blocks < 1) {
+             return -1;

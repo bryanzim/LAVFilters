@@ -94,6 +94,8 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_T
 {
     HRESULT hr;
     IMediaSample *pSample = nullptr;
+    ALLOCATOR_PROPERTIES props, actual;
+    BYTE *pData = nullptr;
 
     CHECK_HR(hr = GetDeliveryBuffer(&pSample, nullptr, nullptr, 0));
 
@@ -102,7 +104,6 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_T
     if (size > (size_t)pSample->GetSize())
     {
         SafeRelease(&pSample);
-        ALLOCATOR_PROPERTIES props, actual;
         CHECK_HR(hr = m_pAllocator->GetProperties(&props));
         // Give us 2 times the requested size, so we don't resize every time
         props.cbBuffer = (long)(size * 2);
@@ -118,7 +119,6 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_T
     }
 
     // Fill the sample
-    BYTE *pData = nullptr;
     if (FAILED(hr = pSample->GetPointer(&pData)) || !pData) {
         goto done;
 }

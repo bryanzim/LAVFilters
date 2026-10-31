@@ -27,7 +27,7 @@ class CLAVSubRect : public IUnknown
         memset(&position, 0, sizeof(position));
         memset(&size, 0, sizeof(size));
     }
-    ~CLAVSubRect()
+    virtual ~CLAVSubRect()
     {
         SAFE_CO_FREE(pixels);
         SAFE_CO_FREE(pixelsPal);
@@ -49,12 +49,12 @@ class CLAVSubRect : public IUnknown
     }
     STDMETHODIMP_(ULONG) AddRef()
     {
-        ULONG const const lRef = InterlockedIncrement(&m_cRef);
+        ULONG const lRef = InterlockedIncrement(&m_cRef);
         return max(ULONG(lRef), 1ul);
     }
     STDMETHODIMP_(ULONG) Release()
     {
-        ULONG const const lRef = InterlockedDecrement(&m_cRef);
+        ULONG const lRef = InterlockedDecrement(&m_cRef);
         if (lRef == 0)
         {
             m_cRef++;

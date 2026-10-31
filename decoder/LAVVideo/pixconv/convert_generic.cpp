@@ -80,7 +80,7 @@ DECLARE_CONV_FUNC_IMPL(convert_generic)
         break;
     }
 
-    return S_OK;
+    return hr;
 }
 
 inline SwsContext *CLAVPixFmtConverter::GetSWSContext(int width, int height, enum AVPixelFormat srcPix,
@@ -126,12 +126,10 @@ inline SwsContext *CLAVPixFmtConverter::GetSWSContext(int width, int height, enu
 }
 
 HRESULT CLAVPixFmtConverter::swscale_scale(enum AVPixelFormat srcPix, enum AVPixelFormat dstPix,
-                                           const uint8_t *const src[], const ptrdiff_t srcStride[], uint8_t *dst[],
-                                           int width, int height, const ptrdiff_t dstStride[],
+                                           const uint8_t *const src[4U], const ptrdiff_t srcStride[4U],
+                                           uint8_t *dst[4U], int width, int height, const ptrdiff_t dstStride[4U],
                                            LAVOutPixFmtDesc pixFmtDesc, bool swapPlanes12)
 {
-    int ret;
-
     SwsContext *ctx = GetSWSContext(width, height, srcPix, dstPix, SWS_BILINEAR);
     CheckPointer(m_pSwsContext, E_POINTER);
 
@@ -142,7 +140,7 @@ HRESULT CLAVPixFmtConverter::swscale_scale(enum AVPixelFormat srcPix, enum AVPix
         dst[2U] = tmp;
     }
 
-    ret = sws_scale2(ctx, src, srcStride, 0, height, dst, dstStride);
+    (void)sws_scale2(ctx, src, srcStride, 0, height, dst, dstStride);
 
     return S_OK;
 }

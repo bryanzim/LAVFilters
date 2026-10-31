@@ -105,7 +105,6 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
 
     BOOL const bRGBAuto = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_AUTO, BM_GETCHECK, 0, 0);
     BOOL const bRGBTV = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_TV, BM_GETCHECK, 0, 0);
-    BOOL const bRGBPC = (BOOL)SendDlgItemMessage(m_Dlg, IDC_RGBOUT_PC, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetRGBOutputRange(bRGBAuto ? 0 : bRGBTV ? 1 : 2);
 
     LRESULT const retVal = SendDlgItemMessage(m_Dlg, IDC_HWACCEL, CB_GETCURSEL, 0, 0);
@@ -180,7 +179,6 @@ HRESULT CLAVVideoSettingsProp::OnApplyChanges()
     m_pVideoSettings->SetSWDeintOutput(bFlag ? DeintOutput_FramePer2Field : DeintOutput_FramePerField);
 
     BOOL const bOrdered = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DITHER_ORDERED, BM_GETCHECK, 0, 0);
-    BOOL const bRandom = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DITHER_RANDOM, BM_GETCHECK, 0, 0);
     m_pVideoSettings->SetDitherMode(bOrdered ? LAVDither_Ordered : LAVDither_Random);
 
     bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0);
@@ -424,7 +422,6 @@ HRESULT CLAVVideoSettingsProp::UpdateHWOptions()
     BOOL const bHWDeint = bEnabled && (hwAccel == HWAccel_CUDA || hwAccel == HWAccel_QuickSync);
     BOOL const bHWDeintEnabled = bHWDeint && (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWDEINT_ENABLE, BM_GETCHECK, 0, 0);
     BOOL const bCUDAOnly = bEnabled && (hwAccel == HWAccel_CUDA);
-    BOOL const bDVD = bEnabled && (BOOL)SendDlgItemMessage(m_Dlg, IDC_HWACCEL_MPEG2, BM_GETCHECK, 0, 0);
     BOOL const bHEVC = bEnabled && (hwAccel != HWAccel_QuickSync);
     BOOL const bVP9 = bEnabled && (hwAccel != HWAccel_QuickSync);
     BOOL const bAV1 = bEnabled && (hwAccel != HWAccel_QuickSync) && (hwAccel != HWAccel_CUDA);

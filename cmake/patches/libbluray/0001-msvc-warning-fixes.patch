@@ -1,0 +1,152 @@
+diff --git a/src/libbluray/bdj/bdj.c b/src/libbluray/bdj/bdj.c
+index e75a9e51..b6fb8edd 100644
+--- a/src/libbluray/bdj/bdj.c
++++ b/src/libbluray/bdj/bdj.c
+@@ -223,7 +223,7 @@ static inline char *_utf8_to_cp(const char *utf8)
+ 
+     char *out = (char *)malloc(len);
+     if (out != NULL) {
+-        if (!WideCharToMultiByte(CP_ACP, 0, wide, -1, out, len, NULL, NULL)) {
++        if (!WideCharToMultiByte(CP_ACP, 0, wide, -1, out, (int)len, NULL, NULL)) {
+             X_FREE(out);
+         }
+     }
+diff --git a/src/libbluray/bluray.c b/src/libbluray/bluray.c
+index 3185a893..03e777a3 100644
+--- a/src/libbluray/bluray.c
++++ b/src/libbluray/bluray.c
+@@ -1793,7 +1793,7 @@ int64_t bd_seek_time(BLURAY *bd, uint64_t tick)
+ int64_t bd_find_seek_point(BLURAY *bd, uint64_t tick)
+ {
+   uint32_t clip_pkt, out_pkt;
+-  NAV_CLIP *clip;
++  const NAV_CLIP *clip;
+ 
+   tick /= 2;
+ 
+diff --git a/src/libbluray/decoders/ig_decode.c b/src/libbluray/decoders/ig_decode.c
+index 855702fc..581484fa 100644
+--- a/src/libbluray/decoders/ig_decode.c
++++ b/src/libbluray/decoders/ig_decode.c
+@@ -276,7 +276,7 @@ static int _decode_interactive_composition(BITBUFFER *bb, BD_IG_INTERACTIVE_COMP
+     unsigned ii;
+ 
+     uint32_t data_len = bb_read(bb, 24);
+-    uint32_t buf_len  = bb->p_end - bb->p;
++    uint32_t buf_len  = (uint32_t)(bb->p_end - bb->p);
+     if (data_len != buf_len) {
+         BD_DEBUG(DBG_DECODE, "ig_decode_interactive(): buffer size mismatch (expected %d, have %d)\n", data_len, buf_len);
+         return 0;
+diff --git a/src/libbluray/decoders/m2ts_demux.c b/src/libbluray/decoders/m2ts_demux.c
+index 1319a554..ef236202 100644
+--- a/src/libbluray/decoders/m2ts_demux.c
++++ b/src/libbluray/decoders/m2ts_demux.c
+@@ -102,7 +102,7 @@ static int _realloc(PES_BUFFER *p, size_t size)
+         return -1;
+     }
+ 
+-    p->size = size;
++    p->size = (unsigned int)size;
+     p->buf = tmp;
+ 
+     return 0;
+diff --git a/src/libbluray/decoders/pg_decode.c b/src/libbluray/decoders/pg_decode.c
+index 03b0b0d6..ef5f6c3e 100644
+--- a/src/libbluray/decoders/pg_decode.c
++++ b/src/libbluray/decoders/pg_decode.c
+@@ -216,7 +216,7 @@ int pg_decode_object(BITBUFFER *bb, BD_PG_OBJECT *p)
+     }
+ 
+     uint32_t data_len = bb_read(bb, 24);
+-    uint32_t buf_len  = bb->p_end - bb->p;
++    uint32_t buf_len  = (uint32_t)(bb->p_end - bb->p);
+     if (data_len != buf_len) {
+         BD_DEBUG(DBG_DECODE, "pg_decode_object(): buffer size mismatch (expected %d, have %d)\n", data_len, buf_len);
+         return 0;
+diff --git a/src/libbluray/decoders/textst_decode.c b/src/libbluray/decoders/textst_decode.c
+index cb4d0312..7173754e 100644
+--- a/src/libbluray/decoders/textst_decode.c
++++ b/src/libbluray/decoders/textst_decode.c
+@@ -147,7 +147,7 @@ static int _decode_dialog_region(BITBUFFER *bb, BD_TEXTST_DIALOG_REGION *p)
+ 
+         /* realloc */
+ 
+-        int bytes_used = ((intptr_t)ptr - (intptr_t)p->elem);
++        int bytes_used = (int)((intptr_t)ptr - (intptr_t)p->elem);
+         int need = bytes_used + length + sizeof(BD_TEXTST_DATA);
+         if (bytes_allocated < need) {
+             bytes_allocated = need * 2;
+diff --git a/src/libbluray/disc/udf_fs.c b/src/libbluray/disc/udf_fs.c
+index ac9cb56d..39a443ed 100644
+--- a/src/libbluray/disc/udf_fs.c
++++ b/src/libbluray/disc/udf_fs.c
+@@ -66,7 +66,7 @@ static int64_t _file_tell(BD_FILE_H *file)
+ 
+ static int64_t _file_read(BD_FILE_H *file, uint8_t *buf, int64_t size)
+ {
+-    return udfread_file_read((UDFFILE*)file->internal, buf, size);
++    return udfread_file_read((UDFFILE*)file->internal, buf, (size_t)size);
+ }
+ 
+ BD_FILE_H *bdpriv_udf_file_open(void *udf, const char *filename)
+@@ -166,7 +166,7 @@ static uint32_t _bi_size(struct udfread_block_input *bi_gen)
+     UDF_BI *bi = (UDF_BI *)bi_gen;
+     int64_t size = file_size(bi->fp);
+     if (size >= 0) {
+-        return size / UDF_BLOCK_SIZE;
++        return (uint32_t)(size / UDF_BLOCK_SIZE);
+     }
+     return 0;
+ }
+@@ -181,10 +181,10 @@ static int _bi_read(struct udfread_block_input *bi_gen, uint32_t lba, void *buf,
+     /* seek + read must be atomic */
+     bd_mutex_lock(&bi->mutex);
+ 
+-    if (file_seek(bi->fp, SEEK_SET, pos) == pos) {
++    if (file_seek(bi->fp, SEEK_SET, (int32_t)pos) == pos) {
+         int64_t bytes = file_read(bi->fp, (uint8_t*)buf, (int64_t)nblocks * UDF_BLOCK_SIZE);
+         if (bytes > 0) {
+-            got = bytes / UDF_BLOCK_SIZE;
++            got = (int)(bytes / UDF_BLOCK_SIZE);
+         }
+     }
+ 
+diff --git a/src/libbluray/hdmv/mobj_print.c b/src/libbluray/hdmv/mobj_print.c
+index 150bfdb3..18b2cc9c 100644
+--- a/src/libbluray/hdmv/mobj_print.c
++++ b/src/libbluray/hdmv/mobj_print.c
+@@ -269,7 +269,7 @@ static int _sprint_operand(char *buf, int imm, uint32_t op, int *psr)
+             buf += sprintf(buf, "0x%-4x", op);
+     }
+ 
+-    return buf - start;
++    return (int)(buf - start);
+ }
+ 
+ static int _sprint_operands(char *buf, MOBJ_CMD *cmd)
+@@ -296,7 +296,7 @@ static int _sprint_operands(char *buf, MOBJ_CMD *cmd)
+     if (psr2 >= 0 && psr2 < 128 && psr2 != psr1 && psr_info[psr2])
+         buf += sprintf(buf, " %s", psr_info[psr2]);
+ 
+-    return buf - start;
++    return (int)(buf - start);
+ }
+ 
+ static int _sprint_operands_hex(char *buf, MOBJ_CMD *cmd)
+@@ -311,7 +311,7 @@ static int _sprint_operands_hex(char *buf, MOBJ_CMD *cmd)
+         buf += sprintf(buf,  ",\t0x%-4x", cmd->src);
+     }
+ 
+-    return buf - start;
++    return (int)(buf - start);
+ }
+ 
+ static uint32_t _cmd_to_u32(HDMV_INSN *insn)
+@@ -409,6 +409,6 @@ int mobj_sprint_cmd(char *buf, MOBJ_CMD *cmd)
+             break;
+     }
+ 
+-    return buf - start;
++    return (int)(buf - start);
+ }
+ 

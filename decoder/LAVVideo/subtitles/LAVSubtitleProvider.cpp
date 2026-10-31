@@ -297,7 +297,7 @@ STDMETHODIMP CLAVSubtitleProvider::Decode(BYTE *buf, int buflen, REFERENCE_TIME 
   }
 
   while (buflen > 0) {
-    REFERENCE_TIME rtStart = rtStartIn, rtStop = rtStopIn;
+    REFERENCE_TIME rtStart = rtStartIn;
     int used_bytes = 0;
     int got_sub = 0;
     if (m_pParser) {

@@ -1,0 +1,41 @@
+diff --git a/QuickSync.cpp b/QuickSync.cpp
+index e2718dc..779c3fd 100644
+--- a/QuickSync.cpp
++++ b/QuickSync.cpp
+@@ -107,7 +107,14 @@ CQuickSync::CQuickSync() :
+ 
+ //    m_Config.bDropDuplicateFrames = true;
+ 
++#if defined(_MSC_VER)
++#pragma warning(push)
++#pragma warning(disable : 4996)
++#endif
+     DWORD dwVersion = GetVersion();
++#if defined(_MSC_VER)
++#pragma warning(pop)
++#endif
+     DWORD dwMajorVersion = (DWORD)(LOBYTE(LOWORD(dwVersion)));
+     DWORD dwMinorVersion = (DWORD)(HIBYTE(LOWORD(dwVersion)));
+     // No QS support for Windows version older than Vista
+diff --git a/stdafx.h b/stdafx.h
+index d9fdcd1..d9466c1 100644
+--- a/stdafx.h
++++ b/stdafx.h
+@@ -16,13 +16,17 @@
+ #include <sdkddkver.h>
+ #if (NTDDI_VERSION >= NTDDI_VERSION_FROM_WIN32_WINNT2(0x0602)) // >= _WIN32_WINNT_WIN8
+     #define MFX_D3D11_SUPPORT 1 // Enable D3D11 support if SDK allows
++#if !defined(__clang__)
+     #pragma message("\nIntel QuickSync Decoder is built with D3D11 support\n")
++#endif
+ #else
+     #define MFX_D3D11_SUPPORT 0
++#if !defined(__clang__)
+     #pragma message("\nNote: Intel QuickSync Decoder is built without D3D11 support!")
+     #pragma message("\tMust have Windows SDK 8.0 installed and environment variable INTELMEDIASDK_WINSDK_PATH")
+     #pragma message("\tshould point to it.")
+     #pragma message("\te.g. \"C:\\Program Files (x86)\\Windows Kits\\8.0\"")
++#endif
+     // disable depracated warnings from VC10's Windows SDK 7.0
+     #pragma warning(disable: 4995)
+ #endif

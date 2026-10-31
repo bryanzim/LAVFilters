@@ -110,7 +110,6 @@ STDMETHODIMP CLAVSubtitleConsumer::RequestFrame(REFERENCE_TIME rtStart, REFERENC
 STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
 {
     CheckPointer(m_pProvider, E_FAIL);
-    HRESULT const hr = S_OK;
     LPDIRECT3DSURFACE9 pSurface = nullptr;
 
     // Wait for the requested frame
@@ -223,7 +222,6 @@ static LAVPixFmtDesc getFFSubPixelFormatDesc(AVPixelFormat pixFmt)
 
 static AVPixelFormat getFFPixFmtForSubtitle(LAVPixelFormat pixFmt)
 {
-    AVPixelFormat const fmt = AV_PIX_FMT_NONE;
     for (int i = 0; i < countof(lav_ff_subtitle_pixfmt_map); ++i)
     {
         if (lav_ff_subtitle_pixfmt_map[i].pixfmt == pixFmt)
@@ -369,7 +367,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
             src[0U] = tmpBuf;
         }
 
-        int const ret = sws_scale2(m_pSwsContext, src, srcStride, 0, subSize.cy, subData, subStride);
+        (void)sws_scale2(m_pSwsContext, src, srcStride, 0, subSize.cy, subData, subStride);
         subSize = newSize;
 
         if (tmpBuf) {
