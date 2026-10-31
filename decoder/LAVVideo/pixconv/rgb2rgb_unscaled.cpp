@@ -24,6 +24,7 @@
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
 
+LAV_TARGET("ssse3")
 DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
 {
     const uint16_t *rgb = (const uint16_t *)src[0U];

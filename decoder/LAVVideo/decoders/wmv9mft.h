@@ -39,7 +39,7 @@ typedef HRESULT STDAPICALLTYPE tMFCreateAlignedMemoryBuffer(DWORD cbMaxLength, D
 typedef HRESULT STDAPICALLTYPE tMFAverageTimePerFrameToFrameRate(UINT64 unAverageTimePerFrame, UINT32 *punNumerator,
                                                                  UINT32 *punDenominator);
 
-#define MFMETHOD(name) tMF##name *##name
+#define MFMETHOD(name) tMF##name *name
 
 ////////////////////////////////////////////////////////////////////////////////
 // Class

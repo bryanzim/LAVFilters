@@ -32,6 +32,12 @@
 
 #define DECLARE_CONV_FUNC_IMPL(name) DECLARE_CONV_FUNC(CLAVPixFmtConverter::name)
 
+#if defined(__clang__)
+#define LAV_TARGET(feature) __attribute__((target(feature)))
+#else
+#define LAV_TARGET(feature)
+#endif
+
 // Important, when adding new pixel formats, they need to be added in LAVPixFmtConverter.cpp as well to the format
 // descriptors
 typedef struct

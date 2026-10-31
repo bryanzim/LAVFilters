@@ -24,6 +24,10 @@
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
 
+#if defined(__clang__)
+#pragma clang attribute push (__attribute__((target("sse4.1"))), apply_to=function)
+#endif
+
 // This function is only designed for NV12-like pixel formats, like NV12, P010, P016, ...
 DECLARE_CONV_FUNC_IMPL(plane_copy_direct_nv12_sse4)
 {
@@ -500,3 +504,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuy2_yv16_direct_sse4)
 
     return S_OK;
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif

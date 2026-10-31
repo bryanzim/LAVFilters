@@ -1034,9 +1034,9 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
     const AVDOVIDataMapping *mapping = av_dovi_get_mapping(ff);
     const AVDOVIColorMetadata *color = av_dovi_get_color(ff);
 
-#define RPU_HDR(name) sd->Header.##name = header->##name;
-#define RPU_MAP(name) sd->Mapping.##name = mapping->##name;
-#define RPU_COLOR(name) sd->ColorMetadata.##name = color->##name;
+#define RPU_HDR(name) sd->Header.name = header->name;
+#define RPU_MAP(name) sd->Mapping.name = mapping->name;
+#define RPU_COLOR(name) sd->ColorMetadata.name = color->name;
 
     RPU_HDR(rpu_type);
     RPU_HDR(rpu_format);

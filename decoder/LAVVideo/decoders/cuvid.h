@@ -34,7 +34,7 @@
 
 #include <queue>
 
-#define CUMETHOD(name) t##name *##name
+#define CUMETHOD(name) t##name *name
 
 class CDecCuvid : public CDecBase
 {

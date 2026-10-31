@@ -59,19 +59,92 @@ CC_ARGS=""
 EXTRA_CFLAGS="-D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -Zo -GS- -MD -I${SOURCE_ROOT}/thirdparty/${INC}/include"
 EXTRA_LDFLAGS="-NODEFAULTLIB:libcmt -LIBPATH:${SOURCE_ROOT}/thirdparty/${INC}/lib"
 
+ZCC="cl"
 if [ "$COMPILER" = "clang" ]; then
     if [ "$ARCH" = "x86" ]; then
         # The installed clang-cl is 64-bit hosted and defaults to x64.
-        cat > clang-cl-x86.sh << 'EOF'
-#!/bin/sh
-exec clang-cl -m32 "$@"
+        # FFmpeg's mscl.exe launches the compiler with CreateProcess, which
+        # cannot run a shell script, so this is a real executable.
+        cat > clang-cl-x86.c << 'EOF'
+#include <process.h>
+#include <stddef.h>
+#include <stdlib.h>
+
+int main(int argc, char **argv)
+{
+    char **args = calloc((size_t)argc + 2, sizeof(*args));
+    int i;
+    intptr_t rc;
+
+    if (!args)
+        return 1;
+    args[0] = "clang-cl";
+    args[1] = "-m32";
+    for (i = 1; i < argc; i++)
+        args[i + 1] = argv[i];
+    args[argc + 1] = NULL;
+    rc = _spawnvp(_P_WAIT, "clang-cl", (const char * const *)args);
+    free(args);
+    return rc < 0 ? 1 : (int)rc;
+}
 EOF
-        chmod +x clang-cl-x86.sh
-        CC_ARGS="--cc=./clang-cl-x86.sh --cxx=./clang-cl-x86.sh"
+        cl /nologo /O2 /MD /Fe:clang-cl-x86.exe /Foclang-cl-x86.obj clang-cl-x86.c
+        CC_ARGS="--cc=./clang-cl-x86.exe --cxx=./clang-cl-x86.exe"
+        ZCC="./clang-cl-x86.exe"
     else
         CC_ARGS="--cc=clang-cl --cxx=clang-cl"
+        ZCC="clang-cl"
     fi
 fi
+
+# Upstream enables zlib, and this tree does not ship zlib headers or an MSVC lib.
+ZLIB_SRC_WIN="${SOURCE_ROOT}/build/zlib-1.3.1"
+ZLIB_SRC_U=$(to_unix "$ZLIB_SRC_WIN")
+ZLIB_OUT_WIN="${BUILD_DIR}/zlib"
+ZLIB_OUT_U=$(to_unix "$ZLIB_OUT_WIN")
+if [ ! -f "$ZLIB_SRC_U/zlib.h" ]; then
+    ZLIB_TGZ_U=$(to_unix "${SOURCE_ROOT}/build/zlib-1.3.1.tar.gz")
+    mkdir -p "$(dirname "$ZLIB_TGZ_U")"
+    if [ ! -f "$ZLIB_TGZ_U" ]; then
+        curl -fsSL -o "$ZLIB_TGZ_U" \
+            "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+    fi
+    tar -C "$(dirname "$ZLIB_TGZ_U")" -xzf "$ZLIB_TGZ_U"
+fi
+# FFmpeg's config.h defines HAVE_UNISTD_H as 0. zlib treats any definition
+# as "the header exists" and then includes unistd.h, which the Windows SDK
+# does not provide.
+sed -i 's/^#ifdef HAVE_UNISTD_H$/#if defined(HAVE_UNISTD_H) \&\& HAVE_UNISTD_H/' \
+    "$ZLIB_SRC_U/zconf.h"
+if [ ! -f "$ZLIB_OUT_U/zlib.lib" ]; then
+    mkdir -p "$ZLIB_OUT_U"
+    for zsrc in adler32.c compress.c crc32.c deflate.c gzclose.c gzlib.c \
+        gzread.c gzwrite.c infback.c inffast.c inflate.c inftrees.c trees.c \
+        uncompr.c zutil.c; do
+        "$ZCC" /nologo /MD /O2 /c /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE \
+            "/I${ZLIB_SRC_WIN}" \
+            "/Fo${ZLIB_OUT_WIN}/${zsrc%.c}.obj" \
+            "${ZLIB_SRC_WIN}/${zsrc}"
+    done
+    (cd "$ZLIB_OUT_U" && lib.exe /nologo /out:zlib.lib ./*.obj)
+fi
+EXTRA_CFLAGS="${EXTRA_CFLAGS} -I${ZLIB_SRC_WIN}"
+EXTRA_LDFLAGS="${EXTRA_LDFLAGS} -LIBPATH:${ZLIB_OUT_WIN}"
+
+# clang-cl does not define __GNUC__, so the GCC target pragmas in the HEVC
+# intrinsics never enable SSE and the clang build fails. FFmpeg is an external
+# checkout, so that change is a patch applied here instead of a fork commit.
+# All four variants share that checkout, so the apply is serialized.
+FFMPEG_PATCH="$ROOT_U/cmake/patches/0001-clang-cl-hevc-intrinsic-targets.patch"
+PATCH_LOCK="$ROOT_U/build/.ffmpeg-patch.lock"
+mkdir -p "$(dirname "$PATCH_LOCK")"
+while ! mkdir "$PATCH_LOCK" 2>/dev/null; do
+    sleep 1
+done
+if ! git -C "$ROOT_U/ffmpeg" apply --reverse --check "$FFMPEG_PATCH" >/dev/null 2>&1; then
+    git -C "$ROOT_U/ffmpeg" apply "$FFMPEG_PATCH"
+fi
+rmdir "$PATCH_LOCK"
 
 if [ ! -f config.h ]; then
     # shellcheck disable=SC2086

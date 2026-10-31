@@ -57,7 +57,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         /clang:-Wno-overloaded-virtual
         /clang:-Wno-nonportable-include-path
         /clang:-Wno-logical-op-parentheses
-        /clang:-Wno-deprecated-declarations)
+        /clang:-Wno-deprecated-declarations
+        /clang:-Wno-register)
 endif()
 
 set(LAV_FFMPEG_BUILD_DIR "" CACHE PATH
@@ -511,8 +512,12 @@ if(LAV_FFMPEG_FOUND AND LAV_FFMPEG_HEADERS_READY)
     endif()
 
     add_library(LAVVideo SHARED ${LAV_VIDEO_SOURCES})
+    # DSUtilLite must come before qsdecoder. Both trees ship H264Nalu.h, and
+    # LAV Video uses the DSUtilLite class. The vcxproj appends qsdecoder.
+    target_include_directories(LAVVideo BEFORE PRIVATE
+        "${LAV_ROOT}/common/DSUtilLite"
+        "${LAV_ROOT}/decoder/LAVVideo")
     target_include_directories(LAVVideo PRIVATE
-        "${LAV_ROOT}/decoder/LAVVideo"
         "${LAV_ROOT}/qsdecoder"
         "${LAV_ROOT}/decoder/LAVVideo/decoders/mvc/include")
     target_compile_definitions(LAVVideo PRIVATE LAVVIDEO_EXPORTS)
