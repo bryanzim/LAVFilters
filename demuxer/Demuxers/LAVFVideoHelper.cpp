@@ -55,6 +55,7 @@ static FormatMapping video_map[] = {
   { AV_CODEC_ID_RV20,       &MEDIASUBTYPE_RV20,         MKTAG('R','V','2','0'), &FORMAT_VideoInfo2 },
   { AV_CODEC_ID_RV30,       &MEDIASUBTYPE_RV30,         MKTAG('R','V','3','0'), &FORMAT_VideoInfo2 },
   { AV_CODEC_ID_RV40,       &MEDIASUBTYPE_RV40,         MKTAG('R','V','4','0'), &FORMAT_VideoInfo2 },
+  { AV_CODEC_ID_RV60,       &MEDIASUBTYPE_RV60,         MKTAG('R','V','6','0'), &FORMAT_VideoInfo2 },
   { AV_CODEC_ID_AMV,        &MEDIASUBTYPE_AMVV,         MKTAG('A','M','V','V'), nullptr },
   { AV_CODEC_ID_TIFF,       &MEDIASUBTYPE_TIFF,         MKTAG('T','I','F','F'), nullptr },
   { AV_CODEC_ID_PNG,        &MEDIASUBTYPE_PNG,          MKTAG('P','N','G',' '), nullptr },
@@ -69,6 +70,7 @@ static FormatMapping video_map[] = {
   { AV_CODEC_ID_WEBP,       &MEDIASUBTYPE_WEBP,         MKTAG('W','E','B','P'), &FORMAT_VideoInfo2 },
   { AV_CODEC_ID_WEBP_ANIM,  &MEDIASUBTYPE_WEBP_ANIM,    MKTAG('V','P','8','X'), &FORMAT_VideoInfo2 },
   { AV_CODEC_ID_APV,        &MEDIASUBTYPE_APV1,         MKTAG('A','P','V','1'), &FORMAT_VideoInfo2 },
+  { AV_CODEC_ID_PRORES_RAW, &MEDIASUBTYPE_aprn,        0,                      &FORMAT_VideoInfo2 },
 };
 // clang-format on
 

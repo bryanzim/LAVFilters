@@ -187,6 +187,7 @@ static const FFMPEG_SUBTYPE_MAP lavc_video_codecs[] = {
   { &MEDIASUBTYPE_RV20, AV_CODEC_ID_RV20 },
   { &MEDIASUBTYPE_RV30, AV_CODEC_ID_RV30 },
   { &MEDIASUBTYPE_RV40, AV_CODEC_ID_RV40 },
+  { &MEDIASUBTYPE_RV60, AV_CODEC_ID_RV60 },
 
   // DV Video
   { &MEDIASUBTYPE_dvsd, AV_CODEC_ID_DVVIDEO },
@@ -263,6 +264,8 @@ static const FFMPEG_SUBTYPE_MAP lavc_video_codecs[] = {
   { &MEDIASUBTYPE_apco, AV_CODEC_ID_PRORES },
   { &MEDIASUBTYPE_ap4h, AV_CODEC_ID_PRORES },
   { &MEDIASUBTYPE_ap4x, AV_CODEC_ID_PRORES },
+  { &MEDIASUBTYPE_aprn, AV_CODEC_ID_PRORES_RAW },
+  { &MEDIASUBTYPE_aprh, AV_CODEC_ID_PRORES_RAW },
   { &MEDIASUBTYPE_ULRA, AV_CODEC_ID_UTVIDEO },
   { &MEDIASUBTYPE_ULRG, AV_CODEC_ID_UTVIDEO },
   { &MEDIASUBTYPE_ULY0, AV_CODEC_ID_UTVIDEO },
@@ -507,6 +510,7 @@ const AMOVIESETUP_MEDIATYPE CLAVVideo::sudPinTypesIn[] = {
   { &MEDIATYPE_Video, &MEDIASUBTYPE_RV20 },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_RV30 },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_RV40 },
+  { &MEDIATYPE_Video, &MEDIASUBTYPE_RV60 },
 
   // DV Video
   { &MEDIATYPE_Video, &MEDIASUBTYPE_dvsd },
@@ -583,6 +587,8 @@ const AMOVIESETUP_MEDIATYPE CLAVVideo::sudPinTypesIn[] = {
   { &MEDIATYPE_Video, &MEDIASUBTYPE_apco },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_ap4h },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_ap4x },
+  { &MEDIATYPE_Video, &MEDIASUBTYPE_aprn },
+  { &MEDIATYPE_Video, &MEDIASUBTYPE_aprh },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_ULRA },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_ULRG },
   { &MEDIATYPE_Video, &MEDIASUBTYPE_ULY0 },
@@ -773,6 +779,9 @@ static codec_config_t m_codec_config[] = {
   { 1, { AV_CODEC_ID_VP4 }},                                                 // Codec_VP4
   { 1, { AV_CODEC_ID_FIC }},                                                 // Codec_FIC
   { 1, { AV_CODEC_ID_APV }},                                                 // Codec_APV
+  { 2, { AV_CODEC_ID_WEBP, AV_CODEC_ID_WEBP_ANIM }},                          // Codec_WEBP
+  { 1, { AV_CODEC_ID_RV60 }},                                                // Codec_RV60
+  { 1, { AV_CODEC_ID_PRORES_RAW }},                                          // Codec_ProResRAW
 };
 // clang-format off
 
