@@ -19,19 +19,21 @@
 
 #pragma once
 #include "DecBase.h"
-
 #include "IQuickSyncDecoder.h"
+
+#include <cstddef>
+#include <queue>
+
 
 typedef IQuickSyncDecoder *__stdcall pcreateQuickSync();
 typedef void __stdcall pdestroyQuickSync(IQuickSyncDecoder *);
 typedef DWORD __stdcall pcheck();
 
-#include <queue>
 
 class CDecQuickSync : public CDecBase
 {
   public:
-    CDecQuickSync(void);
+    explicit CDecQuickSync();
     virtual ~CDecQuickSync(void);
 
     // ILAVDecoder
@@ -52,8 +54,7 @@ class CDecQuickSync : public CDecBase
     {
         CheckPointer(pstrDeviceName, E_POINTER);
         *pstrDeviceName = SysAllocString(L"Intel\xae QuickSync");
-        if (!*pstrDeviceName)
-            return E_OUTOFMEMORY;
+        if (!*pstrDeviceName) { return E_OUTOFMEMORY; }
         return S_OK;
     }
 
@@ -66,7 +67,7 @@ class CDecQuickSync : public CDecBase
     static HRESULT QS_DeliverSurfaceCallback(void *obj, QsFrameData *data);
     STDMETHODIMP HandleFrame(QsFrameData *data);
 
-    STDMETHODIMP CheckH264Sequence(const BYTE *buffer, size_t buflen, int nal_size, int *pRefFrames = nullptr,
+    STDMETHODIMP CheckH264Sequence(const BYTE *buffer, std::size_t buflen, int nal_size, int *pRefFrames = nullptr,
                                    int *pProfile = nullptr, int *pLevel = nullptr);
 
   private:
@@ -81,19 +82,19 @@ class CDecQuickSync : public CDecBase
 
     IQuickSyncDecoder *m_pDecoder = nullptr;
 
-    BOOL m_bNeedSequenceCheck = FALSE;
-    BOOL m_bInterlaced = TRUE;
-    BOOL m_bDI = FALSE;
-    BOOL m_bAVC1 = FALSE;
-    int m_nAVCNalSize = 0;
-    BOOL m_bEndOfSequence = FALSE;
+    BOOL m_bNeedSequenceCheck{ FALSE };
+    BOOL m_bInterlaced{ TRUE };
+    BOOL m_bDI{ FALSE };
+    BOOL m_bAVC1{ FALSE };
+    int m_nAVCNalSize{ 0 };
+    BOOL m_bEndOfSequence{ FALSE };
 
     BOOL m_bUseTimestampQueue;
     std::queue<REFERENCE_TIME> m_timestampQueue;
 
     DXVA2_ExtendedFormat m_DXVAExtendedFormat;
 
-    FOURCC m_Codec = 0;
+    FOURCC m_Codec{ 0 };
 
     IDirect3DDeviceManager9 *m_pD3DDevMngr = nullptr;
 };

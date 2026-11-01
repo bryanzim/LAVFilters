@@ -19,15 +19,17 @@
 
 #pragma once
 
+#include <cstring>
+
 class CLAVSubRect : public IUnknown
 {
   public:
-    CLAVSubRect()
+    explicit CLAVSubRect()
     {
-        memset(&position, 0, sizeof(position));
-        memset(&size, 0, sizeof(size));
+        std::memset(&position, 0, sizeof(position));
+        std::memset(&size, 0, sizeof(size));
     }
-    ~CLAVSubRect()
+    virtual ~CLAVSubRect()
     {
         SAFE_CO_FREE(pixels);
         SAFE_CO_FREE(pixelsPal);
@@ -39,7 +41,7 @@ class CLAVSubRect : public IUnknown
         if (riid == IID_IUnknown)
         {
             AddRef();
-            *ppvObject = (IUnknown *)this;
+            *ppvObject = reinterpret_cast<IUnknown *>(this);
         }
         else
         {
@@ -49,15 +51,15 @@ class CLAVSubRect : public IUnknown
     }
     STDMETHODIMP_(ULONG) AddRef()
     {
-        ULONG lRef = InterlockedIncrement(&m_cRef);
+        ULONG const lRef = InterlockedIncrement(&m_cRef);
         return max(ULONG(lRef), 1ul);
     }
     STDMETHODIMP_(ULONG) Release()
     {
-        ULONG lRef = InterlockedDecrement(&m_cRef);
+        ULONG const lRef = InterlockedDecrement(&m_cRef);
         if (lRef == 0)
         {
-            m_cRef++;
+            ++m_cRef;
             delete this;
             return 0;
         }
@@ -74,18 +76,18 @@ class CLAVSubRect : public IUnknown
   public:
     REFERENCE_TIME rtStart = AV_NOPTS_VALUE; ///< Start Time
     REFERENCE_TIME rtStop = AV_NOPTS_VALUE;  ///< Stop time
-    ULONGLONG id = 0;                        ///< Unique Identifier (same ID = same subtitle)
+    ULONGLONG id{ 0U };                        ///< Unique Identifier (same ID = same subtitle)
     POINT position;                          ///< Position (relative to outputRect)
     SIZE size;                               ///< Size
-    LPVOID pixels = nullptr;                 ///< Pixel Data
-    LPVOID pixelsPal = nullptr;              ///< Pixel Data (in paletted form, required by dvd HLI)
-    int pitch = 0;                           ///< Pitch of the subtitle lines
-    bool forced = false;                     ///< Forced/Menu
+    LPVOID pixels{ nullptr };                 ///< Pixel Data
+    LPVOID pixelsPal{ nullptr };              ///< Pixel Data (in paletted form, required by dvd HLI)
+    int pitch{ 0 };                           ///< Pitch of the subtitle lines
+    bool forced{ false };                     ///< Forced/Menu
 
-    bool freePixels = false; ///< If true, pixel data is free'ed upon destroy
+    bool freePixels{ false }; ///< If true, pixel data is free'ed upon destroy
 
   private:
-    ULONG m_cRef = 0;
+    ULONG m_cRef{ 0U };
 };
 
 class CLAVSubtitleFrame
@@ -93,7 +95,7 @@ class CLAVSubtitleFrame
     , public CUnknown
 {
   public:
-    CLAVSubtitleFrame(void);
+    explicit CLAVSubtitleFrame();
     virtual ~CLAVSubtitleFrame(void);
     DECLARE_IUNKNOWN;
 
@@ -107,12 +109,12 @@ class CLAVSubtitleFrame
     STDMETHODIMP SetClipRect(RECT clipRect);
     STDMETHODIMP AddBitmap(CLAVSubRect *subRect);
 
-    BOOL Empty() const { return m_NumBitmaps == 0; };
+    [[nodiscard]] constexpr BOOL Empty() const noexcept { return m_NumBitmaps == 0; };
 
   private:
     RECT m_outputRect;
     RECT m_clipRect;
 
     CLAVSubRect **m_Bitmaps = nullptr;
-    int m_NumBitmaps = 0;
+    int m_NumBitmaps{ 0 };
 };

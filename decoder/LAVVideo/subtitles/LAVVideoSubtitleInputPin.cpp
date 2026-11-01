@@ -18,10 +18,12 @@
  */
 
 #include "stdafx.h"
-#include "LAVVideoSubtitleInputPin.h"
-#include "LAVVideo.h"
 
+#include "LAVVideoSubtitleInputPin.h"
+
+#include "LAVVideo.h"
 #include "moreuuids.h"
+
 
 typedef struct
 {
@@ -39,8 +41,8 @@ static const LAV_TYPE_MAP lav_subtitle_codecs[] = {
 CLAVVideoSubtitleInputPin::CLAVVideoSubtitleInputPin(TCHAR *pObjectName, CLAVVideo *pFilter, CCritSec *pcsFilter,
                                                      HRESULT *phr, LPWSTR pName)
     : CBaseInputPin(pObjectName, pFilter, pcsFilter, phr, pName)
-    , m_pLAVVideo(pFilter)
-    , CDeCSSPinHelper()
+    , m_pLAVVideo{pFilter}
+    , CDeCSSPinHelper{}
 {
 }
 
@@ -59,10 +61,10 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::NonDelegatingQueryInterface(REFIID riid,
 
 HRESULT CLAVVideoSubtitleInputPin::CheckMediaType(const CMediaType *mtIn)
 {
-    for (int i = 0; i < countof(lav_subtitle_codecs); i++)
+    for (int i{ 0 }; i < countof(lav_subtitle_codecs); ++i)
     {
-        if (*lav_subtitle_codecs[i].clsMajorType == mtIn->majortype &&
-            *lav_subtitle_codecs[i].clsMinorType == mtIn->subtype &&
+        if ((*lav_subtitle_codecs[i].clsMajorType == mtIn->majortype) &&
+            (*lav_subtitle_codecs[i].clsMinorType == mtIn->subtype) &&
             (mtIn->formattype == FORMAT_SubtitleInfo || mtIn->formattype == FORMAT_MPEG2_VIDEO))
         {
             return S_OK;
@@ -73,28 +75,27 @@ HRESULT CLAVVideoSubtitleInputPin::CheckMediaType(const CMediaType *mtIn)
 
 HRESULT CLAVVideoSubtitleInputPin::SetMediaType(const CMediaType *pmt)
 {
-    CAutoLock lock(&m_csReceive);
+    CAutoLock const lock(&m_csReceive);
     SetCSSMediaType(pmt);
 
     ASSERT(m_pConsumer);
     SafeRelease(&m_pProvider);
 
     AVCodecID codecId = AV_CODEC_ID_NONE;
-    for (int i = 0; i < countof(lav_subtitle_codecs); i++)
+    for (int i{ 0 }; i < countof(lav_subtitle_codecs); ++i)
     {
-        if (*lav_subtitle_codecs[i].clsMajorType == pmt->majortype &&
-            *lav_subtitle_codecs[i].clsMinorType == pmt->subtype)
+        if ((*lav_subtitle_codecs[i].clsMajorType == pmt->majortype) &&
+            (*lav_subtitle_codecs[i].clsMinorType == pmt->subtype))
         {
             codecId = lav_subtitle_codecs[i].nFFCodec;
         }
     }
 
-    if (codecId == AV_CODEC_ID_NONE)
-        return VFW_E_TYPE_NOT_ACCEPTED;
+    if (codecId == AV_CODEC_ID_NONE) { return VFW_E_TYPE_NOT_ACCEPTED; }
 
     m_pProvider = new CLAVSubtitleProvider(m_pLAVVideo, m_pConsumer);
     m_pProvider->AddRef();
-    HRESULT hr = m_pProvider->InitDecoder(pmt, codecId);
+    HRESULT const hr = m_pProvider->InitDecoder(pmt, codecId);
     if (FAILED(hr))
     {
         DbgLog((LOG_TRACE, 10, L"Subtitle Decoder Init failed...."));
@@ -120,7 +121,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::BeginFlush()
 
 STDMETHODIMP CLAVVideoSubtitleInputPin::EndFlush()
 {
-    CAutoLock lock(&m_csReceive);
+    CAutoLock const lock(&m_csReceive);
     DbgLog((LOG_TRACE, 10, L"CLAVVideoSubtitleInputPin::EndFlush()"));
     if (m_pProvider)
     {
@@ -131,8 +132,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::EndFlush()
 
 HRESULT CLAVVideoSubtitleInputPin::SetSubtitleConsumer(ISubRenderConsumer *pConsumer)
 {
-    if (pConsumer == m_pConsumer)
-        return S_OK;
+    if (pConsumer == m_pConsumer) { return S_OK; }
 
     SafeRelease(&m_pConsumer);
     m_pConsumer = pConsumer;
@@ -149,7 +149,7 @@ HRESULT CLAVVideoSubtitleInputPin::SetSubtitleConsumer(ISubRenderConsumer *pCons
 
 STDMETHODIMP CLAVVideoSubtitleInputPin::Receive(IMediaSample *pSample)
 {
-    CAutoLock lock(&m_csReceive);
+    CAutoLock const lock(&m_csReceive);
     HRESULT hr = S_OK;
     Decrypt(pSample);
 
@@ -197,7 +197,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::Set(REFGUID PropSet, ULONG Id, LPVOID pI
     switch (Id)
     {
     case AM_PROPERTY_DVDSUBPIC_PALETTE: {
-        AM_PROPERTY_SPPAL *pSPPAL = (AM_PROPERTY_SPPAL *)pPropertyData;
+        AM_PROPERTY_SPPAL *pSPPAL = reinterpret_cast<AM_PROPERTY_SPPAL *>(pPropertyData);
         if (m_pProvider)
         {
             m_pProvider->SetDVDPalette(pSPPAL);
@@ -205,7 +205,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::Set(REFGUID PropSet, ULONG Id, LPVOID pI
     }
     break;
     case AM_PROPERTY_DVDSUBPIC_HLI: {
-        AM_PROPERTY_SPHLI *pSPHLI = (AM_PROPERTY_SPHLI *)pPropertyData;
+        AM_PROPERTY_SPHLI *pSPHLI = reinterpret_cast<AM_PROPERTY_SPHLI *>(pPropertyData);
         if (pSPHLI->HLISS)
         {
             if (m_pProvider)
@@ -223,7 +223,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::Set(REFGUID PropSet, ULONG Id, LPVOID pI
     }
     break;
     case AM_PROPERTY_DVDSUBPIC_COMPOSIT_ON: {
-        AM_PROPERTY_COMPOSIT_ON *pCompositOn = (AM_PROPERTY_COMPOSIT_ON *)pPropertyData;
+        AM_PROPERTY_COMPOSIT_ON *pCompositOn = reinterpret_cast<AM_PROPERTY_COMPOSIT_ON *>(pPropertyData);
         DbgLog((LOG_TRACE, 10, L"Composit Event - on: %d", *pCompositOn));
         m_pProvider->SetDVDComposit(*pCompositOn);
     }

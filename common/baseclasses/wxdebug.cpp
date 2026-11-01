@@ -1193,7 +1193,12 @@ CDisp::CDisp(IUnknown *pUnk)
     hr = pUnk->QueryInterface(IID_IPin, (void **)&pp);
     if (SUCCEEDED(hr))
     {
-        CDisp::CDisp(pp);
+        // MSVC accepts CDisp::CDisp(pp) as a second constructor call on this
+        // object. clang-cl does not, so build the pin text in a temporary and
+        // take ownership of its buffer.
+        CDisp disp(pp);
+        m_pString = disp.m_pString;
+        disp.m_pString = disp.m_String;
         pp->Release();
         return;
     }

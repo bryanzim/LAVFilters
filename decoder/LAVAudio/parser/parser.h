@@ -19,10 +19,13 @@
 
 #pragma once
 
-static inline const uint8_t *find_marker32_position(const uint8_t *pBuffer, size_t uBufSize, uint32_t marker)
+#include <cstddef>
+#include <cstdint>
+
+static inline const std::uint8_t *find_marker32_position(const std::uint8_t *pBuffer, std::size_t uBufSize, std::uint32_t marker)
 {
-    uint32_t state = 0;
-    for (size_t i = 0; i < uBufSize; ++i)
+    std::uint32_t state{ 0U };
+    for (std::size_t i{ 0U }; i < uBufSize; ++i)
     {
         state = (state << 8) | pBuffer[i];
         if (state == marker)

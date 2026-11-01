@@ -22,6 +22,10 @@
 #include "BaseDemuxer.h"
 #include "LAVFDemuxer.h"
 
+#include <array>
+#include <cstdint>
+
+
 class CBDDemuxer
     : public CBaseDemuxer
     , public IAMExtendedSeeking
@@ -48,8 +52,21 @@ class CBDDemuxer
     }
 
     // CBaseDemuxer
-    STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = NULL, LPCOLESTR pszReferrer = NULL);
+    STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
     STDMETHODIMP Start();
+    STDMETHODIMP AbortOpening(int mode = 1, int timeout = 0)
+    {
+        return m_lavfDemuxer ? m_lavfDemuxer->AbortOpening(mode, timeout) : E_UNEXPECTED;
+    }
+    [[nodiscard]] LONG InterruptForSeek() { return m_lavfDemuxer ? m_lavfDemuxer->InterruptForSeek() : 0; }
+    [[nodiscard]] bool BeginSeek(LONG serial) { return m_lavfDemuxer ? m_lavfDemuxer->BeginSeek(serial) : true; }
+    void EndSeek(LONG serial)
+    {
+        if (m_lavfDemuxer) {
+            m_lavfDemuxer->EndSeek(serial);
+        }
+    }
+    [[nodiscard]] bool IsAborting() const { return m_lavfDemuxer && m_lavfDemuxer->IsAborting(); }
     REFERENCE_TIME GetDuration() const;
     STDMETHODIMP GetNextPacket(Packet **ppPacket) { return m_lavfDemuxer->GetNextPacket(ppPacket); }
     STDMETHODIMP Seek(REFERENCE_TIME rTime);
@@ -59,10 +76,9 @@ class CBDDemuxer
 
     CStreamList *GetStreams(StreamType type)
     {
-        if (m_lavfDemuxer)
-            return m_lavfDemuxer->GetStreams(type);
-        else
+        if (m_lavfDemuxer) { return m_lavfDemuxer->GetStreams(type); } else {
             return __super::GetStreams(type);
+}
     }
     HRESULT SetActiveStream(StreamType type, int pid)
     {
@@ -71,36 +87,35 @@ class CBDDemuxer
             m_lavfDemuxer->SetActiveStream(type, pid);
             return S_OK;
         }
-        else
+        else {
             return E_FAIL;
+}
     }
 
     void SettingsChanged(ILAVFSettingsInternal *pSettings)
     {
-        if (m_lavfDemuxer)
+        if (m_lavfDemuxer) {
             m_lavfDemuxer->SettingsChanged(pSettings);
+}
     }
 
     STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream)
     {
-        if (m_lavfDemuxer)
-            return m_lavfDemuxer->GetStreamFlags(dwStream);
+        if (m_lavfDemuxer) { return m_lavfDemuxer->GetStreamFlags(dwStream); }
         return 0;
     }
     STDMETHODIMP_(int) GetPixelFormat(DWORD dwStream)
     {
-        if (m_lavfDemuxer)
-            return m_lavfDemuxer->GetPixelFormat(dwStream);
+        if (m_lavfDemuxer) { return m_lavfDemuxer->GetPixelFormat(dwStream); }
         return AV_PIX_FMT_NONE;
     }
     STDMETHODIMP_(int) GetHasBFrames(DWORD dwStream)
     {
-        if (m_lavfDemuxer)
-            return m_lavfDemuxer->GetHasBFrames(dwStream);
+        if (m_lavfDemuxer) { return m_lavfDemuxer->GetHasBFrames(dwStream); }
         return -1;
     }
 
-    const stream *SelectVideoStream() { return m_lavfDemuxer->SelectVideoStream(); }
+    [[nodiscard]] const stream *SelectVideoStream() { return m_lavfDemuxer->SelectVideoStream(); }
     const stream *SelectVideoELStream(DWORD dwVideoStreamPID)
     {
         return m_lavfDemuxer->SelectVideoELStream(dwVideoStreamPID);
@@ -138,32 +153,32 @@ class CBDDemuxer
     void CloseMVCExtensionDemuxer();
     STDMETHODIMP OpenMVCExtensionDemuxer(int playItem);
 
-    static int BDByteStreamRead(void *opaque, uint8_t *buf, int buf_size);
-    static int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, int64_t offset, int whence);
+    static int BDByteStreamRead(void *opaque, std::uint8_t *buf, int buf_size);
+    static std::int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, std::int64_t offset, int whence);
 
   private:
     BLURAY *m_pBD = nullptr;
     AVIOContext *m_pb = nullptr;
-    char m_cBDRootPath[4096] = {0};
+    std::array<char, 4096U> m_cBDRootPath{0};
 
     ILAVFSettingsInternal *m_pSettings = nullptr;
     CLAVFDemuxer *m_lavfDemuxer = nullptr;
 
     BLURAY_TITLE_INFO *m_pTitle = nullptr;
-    uint32_t m_nTitleCount = 0;
+    std::uint32_t m_nTitleCount{ 0U };
 
-    uint16_t *m_StreamClip = nullptr;
-    uint16_t m_NewClip = 0;
+    std::uint16_t *m_StreamClip = nullptr;
+    std::uint16_t m_NewClip{ 0U };
     REFERENCE_TIME *m_rtOffset = nullptr;
-    REFERENCE_TIME m_rtNewOffset = 0;
-    int64_t m_bNewOffsetPos = 0;
+    REFERENCE_TIME m_rtNewOffset{ 0 };
+    std::int64_t m_bNewOffsetPos{ 0 };
 
-    BOOL m_MVCPlayback = FALSE;
-    int m_MVCExtensionSubPathIndex = 0;
-    int m_MVCExtensionClip = -1;
+    BOOL m_MVCPlayback{ FALSE };
+    int m_MVCExtensionSubPathIndex{ 0 };
+    int m_MVCExtensionClip{ -1 };
 
     AVFormatContext *m_MVCFormatContext = nullptr;
-    int m_MVCStreamIndex = -1;
+    int m_MVCStreamIndex{ -1 };
 
-    BOOL m_EndOfStreamPacketFlushProtection = FALSE;
+    BOOL m_EndOfStreamPacketFlushProtection{ FALSE };
 };

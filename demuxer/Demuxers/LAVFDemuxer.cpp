@@ -18,24 +18,34 @@
  */
 
 #include "stdafx.h"
+
 #include "LAVFDemuxer.h"
-#include "LAVFUtils.h"
-#include "LAVFStreamInfo.h"
-#include "ILAVPinInfo.h"
-#include "LAVFVideoHelper.h"
+
+#include "BDDemuxer.h"
+#include "CueSheet.h"
 #include "ExtradataParser.h"
-#include "IMediaSideDataFFmpeg.h"
-
-#include "LAVSplitterSettingsInternal.h"
-
-#include "moreuuids.h"
 #include "H264Nalu.h"
+#include "ILAVPinInfo.h"
+#include "IMediaSideDataFFmpeg.h"
+#include "LAVFStreamInfo.h"
+#include "LAVFUtils.h"
+#include "LAVFVideoHelper.h"
+#include "LAVSplitterSettingsInternal.h"
+#include "moreuuids.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <ctime>
+#include <cwchar>
+
 
 extern "C"
 {
     typedef struct CodecMime
     {
-        char str[32];
+        std::array<char, 32U> str{};
         enum AVCodecID id;
     } CodecMime;
 #include "libavformat/mpegts.h"
@@ -53,10 +63,10 @@ extern "C"
 #include "lavf_log.h"
 #endif
 
-#include "BDDemuxer.h"
-#include "CueSheet.h"
 
 #define AVFORMAT_OPEN_TIMEOUT 20
+// A keyframe scan is allowed this many seconds, then the skip gives up.
+#define AVFORMAT_SEEK_TIMEOUT 5
 
 extern void lavf_get_iformat_infos(const AVInputFormat *pFormat, const char **pszName, const char **pszDescription);
 
@@ -66,14 +76,15 @@ std::set<FormatInfo> CLAVFDemuxer::GetFormatList()
 {
     std::set<FormatInfo> formats;
     const AVInputFormat *f = nullptr;
-    void *state = NULL;
+    void *state = nullptr;
 
     while (f = av_demuxer_iterate(&state))
     {
         FormatInfo format;
         lavf_get_iformat_infos(f, &format.strName, &format.strDescription);
-        if (format.strName)
+        if (format.strName) {
             formats.insert(format);
+}
     }
     return formats;
 }
@@ -92,33 +103,35 @@ CLAVFDemuxer::CLAVFDemuxer(CCritSec *pLock, ILAVFSettingsInternal *settings)
 
     m_pSettings = settings;
 
-    WCHAR fileName[1024];
-    GetModuleFileName(nullptr, fileName, 1024);
-    const WCHAR *file = PathFindFileName(fileName);
+    std::array<WCHAR, 1024U> fileName{};
+    GetModuleFileName(nullptr, fileName.data(), 1024);
+    const WCHAR *file = PathFindFileName(fileName.data());
 
-    if (_wcsicmp(file, L"zplayer.exe") == 0)
+    if (::_wcsicmp(file, L"zplayer.exe") == 0)
     {
         m_bEnableTrackInfo = FALSE;
 
         // TrackInfo is only properly handled in ZoomPlayer 8.0.0.74 and above
-        DWORD dwVersionSize = GetFileVersionInfoSize(fileName, nullptr);
+        DWORD const dwVersionSize = GetFileVersionInfoSize(fileName.data(), nullptr);
         if (dwVersionSize > 0)
         {
             void *versionInfo = CoTaskMemAlloc(dwVersionSize);
-            if (!versionInfo)
+            if (!versionInfo) {
                 return;
-            GetFileVersionInfo(fileName, 0, dwVersionSize, versionInfo);
+}
+            GetFileVersionInfo(fileName.data(), 0, dwVersionSize, versionInfo);
             VS_FIXEDFILEINFO *info;
             unsigned cbInfo;
-            BOOL bInfoPresent = VerQueryValue(versionInfo, TEXT("\\"), (LPVOID *)&info, &cbInfo);
+            BOOL bInfoPresent = VerQueryValue(versionInfo, TEXT("\\"), reinterpret_cast<LPVOID *>(&info), &cbInfo);
             if (bInfoPresent)
             {
                 bInfoPresent = bInfoPresent;
-                uint64_t version = info->dwFileVersionMS;
+                std::uint64_t version = info->dwFileVersionMS;
                 version <<= 32;
                 version += info->dwFileVersionLS;
-                if (version >= 0x000800000000004A)
+                if (version >= 0x000800000000004A) {
                     m_bEnableTrackInfo = TRUE;
+}
             }
             CoTaskMemFree(versionInfo);
         }
@@ -156,7 +169,7 @@ STDMETHODIMP CLAVFDemuxer::Start()
         CMediaType *pmt = m_pSettings->GetOutputMediatype(m_nH264MVCBaseStream);
         if (pmt)
         {
-            if (pmt->subtype != MEDIASUBTYPE_AMVC && pmt->subtype != MEDIASUBTYPE_MVC1)
+            if ((pmt->subtype != MEDIASUBTYPE_AMVC) && (pmt->subtype != MEDIASUBTYPE_MVC1))
             {
                 DbgLog(
                     (LOG_TRACE, 10,
@@ -168,30 +181,90 @@ STDMETHODIMP CLAVFDemuxer::Start()
         }
     }
 
-    if (m_avFormat)
+    if (m_avFormat) {
         av_read_play(m_avFormat);
+}
 
     return S_OK;
 }
 
 STDMETHODIMP CLAVFDemuxer::AbortOpening(int mode, int timeout)
 {
-    m_Abort = mode;
-    m_timeAbort = timeout ? time(nullptr) + timeout : 0;
+    m_timeAbort = timeout ? std::time(nullptr) + timeout : 0;
+    InterlockedExchange(&m_Abort, mode);
     return S_OK;
+}
+
+LONG CLAVFDemuxer::InterruptForSeek()
+{
+    LONG const serial = InterlockedIncrement(&m_SeekSerial);
+    // The demux thread is blocked in the current packet read. Fail that read
+    // now. BeginSeek() arms the keyframe-scan deadline once this skip actually
+    // starts, so the deadline is not spent waiting for the old read.
+    InterlockedExchange(&m_ReadInterrupt, 1);
+    return serial;
+}
+
+bool CLAVFDemuxer::BeginSeek(LONG serial)
+{
+    if (InterlockedCompareExchange(&m_SeekSerial, 0, 0) != serial) {
+        return false;
+    }
+
+    LONGLONG const deadline = static_cast<LONGLONG>(std::time(nullptr)) + AVFORMAT_SEEK_TIMEOUT;
+    InterlockedExchange64(&m_SeekDeadline, deadline);
+    InterlockedExchange(&m_SeekLimitSerial, serial);
+    InterlockedExchange(&m_ReadInterrupt, 0);
+
+    if (InterlockedCompareExchange(&m_SeekSerial, 0, 0) != serial)
+    {
+        // A newer skip replaced this one while the interrupt was cleared.
+        InterlockedExchange(&m_ReadInterrupt, 1);
+        return false;
+    }
+    return true;
+}
+
+void CLAVFDemuxer::EndSeek(LONG serial)
+{
+    // Compare-exchange so a newer skip's deadline stays armed.
+    InterlockedCompareExchange(&m_SeekLimitSerial, 0, serial);
+    if (InterlockedCompareExchange(&m_SeekSerial, 0, 0) == serial) {
+        InterlockedExchange(&m_ReadInterrupt, 0);
+    }
+}
+
+bool CLAVFDemuxer::IsAborting() const
+{
+    return InterlockedCompareExchange(const_cast<LONG *>(&m_Abort), 0, 0) != 0;
 }
 
 int CLAVFDemuxer::avio_interrupt_cb(void *opaque)
 {
-    CLAVFDemuxer *demux = (CLAVFDemuxer *)opaque;
+    CLAVFDemuxer *demux = reinterpret_cast<CLAVFDemuxer *>(opaque);
 
     // Check for file opening timeout
-    time_t now = time(nullptr);
-    if (demux->m_timeOpening && now > (demux->m_timeOpening + AVFORMAT_OPEN_TIMEOUT))
+    std::time_t const now = std::time(nullptr);
+    if ((demux->m_timeOpening) && (now > (demux->m_timeOpening + AVFORMAT_OPEN_TIMEOUT))) {
         return 1;
+    }
 
-    if (demux->m_Abort && now > demux->m_timeAbort)
+    if ((InterlockedCompareExchange(&demux->m_Abort, 0, 0)) && (now > demux->m_timeAbort)) {
         return 1;
+    }
+
+    if (InterlockedCompareExchange(&demux->m_ReadInterrupt, 0, 0)) {
+        return 1;
+    }
+
+    LONG const limitSerial = InterlockedCompareExchange(&demux->m_SeekLimitSerial, 0, 0);
+    if ((limitSerial != 0) && (limitSerial == InterlockedCompareExchange(&demux->m_SeekSerial, 0, 0)))
+    {
+        LONGLONG const deadline = InterlockedCompareExchange64(&demux->m_SeekDeadline, 0, 0);
+        if ((deadline != 0) && (static_cast<LONGLONG>(now) > deadline)) {
+            return 1;
+        }
+    }
 
     return 0;
 }
@@ -227,60 +300,69 @@ STDMETHODIMP CLAVFDemuxer::OpenInputStream(AVIOContext *byteContext, LPCOLESTR p
                                            BOOL bForce, BOOL bFileSource, LPCOLESTR pszUserAgent,
                                            LPCOLESTR pszReferrer)
 {
-    CAutoLock lock(m_pLock);
+    CAutoLock const lock(m_pLock);
     HRESULT hr = S_OK;
 
     int ret; // return code from avformat functions
 
     // Convert the filename from wchar to char for avformat
-    char *fileName = NULL;
-    if (pszFileName)
+    char *fileName = nullptr;
+    if (pszFileName) {
         fileName = CoTaskGetMultiByteFromWideChar(CP_UTF8, 0, pszFileName, -1);
+}
 
-    if (fileName == NULL)
+    if (fileName == nullptr)
     {
-        fileName = (char *)CoTaskMemAlloc(1);
+        fileName = reinterpret_cast<char *>(CoTaskMemAlloc(1));
         *fileName = 0;
     }
 
     // handle pipe, we only support stdin pipes
-    if (_strnicmp("pipe://", fileName, 7) == 0)
+    if (::_strnicmp("pipe://", fileName, 7) == 0)
     {
         // convert pipe://stdin to pipe:0
-        fileName[5] = '0';
-        fileName[6] = 0;
+        fileName[5U] = '0';
+        fileName[6U] = 0;
     }
 
-    if (_strnicmp("mms:", fileName, 4) == 0)
+    // mms:// becomes mmsh://. That inserts one character, so the buffer has to grow.
+    if (::_strnicmp("mms:", fileName, 4) == 0)
     {
-        memmove(fileName + 1, fileName, strlen(fileName));
-        memcpy(fileName, "mmsh", 4);
+        std::size_t const oldLen = std::strlen(fileName);
+        char *rewritten = reinterpret_cast<char *>(CoTaskMemAlloc(oldLen + 2));
+        if (rewritten != nullptr)
+        {
+            std::memcpy(rewritten, "mmsh:", 5);
+            std::memcpy(rewritten + 5, fileName + 4, oldLen - 3);
+            CoTaskMemFree(fileName);
+            fileName = rewritten;
+        }
     }
 
     // replace "icyx" protocol by http
-    if (_strnicmp("icyx:", fileName, 5) == 0)
+    if (::_strnicmp("icyx:", fileName, 5) == 0)
     {
-        memcpy(fileName, "http", 4);
+        std::memcpy(fileName, "http", 4);
     }
 
     char *rtmp_prameters = nullptr;
     const char *rtsp_transport = nullptr;
     // check for rtsp transport protocol options
-    if (_strnicmp("rtsp", fileName, 4) == 0)
+    if (::_strnicmp("rtsp", fileName, 4) == 0)
     {
-        if (_strnicmp("rtspu:", fileName, 6) == 0)
+        if (::_strnicmp("rtspu:", fileName, 6) == 0)
         {
             rtsp_transport = "udp";
         }
-        else if (_strnicmp("rtspm:", fileName, 6) == 0)
+        else if (::_strnicmp("rtspm:", fileName, 6) == 0)
         {
             rtsp_transport = "udp_multicast";
         }
-        else if (_strnicmp("rtspt:", fileName, 6) == 0)
+        else if (::_strnicmp("rtspt:", fileName, 6) == 0)
         {
             rtsp_transport = "tcp";
         }
-        else if (_strnicmp("rtsph:", fileName, 6) == 0)
+        else if (::_strnicmp("rtsph:", fileName, 6) == 0)
         {
             rtsp_transport = "http";
         }
@@ -288,19 +370,19 @@ STDMETHODIMP CLAVFDemuxer::OpenInputStream(AVIOContext *byteContext, LPCOLESTR p
         // replace "rtsp[u|m|t|h]" protocol by rtsp
         if (rtsp_transport != nullptr)
         {
-            memmove(fileName + 4, fileName + 5, strlen(fileName) - 4);
+            std::memmove(fileName + 4, fileName + 5, std::strlen(fileName) - 4);
         }
     }
-    else if (_strnicmp("rtmp", fileName, 4) == 0)
+    else if (::_strnicmp("rtmp", fileName, 4) == 0)
     {
-        rtmp_prameters = strchr(fileName, ' ');
+        rtmp_prameters = std::strchr(fileName, ' ');
         if (rtmp_prameters)
         {
             *rtmp_prameters = '\0'; // Trim not supported part form fileName
         }
     }
 
-    AVIOInterruptCB cb = {avio_interrupt_cb, this};
+    AVIOInterruptCB const cb = {avio_interrupt_cb, this};
 
 trynoformat:
     // Create the avformat_context
@@ -308,8 +390,9 @@ trynoformat:
     m_avFormat->pb = byteContext;
     m_avFormat->interrupt_callback = cb;
 
-    if (m_avFormat->pb)
+    if (m_avFormat->pb) {
         m_avFormat->flags |= AVFMT_FLAG_CUSTOM_IO;
+}
 
     LPWSTR extension = pszFileName ? PathFindExtensionW(pszFileName) : nullptr;
 
@@ -321,9 +404,9 @@ trynoformat:
     else if (pszFileName)
     {
         LPWSTR extension = PathFindExtensionW(pszFileName);
-        for (int i = 0; i < countof(wszImageExtensions); i++)
+        for (int i{ 0 }; i < countof(wszImageExtensions); ++i)
         {
-            if (_wcsicmp(extension, wszImageExtensions[i]) == 0)
+            if (::_wcsicmp(extension, wszImageExtensions[i]) == 0)
             {
                 if (byteContext)
                 {
@@ -337,11 +420,11 @@ trynoformat:
             }
         }
 
-        if (byteContext == nullptr || bFileSource)
+        if ((byteContext == nullptr) || bFileSource)
         {
-            for (int i = 0; i < countof(wszBlockedExtensions); i++)
+            for (int i{ 0 }; i < countof(wszBlockedExtensions); ++i)
             {
-                if (_wcsicmp(extension, wszBlockedExtensions[i]) == 0)
+                if (::_wcsicmp(extension, wszBlockedExtensions[i]) == 0)
                 {
                     goto done;
                 }
@@ -349,31 +432,37 @@ trynoformat:
         }
     }
 
-    if (inputFormat == nullptr && byteContext)
+    if ((inputFormat == nullptr) && byteContext)
     {
         ret = av_probe_input_buffer2(byteContext, &inputFormat, fileName, m_avFormat, 0, m_avFormat->format_probesize);
-        if (ret >= 0 && inputFormat)
+        if ((ret >= 0) && inputFormat)
         {
             DbgLog((LOG_TRACE, 10, TEXT("::OpenInputStream(): av_probe_input_buffer2 probed format %S with score %d"), inputFormat->name, ret));
 
             // disable custom IO for HLS and DASH, if we have an URL to load from
-            if (fileName && fileName[0] && (
-                strcmp(inputFormat->name, "hls")  == 0 ||
-                strcmp(inputFormat->name, "dash") == 0
+            if (fileName && fileName[0U] && (
+                std::strcmp(inputFormat->name, "hls")  == 0 ||
+                std::strcmp(inputFormat->name, "dash") == 0
                 ))
             {
-                m_avFormat->pb = NULL;
+                m_avFormat->pb = nullptr;
                 m_avFormat->flags &= ~AVFMT_FLAG_CUSTOM_IO;
             }
         }
     }
 
     // Disable loading of external mkv segments, if required
-    if (!m_pSettings->GetLoadMatroskaExternalSegments())
+    if (!m_pSettings->GetLoadMatroskaExternalSegments()) {
         m_avFormat->flags |= AVFMT_FLAG_NOEXTERNAL;
+}
 
     // demuxer/protocol options
     AVDictionary *options = nullptr;
+    // tcp_open copies this onto the connect timeout as well, and its default
+    // connect timeout is 5 seconds, so keep the same value. Each later read
+    // then fails after 5 seconds with no data instead of waiting forever.
+    // AbortOpening() still returns sooner: the wait polls the interrupt callback.
+    av_dict_set(&options, "rw_timeout", "5000000", 0);
     av_dict_set(&options, "icy", "1", 0);               // request ICY metadata
     av_dict_set(&options, "advanced_editlist", "0", 0); // disable broken mov editlist handling
     av_dict_set(&options, "reconnect", "1", 0);         // for http, reconnect if we get disconnected
@@ -384,17 +473,19 @@ trynoformat:
     if (pszUserAgent)
     {
         char *strUserAgent = CoTaskGetMultiByteFromWideChar(CP_UTF8, 0, pszUserAgent, -1);
-        if (strUserAgent && *strUserAgent) // if valid, and non-empty
+        if (strUserAgent && *strUserAgent) { // if valid, and non-empty
             av_dict_set(&options, "user_agent", strUserAgent, 0);
+}
 
         SAFE_CO_FREE(strUserAgent);
     }
 
-    if (pszReferrer != NULL)
+    if (pszReferrer != nullptr)
     {
         char *strReferrer = CoTaskGetMultiByteFromWideChar(CP_UTF8, 0, pszReferrer, -1);
-        if (strReferrer && *strReferrer) // if valid, and non-empty
+        if (strReferrer && *strReferrer) { // if valid, and non-empty
             av_dict_set(&options, "referer", strReferrer, 0);
+}
 
         SAFE_CO_FREE(strReferrer);
     }
@@ -410,27 +501,27 @@ trynoformat:
 
     if (rtmp_prameters != nullptr)
     {
-        char buff[4100];
+        std::array<char, 4100U> buff{};
         char *next_token = nullptr;
-        bool bSwfVerify = false;
+        bool bSwfVerify{ false };
 
-        strcpy_s(buff, rtmp_prameters + 1);
-        const char *token = strtok_s(buff, " ", &next_token);
+        ::strcpy_s(buff.data(), buff.size(),  rtmp_prameters + 1);
+        const char *token = ::strtok_s(buff.data(), " ", &next_token);
         while (token)
         {
-            for (size_t i = 0; i < _countof(rtmpParametersTranslate); i++)
+            for (std::size_t i{ 0U }; i < _countof(rtmpParametersTranslate); ++i)
             {
-                const size_t len = strlen(rtmpParametersTranslate[i].first);
-                if (_strnicmp(token, rtmpParametersTranslate[i].first, len) == 0)
+                const std::size_t len = std::strlen(rtmpParametersTranslate[i].first);
+                if (::_strnicmp(token, rtmpParametersTranslate[i].first, len) == 0)
                 {
-                    if (strlen(token) > len + 1 && token[len] == '=')
+                    if ((std::strlen(token) > len + 1) && (token[len] == '='))
                     {
-                        if (_strnicmp("swfVfy", rtmpParametersTranslate[i].first, len) == 0)
+                        if (::_strnicmp("swfVfy", rtmpParametersTranslate[i].first, len) == 0)
                         {
                             bSwfVerify = token[len + 1] == '1';
                             continue;
                         }
-                        else if (_strnicmp("live", rtmpParametersTranslate[i].first, len) == 0)
+                        else if (::_strnicmp("live", rtmpParametersTranslate[i].first, len) == 0)
                         {
                             if (token[len + 1] == '1')
                             {
@@ -446,7 +537,7 @@ trynoformat:
                     }
                 }
             }
-            token = strtok_s(nullptr, " ", &next_token);
+            token = ::strtok_s(nullptr, " ", &next_token);
         }
 
         if (bSwfVerify)
@@ -459,7 +550,7 @@ trynoformat:
         }
     }
 
-    m_timeOpening = time(nullptr);
+    m_timeOpening = std::time(nullptr);
     ret = avformat_open_input(&m_avFormat, fileName, inputFormat, &options);
     av_dict_free(&options);
     if (ret < 0)
@@ -476,7 +567,7 @@ trynoformat:
     }
     DbgLog((LOG_TRACE, 10,
             TEXT("::OpenInputStream(): avformat_open_input opened file of type '%S' (took %I64d seconds)"),
-            m_avFormat->iformat->name, time(nullptr) - m_timeOpening));
+            m_avFormat->iformat->name, std::time(nullptr) - m_timeOpening));
     m_timeOpening = 0;
 
     CHECK_HR(hr = InitAVFormat(pszFileName, bForce));
@@ -489,18 +580,19 @@ done:
     return E_FAIL;
 }
 
-void CLAVFDemuxer::AddMPEGTSStream(int pid, uint32_t stream_type)
+void CLAVFDemuxer::AddMPEGTSStream(int pid, std::uint32_t stream_type)
 {
     if (m_avFormat)
     {
-        int program = -1;
+        int program{ -1 };
         if (m_avFormat->nb_programs > 0)
         {
-            unsigned nb_streams = 0;
-            for (unsigned i = 0; i < m_avFormat->nb_programs; i++)
+            unsigned const nb_streams{ 0U };
+            for (unsigned i{ 0U }; i < m_avFormat->nb_programs; ++i)
             {
-                if (m_avFormat->programs[i]->nb_stream_indexes > nb_streams)
+                if (m_avFormat->programs[i]->nb_stream_indexes > nb_streams) {
                     program = i;
+}
             }
         }
         avpriv_mpegts_add_stream(m_avFormat, pid, stream_type, program >= 0 ? m_avFormat->programs[program]->id : -1);
@@ -509,33 +601,33 @@ void CLAVFDemuxer::AddMPEGTSStream(int pid, uint32_t stream_type)
 
 HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
 {
-    size_t len = wcslen(pszFileName);
+    std::size_t const len = std::wcslen(pszFileName);
 
-    if (len <= 23 || (_wcsnicmp(pszFileName + len - 23, L"\\BDMV\\STREAM\\", 13) != 0 &&
-                      (len <= 28 || _wcsnicmp(pszFileName + len - 28, L"\\BDMV\\STREAM\\SSIF\\", 18) != 0)))
+    if ((len <= 23) || (::_wcsnicmp(pszFileName + len - 23, L"\\BDMV\\STREAM\\", 13) != 0 &&
+                      (len <= 28 || ::_wcsnicmp(pszFileName + len - 28, L"\\BDMV\\STREAM\\SSIF\\", 18) != 0))) {
         return E_FAIL;
+}
 
     // Get the base file name (should be a number, like 00000)
     const WCHAR *file = pszFileName + (len - 10);
-    WCHAR basename[6];
-    wcsncpy_s(basename, file, 5);
-    basename[5] = 0;
+    std::array<WCHAR, 6U> basename{};
+    ::wcsncpy_s(basename.data(), basename.size(),  file, 5);
+    basename[5U] = 0;
 
     // Convert to UTF-8 path
-    size_t a_len = WideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, nullptr, 0, nullptr, nullptr);
+    std::size_t a_len = WideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, nullptr, 0, nullptr, nullptr);
     a_len += 2; // one extra char because CLIPINF is 7 chars and STREAM is 6, and one for the terminating-zero
 
-    char *path = (char *)CoTaskMemAlloc(a_len * sizeof(char));
-    if (!path)
-        return E_OUTOFMEMORY;
-    WideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, path, (int)a_len, nullptr, nullptr);
+    char *path = reinterpret_cast<char *>(CoTaskMemAlloc(a_len * sizeof(char)));
+    if (!path) { return E_OUTOFMEMORY; }
+    WideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, path, static_cast<int>(a_len), nullptr, nullptr);
 
     // Remove file name itself
     PathRemoveFileSpecA(path);
 
     // Remove SSIF if appropriate
-    BOOL bSSIF = FALSE;
-    if (_strnicmp(path + strlen(path) - 5, "\\SSIF", 5) == 0)
+    BOOL bSSIF{ FALSE };
+    if (::_strnicmp(path + std::strlen(path) - 5, "\\SSIF", 5) == 0)
     {
         bSSIF = TRUE;
         PathRemoveFileSpecA(path);
@@ -545,24 +637,24 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
     PathRemoveFileSpecA(path);
 
     // Write new path
-    sprintf_s(path + strlen(path), a_len - strlen(path), "\\CLIPINF\\%S.clpi", basename);
+    ::sprintf_s(path + std::strlen(path), a_len - std::strlen(path), "\\CLIPINF\\%S.clpi", basename.data());
 
     CLPI_CL *cl = bd_read_clpi(path);
-    if (!cl)
-        return E_FAIL;
+    if (!cl) { return E_FAIL; }
 
     // Clip Info was found, add the language metadata to the AVStreams
-    for (unsigned i = 0; i < cl->program.num_prog; ++i)
+    for (unsigned i{ 0U }; i < cl->program.num_prog; ++i)
     {
         CLPI_PROG *p = &cl->program.progs[i];
-        for (unsigned k = 0; k < p->num_streams; ++k)
+        for (unsigned k{ 0U }; k < p->num_streams; ++k)
         {
             CLPI_PROG_STREAM *s = &p->streams[k];
             AVStream *avstream = GetAVStreamByPID(s->pid);
             if (avstream)
             {
-                if (s->lang[0] != 0)
-                    av_dict_set(&avstream->metadata, "language", (const char *)s->lang, 0);
+                if (s->lang[0U] != 0) {
+                    av_dict_set(&avstream->metadata, "language", reinterpret_cast<const char *>(s->lang), 0);
+}
             }
         }
     }
@@ -572,7 +664,7 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
 
     if (bSSIF)
     {
-        uint32_t clip_id = _wtoi(basename);
+        std::uint32_t const clip_id = ::_wtoi(basename.data());
 
         // Remove filename
         PathRemoveFileSpecA(path);
@@ -584,31 +676,32 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
         PathRemoveFileSpecA(path);
 
         BLURAY *bd = bd_open(path, nullptr);
-        if (!bd)
-            return S_FALSE;
+        if (!bd) { return S_FALSE; }
 
-        uint32_t nTitles = bd_get_titles(bd, TITLES_RELEVANT, 0);
-        BOOL found = FALSE;
-        for (uint32_t n = 0; n < nTitles && !found; n++)
+        std::uint32_t const nTitles = bd_get_titles(bd, TITLES_RELEVANT, 0);
+        BOOL found{ FALSE };
+        for (std::uint32_t n{ 0U }; n < nTitles && !found; ++n)
         {
             BLURAY_TITLE_INFO *TitleInfo = bd_get_title_info(bd, n, 0);
             if (TitleInfo)
             {
-                for (uint32_t i = 0; i < TitleInfo->clip_count; i++)
+                for (std::uint32_t i{ 0U }; i < TitleInfo->clip_count; ++i)
                 {
                     BLURAY_CLIP_INFO *Clip = &TitleInfo->clips[i];
                     if (Clip->idx == clip_id)
                     {
                         AVStream *avstream = nullptr;
-                        for (uint8_t c = 0; c < Clip->video_stream_count && !avstream; c++)
+                        for (std::uint8_t c{ 0U }; c < Clip->video_stream_count && !avstream; ++c)
                         {
-                            if (Clip->video_streams[c].coding_type == BLURAY_STREAM_TYPE_VIDEO_H264)
+                            if (Clip->video_streams[c].coding_type == BLURAY_STREAM_TYPE_VIDEO_H264) {
                                 avstream = GetAVStreamByPID(Clip->video_streams[c].pid);
+}
                         }
 
-                        if (avstream)
+                        if (avstream) {
                             av_dict_set(&avstream->metadata, "stereo_mode",
                                         TitleInfo->mvc_base_view_r_flag ? "mvc_rl" : "mvc_lr", 0);
+}
 
                         found = TRUE;
                         break;
@@ -627,7 +720,7 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
 
 inline static int init_parser(AVFormatContext *s, AVStream *st)
 {
-    if (av_lav_stream_parser_get_needed(st) && !(s->flags & AVFMT_FLAG_NOPARSE))
+    if (av_lav_stream_parser_get_needed(st) && (!(s->flags & AVFMT_FLAG_NOPARSE)))
     {
         av_lav_stream_parser_init(st);
     }
@@ -638,7 +731,7 @@ void CLAVFDemuxer::UpdateParserFlags(AVStream *st)
 {
     int flags = av_lav_stream_parser_get_flags(st);
     if ((st->codecpar->codec_id == AV_CODEC_ID_MPEG2VIDEO || st->codecpar->codec_id == AV_CODEC_ID_MPEG1VIDEO) &&
-        _stricmp(m_pszInputFormat, "mpegvideo") != 0)
+        (::_stricmp(m_pszInputFormat, "mpegvideo") != 0))
     {
         flags |= PARSER_FLAG_NO_TIMESTAMP_MANGLING;
     }
@@ -690,32 +783,32 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
 
     LPWSTR extension = pszFileName ? PathFindExtensionW(pszFileName) : nullptr;
 
-    m_bMatroska = (_strnicmp(m_pszInputFormat, "matroska", 8) == 0);
-    m_bOgg = (_strnicmp(m_pszInputFormat, "ogg", 3) == 0);
-    m_bAVI = (_strnicmp(m_pszInputFormat, "avi", 3) == 0);
-    m_bMPEGTS = (_strnicmp(m_pszInputFormat, "mpegts", 6) == 0);
-    m_bMPEGPS = (_stricmp(m_pszInputFormat, "mpeg") == 0);
-    m_bRM = (_stricmp(m_pszInputFormat, "rm") == 0);
-    m_bPMP = (_stricmp(m_pszInputFormat, "pmp") == 0);
-    m_bMP4 = (_stricmp(m_pszInputFormat, "mp4") == 0);
+    m_bMatroska = (::_strnicmp(m_pszInputFormat, "matroska", 8) == 0);
+    m_bOgg = (::_strnicmp(m_pszInputFormat, "ogg", 3) == 0);
+    m_bAVI = (::_strnicmp(m_pszInputFormat, "avi", 3) == 0);
+    m_bMPEGTS = (::_strnicmp(m_pszInputFormat, "mpegts", 6) == 0);
+    m_bMPEGPS = (::_stricmp(m_pszInputFormat, "mpeg") == 0);
+    m_bRM = (::_stricmp(m_pszInputFormat, "rm") == 0);
+    m_bPMP = (::_stricmp(m_pszInputFormat, "pmp") == 0);
+    m_bMP4 = (::_stricmp(m_pszInputFormat, "mp4") == 0);
 
-    m_bTSDiscont = (m_avFormat->iformat->flags & AVFMT_TS_DISCONT) || m_bRM || (_stricmp(m_pszInputFormat, "dash") == 0);
+    m_bTSDiscont = (m_avFormat->iformat->flags & AVFMT_TS_DISCONT) || m_bRM || (::_stricmp(m_pszInputFormat, "dash") == 0);
 
-    WCHAR szProt[24] = L"file";
+    std::array<WCHAR, 24U> szProt{L"file"};
     if (pszFileName)
     {
-        DWORD dwNumChars = 24;
-        hr = UrlGetPart(pszFileName, szProt, &dwNumChars, URL_PART_SCHEME, 0);
-        if (SUCCEEDED(hr) && dwNumChars && (_wcsicmp(szProt, L"file") != 0))
+        DWORD dwNumChars{ 24U };
+        hr = UrlGetPart(pszFileName, szProt.data(), &dwNumChars, URL_PART_SCHEME, 0);
+        if (SUCCEEDED(hr) && dwNumChars && (::_wcsicmp(szProt.data(), L"file") != 0))
         {
             m_avFormat->flags |= AVFMT_FLAG_NETWORK;
-            DbgLog((LOG_TRACE, 10, TEXT("::InitAVFormat(): detected network protocol: %s"), szProt));
+            DbgLog((LOG_TRACE, 10, TEXT("::InitAVFormat(): detected network protocol: %s"), szProt.data()));
         }
     }
 
     // TODO: make both durations below configurable
     // decrease analyze duration for network streams
-    if (m_avFormat->flags & AVFMT_FLAG_NETWORK ||
+    if ((m_avFormat->flags & AVFMT_FLAG_NETWORK) ||
         (m_avFormat->flags & AVFMT_FLAG_CUSTOM_IO && !m_avFormat->pb->seekable))
     {
         // require at least 0.2 seconds
@@ -735,15 +828,15 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
 
     av_opt_set_int(m_avFormat, "correct_ts_overflow", !m_pBluRay, 0);
 
-    m_timeOpening = time(nullptr);
-    int ret = avformat_find_stream_info(m_avFormat, nullptr);
+    m_timeOpening = std::time(nullptr);
+    int const ret = avformat_find_stream_info(m_avFormat, nullptr);
     if (ret < 0)
     {
         DbgLog((LOG_ERROR, 0, TEXT("::InitAVFormat(): av_find_stream_info failed (%d)"), ret));
         goto done;
     }
     DbgLog((LOG_TRACE, 10, TEXT("::InitAVFormat(): avformat_find_stream_info finished, took %I64d seconds"),
-            time(nullptr) - m_timeOpening));
+            std::time(nullptr) - m_timeOpening));
     m_timeOpening = 0;
 
     // Check if this is a m2ts in a BD structure, and if it is, read some extra stream properties out of the CLPI files
@@ -757,28 +850,28 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
     }
 
     char *icy_headers = nullptr;
-    if (av_opt_get(m_avFormat, "icy_metadata_headers", AV_OPT_SEARCH_CHILDREN, (uint8_t **)&icy_headers) >= 0 &&
-        icy_headers && strlen(icy_headers) > 0)
+    if ((av_opt_get(m_avFormat, "icy_metadata_headers", AV_OPT_SEARCH_CHILDREN, reinterpret_cast<std::uint8_t **>(&icy_headers)) >= 0) &&
+        icy_headers && (std::strlen(icy_headers) > 0))
     {
-        std::string icyHeaders(icy_headers);
+        std::string const icyHeaders(icy_headers);
         std::stringstream icyHeaderStream(icyHeaders);
 
         std::string line;
         while (std::getline(icyHeaderStream, line))
         {
-            size_t seperatorIdx = line.find_first_of(":");
-            std::string token = line.substr(0, seperatorIdx);
-            std::string value = line.substr(seperatorIdx + 1);
-            if (_stricmp(token.c_str(), "icy-name") == 0)
+            std::size_t const seperatorIdx = line.find_first_of(":");
+            std::string const token = line.substr(0, seperatorIdx);
+            std::string const value = line.substr(seperatorIdx + 1);
+            if (::_stricmp(token.c_str(), "icy-name") == 0)
             {
                 // not entirely correct, but this way it gets exported through IAMMediaContent
                 av_dict_set(&m_avFormat->metadata, "artist", value.c_str(), 0);
             }
-            else if (_stricmp(token.c_str(), "icy-description") == 0)
+            else if (::_stricmp(token.c_str(), "icy-description") == 0)
             {
                 av_dict_set(&m_avFormat->metadata, "comment", value.c_str(), 0);
             }
-            else if (_stricmp(token.c_str(), "icy-genre") == 0)
+            else if (::_stricmp(token.c_str(), "icy-genre") == 0)
             {
                 av_dict_set(&m_avFormat->metadata, "genre", value.c_str(), 0);
             }
@@ -790,10 +883,9 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
 
     SAFE_CO_FREE(m_stOrigParser);
     m_stOrigParser = (enum AVStreamParseType *)CoTaskMemAlloc(m_avFormat->nb_streams * sizeof(enum AVStreamParseType));
-    if (!m_stOrigParser)
-        return E_OUTOFMEMORY;
+    if (!m_stOrigParser) { return E_OUTOFMEMORY; }
 
-    for (unsigned int idx = 0; idx < m_avFormat->nb_streams; ++idx)
+    for (unsigned int idx{ 0U }; idx < m_avFormat->nb_streams; ++idx)
     {
         AVStream *st = m_avFormat->streams[idx];
 
@@ -806,7 +898,7 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
             }
         }
 
-        if (m_bOgg && st->codecpar->codec_id == AV_CODEC_ID_H264)
+        if (m_bOgg && (st->codecpar->codec_id == AV_CODEC_ID_H264))
         {
             av_lav_stream_parser_set_needed(st, AVSTREAM_PARSE_FULL);
         }
@@ -824,8 +916,9 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
         m_stOrigParser[idx] = av_lav_stream_parser_get_needed(st);
 
         if ((st->codecpar->codec_id == AV_CODEC_ID_DTS && st->codecpar->codec_tag == 0xA2) ||
-            (st->codecpar->codec_id == AV_CODEC_ID_EAC3 && st->codecpar->codec_tag == 0xA1))
+            (st->codecpar->codec_id == AV_CODEC_ID_EAC3 && st->codecpar->codec_tag == 0xA1)) {
             st->disposition |= LAVF_DISPOSITION_SECONDARY_AUDIO;
+}
 
         UpdateSubStreams();
 
@@ -841,15 +934,17 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
                     CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, attachFilename->value, -1);
                 LPWSTR chMimetype =
                     CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, attachMimeType->value, -1);
-                LPWSTR chDescription = nullptr;
+                LPWSTR chDescription{ nullptr };
 
-                if (attachDescription)
+                if (attachDescription) {
                     chDescription =
                         CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, attachDescription->value, -1);
+}
 
-                if (chFilename && chMimetype)
+                if (chFilename && chMimetype) {
                     ResAppend(chFilename, chDescription, chMimetype, st->codecpar->extradata,
-                              (DWORD)st->codecpar->extradata_size);
+                              static_cast<DWORD>(st->codecpar->extradata_size));
+}
 
                 SAFE_CO_FREE(chFilename);
                 SAFE_CO_FREE(chMimetype);
@@ -861,62 +956,68 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
             }
 
             // Try to guess the codec id for fonts only listed by name
-            if (st->codecpar->codec_id == AV_CODEC_ID_NONE && attachFilename)
+            if ((st->codecpar->codec_id == AV_CODEC_ID_NONE) && attachFilename)
             {
-                char *dot = strrchr(attachFilename->value, '.');
-                if (dot && !_stricmp(dot, ".ttf"))
+                char *dot = std::strrchr(attachFilename->value, '.');
+                if (dot && !::_stricmp(dot, ".ttf")) {
                     st->codecpar->codec_id = AV_CODEC_ID_TTF;
-                else if (dot && !_stricmp(dot, ".otf"))
+                } else if (dot && !::_stricmp(dot, ".otf")) {
                     st->codecpar->codec_id = AV_CODEC_ID_OTF;
+}
             }
 
-            if (st->codecpar->codec_id == AV_CODEC_ID_TTF || st->codecpar->codec_id == AV_CODEC_ID_OTF)
+            if ((st->codecpar->codec_id == AV_CODEC_ID_TTF || st->codecpar->codec_id == AV_CODEC_ID_OTF) &&
+                (st->codecpar->extradata != nullptr) && (st->codecpar->extradata_size > 0))
             {
                 if (!m_pFontInstaller)
                 {
                     m_pFontInstaller = new CFontInstaller();
                 }
-                m_pFontInstaller->InstallFont(st->codecpar->extradata, st->codecpar->extradata_size);
+                m_pFontInstaller->InstallFont(st->codecpar->extradata,
+                                              static_cast<UINT>(st->codecpar->extradata_size));
             }
         }
-        else if (st->disposition & AV_DISPOSITION_ATTACHED_PIC && st->attached_pic.data && st->attached_pic.size > 0)
+        else if ((st->disposition & AV_DISPOSITION_ATTACHED_PIC) && (st->attached_pic.data) && (st->attached_pic.size > 0))
         {
-            LPWSTR chFilename = nullptr;
-            LPWSTR chMimeType = nullptr;
-            LPWSTR chDescription = nullptr;
+            LPWSTR chFilename{ nullptr };
+            LPWSTR chMimeType{ nullptr };
+            LPWSTR chDescription{ nullptr };
 
             // gather a filename
             const AVDictionaryEntry *attachFilename = av_dict_get(st->metadata, "filename", nullptr, 0);
-            if (attachFilename)
+            if (attachFilename) {
                 chFilename = CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, attachFilename->value, -1);
+}
 
             // gather a mimetype
             const AVDictionaryEntry *attachMimeType = av_dict_get(st->metadata, "mimetype", nullptr, 0);
-            if (attachMimeType)
+            if (attachMimeType) {
                 chMimeType = CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, attachMimeType->value, -1);
+}
 
             // gather description
             const AVDictionaryEntry *attachDescription = av_dict_get(st->metadata, "comment", nullptr, 0);
-            if (attachDescription)
+            if (attachDescription) {
                 chDescription =
                     CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, attachDescription->value, -1);
+}
 
-            for (int c = 0; c < countof(CoverMimeTypes); c++)
+            for (int c{ 0 }; c < countof(CoverMimeTypes); ++c)
             {
                 if (CoverMimeTypes[c].codec == st->codecpar->codec_id)
                 {
                     if (chFilename == nullptr)
                     {
-                        size_t size = wcslen(CoverMimeTypes[c].ext) + 15;
+                        std::size_t const size = std::wcslen(CoverMimeTypes[c].ext) + 15;
                         chFilename = (LPWSTR)CoTaskMemAlloc(size * sizeof(wchar_t));
-                        wcscpy_s(chFilename, size, L"EmbeddedCover");
-                        wcscat_s(chFilename, size, CoverMimeTypes[c].ext);
+                        ::wcscpy_s(chFilename, size, L"EmbeddedCover");
+                        ::wcscat_s(chFilename, size, CoverMimeTypes[c].ext);
                     }
                     if (chMimeType == nullptr)
                     {
-                        size_t size = wcslen(CoverMimeTypes[c].mime) + 1;
+                        std::size_t const size = std::wcslen(CoverMimeTypes[c].mime) + 1;
                         chMimeType = (LPWSTR)CoTaskMemAlloc(size * sizeof(wchar_t));
-                        wcscpy_s(chMimeType, size, CoverMimeTypes[c].mime);
+                        ::wcscpy_s(chMimeType, size, CoverMimeTypes[c].mime);
                     }
                     break;
                 }
@@ -925,7 +1026,7 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
             // Export embedded cover-art through IDSMResourceBag interface
             if (chFilename && chMimeType)
             {
-                ResAppend(chFilename, chDescription, chMimeType, st->attached_pic.data, (DWORD)st->attached_pic.size);
+                ResAppend(chFilename, chDescription, chMimeType, st->attached_pic.data, static_cast<DWORD>(st->attached_pic.size));
             }
             else
             {
@@ -944,10 +1045,12 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
         if (SUCCEEDED(cueSheet.Parse(cue->value)))
         {
             // Metadata
-            if (!cueSheet.m_Title.empty() && !av_dict_get(m_avFormat->metadata, "title", nullptr, 0))
+            if (!cueSheet.m_Title.empty() && (!av_dict_get(m_avFormat->metadata, "title", nullptr, 0))) {
                 av_dict_set(&m_avFormat->metadata, "title", cueSheet.m_Title.c_str(), 0);
-            if (!cueSheet.m_Performer.empty() && !av_dict_get(m_avFormat->metadata, "artist", nullptr, 0))
+}
+            if (!cueSheet.m_Performer.empty() && (!av_dict_get(m_avFormat->metadata, "artist", nullptr, 0))) {
                 av_dict_set(&m_avFormat->metadata, "artist", cueSheet.m_Performer.c_str(), 0);
+}
             // Free old chapters
             while (m_avFormat->nb_chapters--)
             {
@@ -977,27 +1080,29 @@ void CLAVFDemuxer::CleanupAVFormat()
     FlushMVCExtensionQueue();
     if (m_avFormat)
     {
-        // Override abort timer to ensure the close function in network protocols can actually close the stream
-        AbortOpening(1, 5);
+        // Give a protocol a moment to finish its close handshake, then force
+        // the interrupt callback so a close that does poll cannot sit here.
+        AbortOpening(1, 1);
         avformat_close_input(&m_avFormat);
     }
     SAFE_CO_FREE(m_stOrigParser);
 
     FlushDOVIRPUMergeQueues();
-    if (m_DOVI.bsf)
+    if (m_DOVI.bsf) {
         av_bsf_free(&m_DOVI.bsf);
+}
 }
 
 AVStream *CLAVFDemuxer::GetAVStreamByPID(int pid)
 {
-    if (!m_avFormat)
-        return nullptr;
+    if (!m_avFormat) { return nullptr; }
 
-    for (unsigned int idx = 0; idx < m_avFormat->nb_streams; ++idx)
+    for (unsigned int idx{ 0U }; idx < m_avFormat->nb_streams; ++idx)
     {
-        if (m_avFormat->streams[idx]->id == pid &&
-            !(m_avFormat->streams[idx]->disposition & LAVF_DISPOSITION_SUB_STREAM))
+        if ((m_avFormat->streams[idx]->id == pid) &&
+            (!(m_avFormat->streams[idx]->disposition & LAVF_DISPOSITION_SUB_STREAM))) {
             return m_avFormat->streams[idx];
+}
     }
 
     return nullptr;
@@ -1007,14 +1112,15 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
 {
     HRESULT hr = S_OK;
 
-    if (type == audio)
+    if (type == audio) {
         UpdateForcedSubtitleStream(pid);
+}
 
     hr = __super::SetActiveStream(type, pid);
 
     // Usually selecting an audio stream would set the forced substream (since it uses the audio stream language)
     // but in case there is no audio stream, do a fallback selection of any PGS stream here.
-    if (type == subpic && pid == FORCED_SUBTITLE_PID && m_ForcedSubStream == -1)
+    if ((type == subpic) && (pid == FORCED_SUBTITLE_PID) && (m_ForcedSubStream == -1))
     {
         std::list<CSubtitleSelector> selectors;
         CSubtitleSelector selector;
@@ -1025,11 +1131,12 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
         selectors.push_back(selector);
 
         const stream *subst = SelectSubtitleStream(selectors, "");
-        if (subst)
+        if (subst) {
             m_ForcedSubStream = subst->pid;
+}
     }
 
-    for (unsigned int idx = 0; idx < m_avFormat->nb_streams; ++idx)
+    for (unsigned int idx{ 0U }; idx < m_avFormat->nb_streams; ++idx)
     {
         AVStream *st = m_avFormat->streams[idx];
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
@@ -1037,20 +1144,22 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
             st->discard = (m_dActiveStreams[video] == idx || m_dActiveStreams[video_el] == idx) ? AVDISCARD_DEFAULT : AVDISCARD_ALL;
 
             // don't discard h264 mvc streams
-            if (m_bH264MVCCombine && st->codecpar->codec_id == AV_CODEC_ID_H264_MVC)
+            if (m_bH264MVCCombine && (st->codecpar->codec_id == AV_CODEC_ID_H264_MVC)) {
                 st->discard = AVDISCARD_DEFAULT;
+}
 
             // don't discard the DOVI EL stream if we're merging
-            if (m_DOVI.bRPUMerge && idx == m_DOVI.nELStreamId)
+            if (m_DOVI.bRPUMerge && (idx == m_DOVI.nELStreamId)) {
                 st->discard = AVDISCARD_DEFAULT;
+}
         }
         else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
         {
             st->discard = (m_dActiveStreams[audio] == idx) ? AVDISCARD_DEFAULT : AVDISCARD_ALL;
             // If the stream is a sub stream, make sure to activate the main stream as well
-            if (m_bMPEGTS && (st->disposition & LAVF_DISPOSITION_SUB_STREAM) && st->discard == AVDISCARD_DEFAULT)
+            if (m_bMPEGTS && (st->disposition & LAVF_DISPOSITION_SUB_STREAM) && (st->discard == AVDISCARD_DEFAULT))
             {
-                for (unsigned int idx2 = 0; idx2 < m_avFormat->nb_streams; ++idx2)
+                for (unsigned int idx2{ 0U }; idx2 < m_avFormat->nb_streams; ++idx2)
                 {
                     AVStream *mst = m_avFormat->streams[idx2];
                     if (mst->id == st->id)
@@ -1079,19 +1188,19 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
 
 void CLAVFDemuxer::UpdateSubStreams()
 {
-    for (unsigned int idx = 0; idx < m_avFormat->nb_streams; ++idx)
+    for (unsigned int idx{ 0U }; idx < m_avFormat->nb_streams; ++idx)
     {
         AVStream *st = m_avFormat->streams[idx];
         // Find and flag the AC-3 substream
-        if (m_bMPEGTS && st->codecpar->codec_id == AV_CODEC_ID_TRUEHD)
+        if (m_bMPEGTS && (st->codecpar->codec_id == AV_CODEC_ID_TRUEHD))
         {
-            int id = st->id;
+            int const id = st->id;
             AVStream *sub_st = nullptr;
 
-            for (unsigned int i = 0; i < m_avFormat->nb_streams; ++i)
+            for (unsigned int i{ 0U }; i < m_avFormat->nb_streams; ++i)
             {
                 AVStream *sst = m_avFormat->streams[i];
-                if (idx != i && sst->id == id)
+                if ((idx != i) && (sst->id == id))
                 {
                     sub_st = sst;
                     break;
@@ -1108,8 +1217,7 @@ void CLAVFDemuxer::UpdateSubStreams()
 
 STDMETHODIMP CLAVFDemuxer::SetTitle(int idx)
 {
-    if (!m_bMatroska)
-        return E_NOTIMPL;
+    if (!m_bMatroska) { return E_NOTIMPL; }
     av_mkv_set_next_edition(m_avFormat, idx);
 
     // Update duration
@@ -1122,30 +1230,29 @@ STDMETHODIMP CLAVFDemuxer::SetTitle(int idx)
 
 STDMETHODIMP_(int) CLAVFDemuxer::GetTitle()
 {
-    if (!m_bMatroska)
-        return 0;
+    if (!m_bMatroska) { return 0; }
     return av_mkv_get_edition(m_avFormat);
 }
 
 STDMETHODIMP CLAVFDemuxer::GetTitleInfo(int idx, REFERENCE_TIME *rtDuration, WCHAR **ppszName)
 {
-    if (!m_bMatroska)
-        return E_NOTIMPL;
+    if (!m_bMatroska) { return E_NOTIMPL; }
 
     AVEdition *editions = nullptr;
     av_mkv_get_editions(m_avFormat, &editions);
 
     AVEdition *current_edition = &editions[idx];
 
-    if (rtDuration)
+    if (rtDuration) {
         *rtDuration = av_rescale(current_edition->duration, DSHOW_TIME_BASE, AV_TIME_BASE);
+}
     if (ppszName)
     {
         char *title = nullptr;
-        int total_seconds = (int)(current_edition->duration / AV_TIME_BASE);
-        int seconds = total_seconds % 60;
-        int minutes = total_seconds / 60 % 60;
-        int hours = total_seconds / 3600;
+        int const total_seconds = static_cast<int>((current_edition->duration / AV_TIME_BASE));
+        int const seconds = total_seconds % 60;
+        int const minutes = total_seconds / 60 % 60;
+        int const hours = total_seconds / 3600;
         if (current_edition->title)
         {
             title = av_asprintf("E: %s [%02d:%02d:%02d]", current_edition->title, hours, minutes, seconds);
@@ -1162,21 +1269,22 @@ STDMETHODIMP CLAVFDemuxer::GetTitleInfo(int idx, REFERENCE_TIME *rtDuration, WCH
 
 STDMETHODIMP_(int) CLAVFDemuxer::GetNumTitles()
 {
-    if (!m_bMatroska || !m_avFormat || !m_avFormat->priv_data || !m_avFormat->iformat || strcmp(m_avFormat->iformat->name, "matroska") != 0)
+    if (!m_bMatroska || !m_avFormat || (!m_avFormat->priv_data) || (!m_avFormat->iformat) || (std::strcmp(m_avFormat->iformat->name, "matroska") != 0)) {
         return 0;
+}
     return av_mkv_get_num_editions(m_avFormat);
 }
 
 void CLAVFDemuxer::SettingsChanged(ILAVFSettingsInternal *pSettings)
 {
-    int vc1Mode = pSettings->GetVC1TimestampMode();
-    if (vc1Mode == 1 || strcmp(m_pszInputFormat, "rawvideo") == 0)
+    int const vc1Mode = pSettings->GetVC1TimestampMode();
+    if ((vc1Mode == 1) || (std::strcmp(m_pszInputFormat, "rawvideo") == 0))
     {
         m_bVC1Correction = true;
     }
     else if (vc1Mode == 2)
     {
-        BOOL bReq = pSettings->IsVC1CorrectionRequired();
+        BOOL const bReq = pSettings->IsVC1CorrectionRequired();
         m_bVC1Correction = m_bMatroska ? !bReq : bReq;
     }
     else
@@ -1184,7 +1292,7 @@ void CLAVFDemuxer::SettingsChanged(ILAVFSettingsInternal *pSettings)
         m_bVC1Correction = false;
     }
 
-    for (unsigned int idx = 0; idx < m_avFormat->nb_streams; ++idx)
+    for (unsigned int idx{ 0U }; idx < m_avFormat->nb_streams; ++idx)
     {
         AVStream *st = m_avFormat->streams[idx];
         if (st->codecpar->codec_id == AV_CODEC_ID_VC1)
@@ -1202,14 +1310,14 @@ void CLAVFDemuxer::SettingsChanged(ILAVFSettingsInternal *pSettings)
 
 REFERENCE_TIME CLAVFDemuxer::GetDuration() const
 {
-    int64_t iLength = 0;
-    if (m_avFormat->duration == (int64_t)AV_NOPTS_VALUE || m_avFormat->duration < 0LL)
+    std::int64_t iLength{ 0 };
+    if ((m_avFormat->duration == static_cast<std::int64_t>(AV_NOPTS_VALUE)) || (m_avFormat->duration < 0LL))
     {
         // no duration is available for us
         // try to calculate it
         // TODO
-        /*if (m_rtCurrent != Packet::INVALID_TIME && m_avFormat->file_size > 0 && m_avFormat->pb && m_avFormat->pb->pos
-        > 0) { iLength = (((m_rtCurrent * m_avFormat->file_size) / m_avFormat->pb->pos) / 1000) & 0xFFFFFFFF;
+        /*if ((m_rtCurrent != Packet::INVALID_TIME) && (m_avFormat->file_size > 0) && (m_avFormat->pb) && (m_avFormat->pb->pos
+        > 0)) { iLength = (((m_rtCurrent * m_avFormat->file_size) / m_avFormat->pb->pos) / 1000) & 0xFFFFFFFF;
         }*/
         // DbgLog((LOG_ERROR, 1, TEXT("duration is not available")));
         return -1;
@@ -1235,89 +1343,90 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
             if (codec_id == AV_CODEC_ID_H264)
             {
                 MPEG2VIDEOINFO *mp2vi =
-                    (MPEG2VIDEOINFO *)pmt->ReallocFormatBuffer(sizeof(MPEG2VIDEOINFO) + extradata_size);
-                int ret = g_VideoHelper.ProcessH264Extradata(extradata, extradata_size, mp2vi, FALSE);
+                    reinterpret_cast<MPEG2VIDEOINFO *>(pmt->ReallocFormatBuffer(sizeof(MPEG2VIDEOINFO) + extradata_size));
+                int const ret = g_VideoHelper.ProcessH264Extradata(extradata, extradata_size, mp2vi, FALSE);
                 if (ret < 0)
                 {
                     mp2vi->cbSequenceHeader = extradata_size;
-                    memcpy(&mp2vi->dwSequenceHeader[0], extradata, extradata_size);
+                    std::memcpy(&mp2vi->dwSequenceHeader[0U], extradata, extradata_size);
                 }
                 else
                 {
-                    int mp2visize = SIZE_MPEG2VIDEOINFO(mp2vi);
-                    memset((BYTE *)mp2vi + mp2visize, 0, pmt->cbFormat - mp2visize);
+                    int const mp2visize = SIZE_MPEG2VIDEOINFO(mp2vi);
+                    std::memset(reinterpret_cast<BYTE *>(mp2vi) + mp2visize, 0, pmt->cbFormat - mp2visize);
                 }
             }
             else if (codec_id == AV_CODEC_ID_MPEG2VIDEO)
             {
                 MPEG2VIDEOINFO *mp2vi =
-                    (MPEG2VIDEOINFO *)pmt->ReallocFormatBuffer(sizeof(MPEG2VIDEOINFO) + extradata_size);
+                    reinterpret_cast<MPEG2VIDEOINFO *>(pmt->ReallocFormatBuffer(sizeof(MPEG2VIDEOINFO) + extradata_size));
                 CExtradataParser parser = CExtradataParser(extradata, extradata_size);
-                mp2vi->cbSequenceHeader = (DWORD)parser.ParseMPEGSequenceHeader((BYTE *)&mp2vi->dwSequenceHeader[0]);
+                mp2vi->cbSequenceHeader = static_cast<DWORD>(parser.ParseMPEGSequenceHeader((BYTE *)&mp2vi->dwSequenceHeader[0U]));
             }
             else if (codec_id == AV_CODEC_ID_VC1)
             {
                 VIDEOINFOHEADER2 *vih2 =
-                    (VIDEOINFOHEADER2 *)pmt->ReallocFormatBuffer(sizeof(VIDEOINFOHEADER2) + extradata_size + 1);
-                int i = 0;
-                for (i = 0; i < (extradata_size - 4); i++)
+                    reinterpret_cast<VIDEOINFOHEADER2 *>(pmt->ReallocFormatBuffer(sizeof(VIDEOINFOHEADER2) + extradata_size + 1));
+                int i{ 0 };
+                for (i = 0; i < (extradata_size - 4); ++i)
                 {
-                    uint32_t code = AV_RB32(extradata + i);
-                    if (IS_VC1_MARKER(code))
+                    std::uint32_t const code = AV_RB32(extradata + i);
+                    if (IS_VC1_MARKER(code)) {
                         break;
+}
                 }
                 if (i == 0)
                 {
-                    *((BYTE *)vih2 + sizeof(VIDEOINFOHEADER2)) = 0;
-                    memcpy((BYTE *)vih2 + sizeof(VIDEOINFOHEADER2) + 1, extradata, extradata_size);
+                    *(reinterpret_cast<BYTE *>(vih2) + sizeof(VIDEOINFOHEADER2)) = 0;
+                    std::memcpy(reinterpret_cast<BYTE *>(vih2) + sizeof(VIDEOINFOHEADER2) + 1, extradata, extradata_size);
                 }
                 else
                 {
-                    memcpy((BYTE *)vih2 + sizeof(VIDEOINFOHEADER2), extradata, extradata_size);
+                    std::memcpy(reinterpret_cast<BYTE *>(vih2) + sizeof(VIDEOINFOHEADER2), extradata, extradata_size);
                 }
             }
             else if (codec_id == AV_CODEC_ID_ASS)
             {
-                SUBTITLEINFO *sif = (SUBTITLEINFO *)pmt->ReallocFormatBuffer(sizeof(SUBTITLEINFO) + extradata_size);
-                memcpy((BYTE *)sif + sizeof(SUBTITLEINFO), extradata, extradata_size);
+                SUBTITLEINFO *sif = reinterpret_cast<SUBTITLEINFO *>(pmt->ReallocFormatBuffer(sizeof(SUBTITLEINFO) + extradata_size));
+                std::memcpy(reinterpret_cast<BYTE *>(sif) + sizeof(SUBTITLEINFO), extradata, extradata_size);
             }
             else
             {
                 if (pmt->formattype == FORMAT_VideoInfo)
                 {
                     VIDEOINFOHEADER *vih =
-                        (VIDEOINFOHEADER *)pmt->ReallocFormatBuffer(sizeof(VIDEOINFOHEADER) + extradata_size);
+                        reinterpret_cast<VIDEOINFOHEADER *>(pmt->ReallocFormatBuffer(sizeof(VIDEOINFOHEADER) + extradata_size));
                     vih->bmiHeader.biSize = sizeof(BITMAPINFOHEADER) + extradata_size;
-                    memcpy((BYTE *)vih + sizeof(VIDEOINFOHEADER), extradata, extradata_size);
+                    std::memcpy(reinterpret_cast<BYTE *>(vih) + sizeof(VIDEOINFOHEADER), extradata, extradata_size);
                 }
                 else if (pmt->formattype == FORMAT_VideoInfo2)
                 {
                     VIDEOINFOHEADER2 *vih2 =
-                        (VIDEOINFOHEADER2 *)pmt->ReallocFormatBuffer(sizeof(VIDEOINFOHEADER2) + extradata_size);
+                        reinterpret_cast<VIDEOINFOHEADER2 *>(pmt->ReallocFormatBuffer(sizeof(VIDEOINFOHEADER2) + extradata_size));
                     vih2->bmiHeader.biSize = sizeof(BITMAPINFOHEADER) + extradata_size;
-                    memcpy((BYTE *)vih2 + sizeof(VIDEOINFOHEADER2), extradata, extradata_size);
+                    std::memcpy(reinterpret_cast<BYTE *>(vih2) + sizeof(VIDEOINFOHEADER2), extradata, extradata_size);
                 }
                 else if (pmt->formattype == FORMAT_WaveFormatEx)
                 {
                     WAVEFORMATEX *wfex =
-                        (WAVEFORMATEX *)pmt->ReallocFormatBuffer(sizeof(WAVEFORMATEX) + extradata_size);
+                        reinterpret_cast<WAVEFORMATEX *>(pmt->ReallocFormatBuffer(sizeof(WAVEFORMATEX) + extradata_size));
                     wfex->cbSize = extradata_size;
-                    memcpy((BYTE *)wfex + sizeof(WAVEFORMATEX), extradata, extradata_size);
+                    std::memcpy(reinterpret_cast<BYTE *>(wfex) + sizeof(WAVEFORMATEX), extradata, extradata_size);
                 }
                 else if (pmt->formattype == FORMAT_WaveFormatExFFMPEG)
                 {
                     WAVEFORMATEXFFMPEG *wfex =
-                        (WAVEFORMATEXFFMPEG *)pmt->ReallocFormatBuffer(sizeof(WAVEFORMATEXFFMPEG) + extradata_size);
+                        reinterpret_cast<WAVEFORMATEXFFMPEG *>(pmt->ReallocFormatBuffer(sizeof(WAVEFORMATEXFFMPEG) + extradata_size));
                     wfex->wfex.cbSize = extradata_size;
-                    memcpy((BYTE *)wfex + sizeof(WAVEFORMATEXFFMPEG), extradata, extradata_size);
+                    std::memcpy(reinterpret_cast<BYTE *>(wfex) + sizeof(WAVEFORMATEXFFMPEG), extradata, extradata_size);
                 }
                 else if (pmt->formattype == FORMAT_VorbisFormat2)
                 {
                     BYTE *p = extradata;
                     std::vector<int> sizes;
-                    for (BYTE n = *p++; n > 0; n--)
+                    for (BYTE n = *p++; n > 0; --n)
                     {
-                        int size = 0;
+                        int size{ 0 };
                         // Xiph Lacing
                         do
                         {
@@ -1326,22 +1435,23 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
                         sizes.push_back(size);
                     }
 
-                    int totalsize = 0;
-                    for (size_t i = 0; i < sizes.size(); i++)
+                    int totalsize{ 0 };
+                    for (std::size_t i{ 0U }; i < sizes.size(); ++i) {
                         totalsize += sizes[i];
+}
 
-                    sizes.push_back(extradata_size - (int)(p - extradata) - totalsize);
+                    sizes.push_back(extradata_size - static_cast<int>((p - extradata)) - totalsize);
                     totalsize += sizes[sizes.size() - 1];
 
                     // 3 blocks is the currently valid Vorbis format
                     if (sizes.size() == 3)
                     {
                         VORBISFORMAT2 *pvf2 =
-                            (VORBISFORMAT2 *)pmt->ReallocFormatBuffer(sizeof(VORBISFORMAT2) + totalsize);
-                        BYTE *p2 = (BYTE *)pvf2 + sizeof(VORBISFORMAT2);
-                        for (unsigned int i = 0; i < sizes.size(); p += sizes[i], p2 += sizes[i], i++)
+                            reinterpret_cast<VORBISFORMAT2 *>(pmt->ReallocFormatBuffer(sizeof(VORBISFORMAT2) + totalsize));
+                        BYTE *p2 = reinterpret_cast<BYTE *>(pvf2) + sizeof(VORBISFORMAT2);
+                        for (unsigned int i{ 0U }; i < sizes.size(); p += sizes[i], p2 += sizes[i], i++)
                         {
-                            memcpy(p2, p, pvf2->HeaderSize[i] = sizes[i]);
+                            std::memcpy(p2, p, pvf2->HeaderSize[i] = sizes[i]);
                         }
                     }
                 }
@@ -1354,7 +1464,7 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
         }
         if (paramchange)
         {
-            uint32_t flags = AV_RL32(paramchange);
+            std::uint32_t const flags = AV_RL32(paramchange);
             int channels = 0, sample_rate = 0, width = 0, height = 0, aspect_num = 0, aspect_den = 0;
             paramchange += 4;
             if (flags & AV_SIDE_DATA_PARAM_CHANGE_CHANNEL_COUNT)
@@ -1387,7 +1497,7 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
             {
                 if ((pmt->formattype == FORMAT_VideoInfo || pmt->formattype == FORMAT_MPEGVideo) && width && height)
                 {
-                    VIDEOINFOHEADER *vih = (VIDEOINFOHEADER *)pmt->pbFormat;
+                    VIDEOINFOHEADER *vih = reinterpret_cast<VIDEOINFOHEADER *>(pmt->pbFormat);
                     vih->bmiHeader.biWidth = width;
                     vih->bmiHeader.biHeight = height;
                     vih->rcTarget.right = vih->rcSource.right = width;
@@ -1396,7 +1506,7 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
                 else if ((pmt->formattype == FORMAT_VideoInfo2 || pmt->formattype == FORMAT_MPEG2Video) &&
                          ((width && height) || (aspect_num && aspect_den)))
                 {
-                    VIDEOINFOHEADER2 *vih2 = (VIDEOINFOHEADER2 *)pmt->pbFormat;
+                    VIDEOINFOHEADER2 *vih2 = reinterpret_cast<VIDEOINFOHEADER2 *>(pmt->pbFormat);
                     if (width && height)
                     {
                         vih2->bmiHeader.biWidth = width;
@@ -1407,7 +1517,7 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
                     if (aspect_num && aspect_den)
                     {
                         int num = vih2->bmiHeader.biWidth, den = vih2->bmiHeader.biHeight;
-                        av_reduce(&num, &den, (int64_t)aspect_num * num, (int64_t)aspect_den * den, INT_MAX);
+                        av_reduce(&num, &den, static_cast<std::int64_t>(aspect_num) * num, static_cast<std::int64_t>(aspect_den) * den, INT_MAX);
                         vih2->dwPictAspectRatioX = num;
                         vih2->dwPictAspectRatioY = den;
                     }
@@ -1421,17 +1531,19 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
                     WAVEFORMATEX *wfex = nullptr;
                     if (pmt->formattype == FORMAT_WaveFormatExFFMPEG)
                     {
-                        WAVEFORMATEXFFMPEG *wfexff = (WAVEFORMATEXFFMPEG *)pmt->pbFormat;
+                        WAVEFORMATEXFFMPEG *wfexff = reinterpret_cast<WAVEFORMATEXFFMPEG *>(pmt->pbFormat);
                         wfex = &wfexff->wfex;
                     }
                     else
                     {
-                        wfex = (WAVEFORMATEX *)pmt->pbFormat;
+                        wfex = reinterpret_cast<WAVEFORMATEX *>(pmt->pbFormat);
                     }
-                    if (channels)
+                    if (channels) {
                         wfex->nChannels = channels;
-                    if (sample_rate)
+}
+                    if (sample_rate) {
                         wfex->nSamplesPerSec = sample_rate;
+}
                 }
             }
         }
@@ -1448,22 +1560,25 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
 STDMETHODIMP CLAVFDemuxer::ParseICYMetadataPacket()
 {
     char *icy_data = nullptr;
-    if (av_opt_get(m_avFormat, "icy_metadata_packet", AV_OPT_SEARCH_CHILDREN, (uint8_t **)&icy_data) >= 0 && icy_data &&
-        strlen(icy_data) > 0)
+    if ((av_opt_get(m_avFormat, "icy_metadata_packet", AV_OPT_SEARCH_CHILDREN, reinterpret_cast<std::uint8_t **>(&icy_data)) >= 0) && icy_data &&
+        (std::strlen(icy_data) > 0))
     {
-        std::string icyData(icy_data);
-        size_t idx = icyData.find("StreamTitle");
+        std::string const icyData(icy_data);
+        std::size_t idx = icyData.find("StreamTitle");
         if (idx != std::string::npos)
         {
             // strip StreamTitle token and =
             std::string value = icyData.substr(idx + 12);
             idx = value.find_first_of(";");
-            if (idx != std::string::npos)
+            if (idx != std::string::npos) {
                 value = value.substr(0, idx);
-            if (value[0] == '\'' || value[0] == '"')
+}
+            if ((value[0U] == '\'') || (value[0U] == '"')) {
                 value = value.substr(1);
-            if (value[value.length() - 1] == '\'' || value[value.length() - 1] == '"')
+}
+            if ((value[value.length() - 1] == '\'') || (value[value.length() - 1] == '"')) {
                 value = value.substr(0, value.length() - 1);
+}
             if (value.length() > 0)
             {
                 av_dict_set(&m_avFormat->metadata, "title", value.c_str(), 0);
@@ -1482,7 +1597,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
     CheckPointer(ppPacket, E_POINTER);
 
     // If true, S_FALSE is returned, indicating a soft-failure
-    bool bReturnEmpty = false;
+    bool bReturnEmpty{ false };
 
     // Read packet
     AVPacket pkt{};
@@ -1497,8 +1612,8 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
     // fetch any queued DOVI packets
     if (m_DOVI.bRPUMerge)
     {
-        HRESULT hr = FetchDOVIPacket(&pPacket);
-        if (hr == S_OK && pPacket)
+        HRESULT const hr = FetchDOVIPacket(&pPacket);
+        if ((hr == S_OK) && pPacket)
         {
             *ppPacket = pPacket;
             return S_OK;
@@ -1508,13 +1623,14 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
     // try to read from the DOVI BSF
     if (m_DOVI.bBSFSplit && m_DOVI.bsf)
     {
-        if (av_bsf_receive_packet(m_DOVI.bsf, &pkt) < 0)
+        if (av_bsf_receive_packet(m_DOVI.bsf, &pkt) < 0) {
             pkt.data = nullptr;
-        else
+        } else {
             pkt.stream_index = m_DOVI.nELStreamId;
+}
     }
 
-    int result = 0;
+    int result{ 0 };
     try
     {
         // if the packet is empty, read from actual file
@@ -1528,7 +1644,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         // ignore..
     }
 
-    if (result == AVERROR(EINTR) || result == AVERROR(EAGAIN))
+    if ((result == AVERROR(EINTR)) || (result == AVERROR(EAGAIN)))
     {
         // timeout, probably no real error, return empty packet
         bReturnEmpty = true;
@@ -1541,10 +1657,10 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
     {
         // meh, fail
     }
-    else if (pkt.size <= 0 || pkt.stream_index < 0 || (unsigned)pkt.stream_index >= m_avFormat->nb_streams)
+    else if ((pkt.size <= 0) || (pkt.stream_index < 0) || (static_cast<unsigned>(pkt.stream_index) >= m_avFormat->nb_streams))
     {
         // XXX, in some cases ffmpeg returns a zero or negative packet size
-        if (m_avFormat->pb && !m_avFormat->pb->eof_reached)
+        if ((m_avFormat->pb) && (!m_avFormat->pb->eof_reached))
         {
             bReturnEmpty = true;
         }
@@ -1554,9 +1670,9 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
     {
         // Check right here if the stream is active, we can drop the package otherwise.
         AVStream *stream = m_avFormat->streams[pkt.stream_index];
-        BOOL streamActive = FALSE;
-        BOOL forcedSubStream = FALSE;
-        for (int i = 0; i < unknown; ++i)
+        BOOL streamActive{ FALSE };
+        BOOL forcedSubStream{ FALSE };
+        for (int i{ 0 }; i < unknown; ++i)
         {
             if (m_dActiveStreams[i] == pkt.stream_index)
             {
@@ -1566,18 +1682,20 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         }
 
         // Accept it if its the forced subpic stream
-        if (m_dActiveStreams[subpic] == FORCED_SUBTITLE_PID && pkt.stream_index == m_ForcedSubStream)
+        if ((m_dActiveStreams[subpic] == FORCED_SUBTITLE_PID) && (pkt.stream_index == m_ForcedSubStream))
         {
             forcedSubStream = streamActive = TRUE;
         }
 
         // Accept H264 MVC streams, as they get combined with the base stream later
-        if (m_bH264MVCCombine && stream->codecpar->codec_id == AV_CODEC_ID_H264_MVC)
+        if (m_bH264MVCCombine && (stream->codecpar->codec_id == AV_CODEC_ID_H264_MVC)) {
             streamActive = TRUE;
+}
 
         // DOVI merge
-        if (m_DOVI.bRPUMerge && pkt.stream_index == m_DOVI.nELStreamId)
+        if (m_DOVI.bRPUMerge && (pkt.stream_index == m_DOVI.nELStreamId)) {
             streamActive = TRUE;
+}
 
         if (!streamActive)
         {
@@ -1585,37 +1703,37 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
             return S_FALSE;
         }
 
-        if (m_DOVI.bBSFSplit && m_DOVI.bsf && pkt.stream_index == m_DOVI.nBLStreamId)
+        if (m_DOVI.bBSFSplit && m_DOVI.bsf && (pkt.stream_index == m_DOVI.nBLStreamId))
         {
             // copy the packet, as the BSF will take ownership of this ref
             AVPacket pkt_bsf{};
             if (av_packet_ref(&pkt_bsf, &pkt) >= 0)
             {
-                if (av_bsf_send_packet(m_DOVI.bsf, &pkt_bsf) < 0)
+                if (av_bsf_send_packet(m_DOVI.bsf, &pkt_bsf) < 0) {
                     av_packet_unref(&pkt_bsf);
+}
             }
         }
 
         pPacket = new Packet();
-        if (!pPacket)
-            return E_OUTOFMEMORY;
+        if (!pPacket) { return E_OUTOFMEMORY; }
 
         // Convert timestamps to reference time and set them on the packet
         REFERENCE_TIME pts = ConvertTimestampToRT(pkt.pts, stream->time_base.num, stream->time_base.den);
         REFERENCE_TIME dts = ConvertTimestampToRT(pkt.dts, stream->time_base.num, stream->time_base.den);
-        REFERENCE_TIME duration = ConvertTimestampToRT(pkt.duration, stream->time_base.num, stream->time_base.den, 0);
+        REFERENCE_TIME const duration = ConvertTimestampToRT(pkt.duration, stream->time_base.num, stream->time_base.den, 0);
 
         pPacket->rtPTS = pts;
         pPacket->rtDTS = dts;
-        pPacket->StreamId = (DWORD)pkt.stream_index;
+        pPacket->StreamId = static_cast<DWORD>(pkt.stream_index);
         pPacket->bPosition = pkt.pos;
 
         if (stream->codecpar->codec_id == AV_CODEC_ID_H264)
         {
             if (m_bMatroska || m_bOgg)
             {
-                if (!stream->codecpar->extradata_size || stream->codecpar->extradata[0] != 1 ||
-                    AV_RB32(pkt.data) == 0x00000001)
+                if ((!stream->codecpar->extradata_size) || (stream->codecpar->extradata[0U] != 1) ||
+                    (AV_RB32(pkt.data) == 0x00000001))
                 {
                     pPacket->dwFlags |= LAV_PACKET_H264_ANNEXB;
                 }
@@ -1630,23 +1748,24 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
             }
         }
 
-        if (m_bAVI && stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        if (m_bAVI && (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO))
         {
             // AVI's always have borked pts, specially if m_pFormatContext->flags includes
             // AVFMT_FLAG_GENPTS so always use dts
             pts = Packet::INVALID_TIME;
         }
 
-        if (stream->codecpar->codec_id == AV_CODEC_ID_RV10 || stream->codecpar->codec_id == AV_CODEC_ID_RV20 ||
-            stream->codecpar->codec_id == AV_CODEC_ID_RV30 || stream->codecpar->codec_id == AV_CODEC_ID_RV40)
+        if ((stream->codecpar->codec_id == AV_CODEC_ID_RV10) || (stream->codecpar->codec_id == AV_CODEC_ID_RV20) ||
+            (stream->codecpar->codec_id == AV_CODEC_ID_RV30) || (stream->codecpar->codec_id == AV_CODEC_ID_RV40))
         {
             pts = Packet::INVALID_TIME;
         }
 
         // Never use DTS for these formats
         if (!m_bAVI && (stream->codecpar->codec_id == AV_CODEC_ID_MPEG2VIDEO ||
-                        stream->codecpar->codec_id == AV_CODEC_ID_MPEG1VIDEO))
+                        stream->codecpar->codec_id == AV_CODEC_ID_MPEG1VIDEO)) {
             dts = Packet::INVALID_TIME;
+}
 
         if (pkt.data)
         {
@@ -1677,8 +1796,9 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
                 rt = pts;
                 if (!m_bVC1SeenTimestamp)
                 {
-                    if (rt == Packet::INVALID_TIME && dts != Packet::INVALID_TIME)
+                    if ((rt == Packet::INVALID_TIME) && (dts != Packet::INVALID_TIME)) {
                         rt = dts;
+}
                     m_bVC1SeenTimestamp = (pts != Packet::INVALID_TIME);
                 }
             }
@@ -1694,7 +1814,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         }
 
         // Mark the packet as parsed, so the forced subtitle parser doesn't hit it
-        if (stream->codecpar->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE && m_bPGSNoParsing)
+        if ((stream->codecpar->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE) && m_bPGSNoParsing)
         {
             pPacket->dwFlags |= LAV_PACKET_PARSED;
         }
@@ -1721,72 +1841,77 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
             }
         }
 
-        if (stream->codecpar->codec_id == AV_CODEC_ID_PCM_S16BE_PLANAR ||
-            stream->codecpar->codec_id == AV_CODEC_ID_PCM_S16LE_PLANAR ||
-            stream->codecpar->codec_id == AV_CODEC_ID_PCM_S24LE_PLANAR ||
-            stream->codecpar->codec_id == AV_CODEC_ID_PCM_S32LE_PLANAR)
+        if ((stream->codecpar->codec_id == AV_CODEC_ID_PCM_S16BE_PLANAR) ||
+            (stream->codecpar->codec_id == AV_CODEC_ID_PCM_S16LE_PLANAR) ||
+            (stream->codecpar->codec_id == AV_CODEC_ID_PCM_S24LE_PLANAR) ||
+            (stream->codecpar->codec_id == AV_CODEC_ID_PCM_S32LE_PLANAR)) {
             pPacket->dwFlags |= LAV_PACKET_PLANAR_PCM;
+}
 
         if (stream->codecpar->codec_id == AV_CODEC_ID_WEBVTT)
         {
-            size_t id_size = 0, settings_size = 0;
-            uint8_t *id = NULL, *settings = NULL;
+            std::size_t id_size = 0, settings_size = 0;
+            std::uint8_t *id = nullptr, *settings = nullptr;
             id = av_packet_get_side_data(&pkt, AV_PKT_DATA_WEBVTT_IDENTIFIER, &id_size);
             settings = av_packet_get_side_data(&pkt, AV_PKT_DATA_WEBVTT_SETTINGS, &settings_size);
 
-            int text_size = pPacket->GetDataSize();
+            int const text_size = pPacket->GetDataSize();
 
             // allocate size for id/settings
-            int pkt_size = text_size + (int)id_size + 2 + (int)settings_size + 2;
+            int const pkt_size = text_size + static_cast<int>(id_size) + 2 + static_cast<int>(settings_size) + 2;
             pPacket->SetDataSize(pkt_size);
 
-            uint8_t *data = pPacket->GetData();
+            std::uint8_t *data = pPacket->GetData();
 
             // offset data
-            memmove(data + id_size + 2 + settings_size + 2, data, text_size);
+            std::memmove(data + id_size + 2 + settings_size + 2, data, text_size);
 
             // write id
-            if (id && id_size > 0)
-                memcpy(data, id, id_size);
+            if (id && (id_size > 0)) {
+                std::memcpy(data, id, id_size);
+}
 
             data[id_size + 0] = '\r';
             data[id_size + 1] = '\n';
 
             // write settings
-            if (settings && settings_size > 0)
-                memcpy(data + id_size + 2, settings, settings_size);
+            if (settings && (settings_size > 0)) {
+                std::memcpy(data + id_size + 2, settings, settings_size);
+}
 
             data[id_size + 2 + settings_size + 0] = '\r';
             data[id_size + 2 + settings_size + 1] = '\n';
         }
 
         // Update extradata and send new mediatype, when required
-        size_t sidedata_size = 0;
-        uint8_t *sidedata = av_packet_get_side_data(&pkt, AV_PKT_DATA_NEW_EXTRADATA, &sidedata_size);
-        size_t paramchange_size = 0;
-        uint8_t *paramchange = av_packet_get_side_data(&pkt, AV_PKT_DATA_PARAM_CHANGE, &paramchange_size);
+        std::size_t sidedata_size{ 0U };
+        std::uint8_t *sidedata = av_packet_get_side_data(&pkt, AV_PKT_DATA_NEW_EXTRADATA, &sidedata_size);
+        std::size_t paramchange_size{ 0U };
+        std::uint8_t *paramchange = av_packet_get_side_data(&pkt, AV_PKT_DATA_PARAM_CHANGE, &paramchange_size);
         if ((sidedata && sidedata_size) || (paramchange && paramchange_size))
         {
-            CreatePacketMediaType(pPacket, stream->codecpar->codec_id, sidedata, (int)sidedata_size, paramchange,
-                                  (int)paramchange_size);
+            CreatePacketMediaType(pPacket, stream->codecpar->codec_id, sidedata, static_cast<int>(sidedata_size), paramchange,
+                                  static_cast<int>(paramchange_size));
         }
 
         pPacket->bSyncPoint = pkt.flags & AV_PKT_FLAG_KEY;
         pPacket->bDiscontinuity = !m_pBluRay && (pkt.flags & AV_PKT_FLAG_CORRUPT);
 #ifdef DEBUG
-        if (pkt.flags & AV_PKT_FLAG_CORRUPT)
+        if (pkt.flags & AV_PKT_FLAG_CORRUPT) {
             DbgLog((LOG_TRACE, 10, L"::GetNextPacket() - Signaling Discontinuinty because of corrupt package"));
+}
 #endif
 
-        if (pPacket->rtStart != AV_NOPTS_VALUE)
+        if (pPacket->rtStart != AV_NOPTS_VALUE) {
             m_rtCurrent = pPacket->rtStart;
+}
 
         av_packet_unref(&pkt);
     }
 
     if (m_pBluRay && pPacket)
     {
-        HRESULT hr = m_pBluRay->ProcessPacket(pPacket);
+        HRESULT const hr = m_pBluRay->ProcessPacket(pPacket);
         if (hr != S_OK)
         {
             SAFE_DELETE(pPacket);
@@ -1794,7 +1919,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         }
     }
 
-    if (m_bH264MVCCombine && pPacket && pPacket->StreamId == m_nH264MVCExtensionStream)
+    if (m_bH264MVCCombine && pPacket && (pPacket->StreamId == m_nH264MVCExtensionStream))
     {
         if (FAILED(QueueMVCExtension(pPacket)))
         {
@@ -1805,27 +1930,28 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         return S_FALSE;
     }
 
-    if (m_bH264MVCCombine && pPacket && pPacket->StreamId == m_nH264MVCBaseStream)
+    if (m_bH264MVCCombine && pPacket && (pPacket->StreamId == m_nH264MVCBaseStream))
     {
-        HRESULT hr = CombineMVCBaseExtension(pPacket);
+        HRESULT const hr = CombineMVCBaseExtension(pPacket);
         if (hr != S_OK)
         {
             SAFE_DELETE(pPacket);
 
             // S_FALSE indicates a skipped packet, not a hard failure
-            if (hr == S_FALSE)
+            if (hr == S_FALSE) {
                 bReturnEmpty = true;
+}
         }
     }
 
     if (m_DOVI.bRPUMerge && pPacket && (pPacket->StreamId == m_DOVI.nBLStreamId || pPacket->StreamId == m_DOVI.nELStreamId))
     {
-        HRESULT hr = CombineDOVIRPU(pPacket);
+        HRESULT const hr = CombineDOVIRPU(pPacket);
 
         // can't return a packet now, as data is missing
         if (hr == S_FALSE)
         {
-            pPacket = NULL;
+            pPacket = nullptr;
             bReturnEmpty = true;
         }
     }
@@ -1853,7 +1979,7 @@ STDMETHODIMP CLAVFDemuxer::QueueMVCExtension(Packet *pPacket)
 
 STDMETHODIMP CLAVFDemuxer::FlushMVCExtensionQueue()
 {
-    for (auto it = m_MVCExtensionQueue.begin(); it != m_MVCExtensionQueue.end(); it++)
+    for (auto it = m_MVCExtensionQueue.begin(); it != m_MVCExtensionQueue.end(); ++it)
     {
         delete (*it);
     }
@@ -1867,11 +1993,12 @@ STDMETHODIMP CLAVFDemuxer::CombineMVCBaseExtension(Packet *pBasePacket)
     while (!m_MVCExtensionQueue.empty())
     {
         Packet *pExtensionPacket = m_MVCExtensionQueue.front();
-        if (pExtensionPacket->rtDTS == pBasePacket->rtDTS || pBasePacket->rtDTS == Packet::INVALID_TIME ||
-            pExtensionPacket->rtDTS == Packet::INVALID_TIME)
+        if ((pExtensionPacket->rtDTS == pBasePacket->rtDTS) || (pBasePacket->rtDTS == Packet::INVALID_TIME) ||
+            (pExtensionPacket->rtDTS == Packet::INVALID_TIME))
         {
-            if (pBasePacket->Append(pExtensionPacket) < 0)
+            if (pBasePacket->Append(pExtensionPacket) < 0) {
                 return E_FAIL;
+}
 
             m_MVCExtensionQueue.pop_front();
             delete pExtensionPacket;
@@ -1895,10 +2022,8 @@ STDMETHODIMP CLAVFDemuxer::CombineMVCBaseExtension(Packet *pBasePacket)
 
     if (m_pBluRay && m_MVCExtensionQueue.empty())
     {
-        HRESULT hr = m_pBluRay->FillMVCExtensionQueue(pBasePacket->rtDTS);
-        if (hr == S_OK)
-            return CombineMVCBaseExtension(pBasePacket);
-        else if (FAILED(hr))
+        HRESULT const hr = m_pBluRay->FillMVCExtensionQueue(pBasePacket->rtDTS);
+        if (hr == S_OK) { return CombineMVCBaseExtension(pBasePacket); } else if (FAILED(hr))
         {
             DbgLog((LOG_TRACE, 10, L"CLAVFDemuxer::CombineMVCBaseExtension(): Filling MVC extension queue failed"));
             return hr;
@@ -1933,11 +2058,12 @@ STDMETHODIMP CLAVFDemuxer::CombineDOVIRPU(Packet *pPacket)
         while (!m_DOVI.queueRPU.empty())
         {
             Packet *pPacketRPU = m_DOVI.queueRPU.front();
-            if (pPacketRPU->rtDTS == pPacket->rtDTS || pPacket->rtDTS == Packet::INVALID_TIME ||
-                pPacketRPU->rtDTS == Packet::INVALID_TIME)
+            if ((pPacketRPU->rtDTS == pPacket->rtDTS) || (pPacket->rtDTS == Packet::INVALID_TIME) ||
+                (pPacketRPU->rtDTS == Packet::INVALID_TIME))
             {
-                if (pPacket->Append(pPacketRPU) < 0)
+                if (pPacket->Append(pPacketRPU) < 0) {
                     return E_OUTOFMEMORY;
+}
 
                 m_DOVI.queueRPU.pop_front();
                 delete pPacketRPU;
@@ -1969,8 +2095,8 @@ STDMETHODIMP CLAVFDemuxer::CombineDOVIRPU(Packet *pPacket)
         while (!m_DOVI.queueBLPackets.empty())
         {
             Packet *pPacketBL = m_DOVI.queueBLPackets.front();
-            if (pPacket->rtDTS == pPacketBL->rtDTS || pPacketBL->rtDTS == Packet::INVALID_TIME ||
-                pPacket->rtDTS == Packet::INVALID_TIME)
+            if ((pPacket->rtDTS == pPacketBL->rtDTS) || (pPacketBL->rtDTS == Packet::INVALID_TIME) ||
+                (pPacket->rtDTS == Packet::INVALID_TIME))
             {
                 if (pPacketRPU)
                 {
@@ -2005,8 +2131,9 @@ STDMETHODIMP CLAVFDemuxer::CombineDOVIRPU(Packet *pPacket)
         }
 
         // queue RPU for the next BL, this case should not usually happen as RPUs come after BLs
-        if (pPacketRPU)
+        if (pPacketRPU) {
             m_DOVI.queueRPU.push_back(pPacketRPU);
+}
         return S_OK;
     }
 
@@ -2015,10 +2142,9 @@ STDMETHODIMP CLAVFDemuxer::CombineDOVIRPU(Packet *pPacket)
 
 Packet* CLAVFDemuxer::CreateRPUPacketFromEL(Packet* pPacketEL)
 {
-    if (m_DOVI.nBLNALSize < 0 || m_DOVI.nELNALSize < 0)
-        return NULL;
+    if ((m_DOVI.nBLNALSize < 0) || (m_DOVI.nELNALSize < 0)) { return nullptr; }
 
-    int nBLHeaderSize = m_DOVI.nBLNALSize > 0 ? m_DOVI.nBLNALSize : 4;
+    int const nBLHeaderSize = m_DOVI.nBLNALSize > 0 ? m_DOVI.nBLNALSize : 4;
 
     CH265Nalu Nalu;
     Nalu.SetBuffer(pPacketEL->GetData(), pPacketEL->GetDataSize(), m_DOVI.nELNALSize);
@@ -2026,7 +2152,7 @@ Packet* CLAVFDemuxer::CreateRPUPacketFromEL(Packet* pPacketEL)
     {
         if (Nalu.GetType() == 62) // RPU
         {
-            int nDataSize = (int)Nalu.GetDataLength();
+            int const nDataSize = static_cast<int>(Nalu.GetDataLength());
 
             Packet *pRPUPacket = new Packet();
 
@@ -2042,31 +2168,31 @@ Packet* CLAVFDemuxer::CreateRPUPacketFromEL(Packet* pPacketEL)
             case 4: AV_WB32(dst, nDataSize); break;
             }
 
-            memcpy(dst + nBLHeaderSize, Nalu.GetDataBuffer(), nDataSize);
+            std::memcpy(dst + nBLHeaderSize, Nalu.GetDataBuffer(), nDataSize);
 
             pRPUPacket->CopyProperties(pPacketEL);
             return pRPUPacket;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 STDMETHODIMP CLAVFDemuxer::FlushDOVIRPUMergeQueues()
 {
-    for (auto it = m_DOVI.queueBLPackets.begin(); it != m_DOVI.queueBLPackets.end(); it++)
+    for (auto it = m_DOVI.queueBLPackets.begin(); it != m_DOVI.queueBLPackets.end(); ++it)
     {
         delete (*it);
     }
     m_DOVI.queueBLPackets.clear();
 
-    for (auto it = m_DOVI.queueRPU.begin(); it != m_DOVI.queueRPU.end(); it++)
+    for (auto it = m_DOVI.queueRPU.begin(); it != m_DOVI.queueRPU.end(); ++it)
     {
         delete (*it);
     }
     m_DOVI.queueRPU.clear();
 
-    for (auto it = m_DOVI.queueMergedPackets.begin(); it != m_DOVI.queueMergedPackets.end(); it++)
+    for (auto it = m_DOVI.queueMergedPackets.begin(); it != m_DOVI.queueMergedPackets.end(); ++it)
     {
         delete (*it);
     }
@@ -2078,7 +2204,7 @@ STDMETHODIMP CLAVFDemuxer::FlushDOVIRPUMergeQueues()
 STDMETHODIMP CLAVFDemuxer::Seek(REFERENCE_TIME rTime)
 {
     int seekStreamId = m_dActiveStreams[video];
-    int64_t seek_pts = 0;
+    std::int64_t seek_pts{ 0 };
 retry:
     // If we have a video stream, seek on that one. If we don't, well, then don't!
     if (rTime > 0)
@@ -2094,13 +2220,15 @@ retry:
         }
     }
 
-    if (seek_pts < 0)
+    if (seek_pts < 0) {
         seek_pts = 0;
+}
 
-    if (strcmp(m_pszInputFormat, "rawvideo") == 0 && seek_pts == 0)
+    if ((std::strcmp(m_pszInputFormat, "rawvideo") == 0) && (seek_pts == 0)) {
         return SeekByte(0, AVSEEK_FLAG_BACKWARD);
+}
 
-    int flags = AVSEEK_FLAG_BACKWARD;
+    int const flags = AVSEEK_FLAG_BACKWARD;
 
     int ret = av_seek_frame(m_avFormat, seekStreamId, seek_pts, flags);
     if (ret < 0)
@@ -2110,7 +2238,7 @@ retry:
         if (ret < 0)
         {
             DbgLog((LOG_ERROR, 1, L"::Seek() -- Inaccurate Seek failed as well"));
-            if (seekStreamId == m_dActiveStreams[video] && seekStreamId != -1 && m_dActiveStreams[audio] != -1)
+            if ((seekStreamId == m_dActiveStreams[video]) && (seekStreamId != -1) && (m_dActiveStreams[audio] != -1))
             {
                 DbgLog((LOG_ERROR, 1, L"::Seek() -- retrying seek on audio stream"));
                 seekStreamId = m_dActiveStreams[audio];
@@ -2129,9 +2257,9 @@ retry:
     return S_OK;
 }
 
-STDMETHODIMP CLAVFDemuxer::SeekByte(int64_t pos, int flags)
+STDMETHODIMP CLAVFDemuxer::SeekByte(std::int64_t pos, int flags)
 {
-    int ret = av_seek_frame(m_avFormat, -1, pos, flags | AVSEEK_FLAG_BYTE);
+    int const ret = av_seek_frame(m_avFormat, -1, pos, flags | AVSEEK_FLAG_BYTE);
     if (ret < 0)
     {
         DbgLog((LOG_ERROR, 1, L"::SeekByte() -- Seek failed"));
@@ -2149,7 +2277,7 @@ STDMETHODIMP CLAVFDemuxer::Reset()
 
 void CLAVFDemuxer::FlushOnSeek()
 {
-    for (unsigned i = 0; i < m_avFormat->nb_streams; i++)
+    for (unsigned i{ 0U }; i < m_avFormat->nb_streams; ++i)
     {
         init_parser(m_avFormat, m_avFormat->streams[i]);
         UpdateParserFlags(m_avFormat->streams[i]);
@@ -2163,8 +2291,9 @@ void CLAVFDemuxer::FlushOnSeek()
     // Flush DOVI
     FlushDOVIRPUMergeQueues();
 
-    if (m_DOVI.bsf)
+    if (m_DOVI.bsf) {
         av_bsf_flush(m_DOVI.bsf);
+}
 }
 
 const char *CLAVFDemuxer::GetContainerFormat() const
@@ -2178,8 +2307,9 @@ STDMETHODIMP CLAVFDemuxer::get_ExSeekCapabilities(long *pExCapabilities)
 {
     CheckPointer(pExCapabilities, E_POINTER);
     *pExCapabilities = AM_EXSEEK_CANSEEK;
-    if (m_avFormat && m_avFormat->nb_chapters > 0)
+    if (m_avFormat && (m_avFormat->nb_chapters > 0)) {
         *pExCapabilities |= AM_EXSEEK_MARKERSEEK;
+}
     return S_OK;
 }
 
@@ -2187,7 +2317,7 @@ STDMETHODIMP CLAVFDemuxer::get_MarkerCount(long *pMarkerCount)
 {
     CheckPointer(pMarkerCount, E_POINTER);
     CheckPointer(m_avFormat, E_UNEXPECTED);
-    *pMarkerCount = (long)m_avFormat->nb_chapters;
+    *pMarkerCount = static_cast<long>(m_avFormat->nb_chapters);
     return S_OK;
 }
 
@@ -2217,17 +2347,16 @@ STDMETHODIMP CLAVFDemuxer::get_CurrentMarker(long *pCurrentMarker)
 
     // Can the time_base change in between chapters?
     // Anyhow, we do the calculation in the loop, just to be safe
-    for (unsigned int i = 0; i < m_avFormat->nb_chapters; ++i)
+    for (unsigned int i{ 0U }; i < m_avFormat->nb_chapters; ++i)
     {
-        int64_t pts = ConvertRTToTimestamp(rtCurrent, m_avFormat->chapters[i]->time_base.num,
+        std::int64_t const pts = ConvertRTToTimestamp(rtCurrent, m_avFormat->chapters[i]->time_base.num,
                                            m_avFormat->chapters[i]->time_base.den);
         // Check if the pts is in between the bounds of the chapter
         if (pts >= m_avFormat->chapters[i]->start)
         {
             *pCurrentMarker = (i + 1);
             // Many files only have chapter start points and no end times
-            if (pts <= m_avFormat->chapters[i]->end)
-                return S_OK;
+            if (pts <= m_avFormat->chapters[i]->end) { return S_OK; }
         }
     }
     return *pCurrentMarker > 0 ? S_OK : E_FAIL;
@@ -2237,16 +2366,16 @@ STDMETHODIMP CLAVFDemuxer::GetMarkerTime(long MarkerNum, double *pMarkerTime)
 {
     CheckPointer(pMarkerTime, E_POINTER);
     // Chapters go by a 1-based index, doh
-    unsigned int index = MarkerNum - 1;
+    unsigned int const index = MarkerNum - 1;
     if (index >= m_avFormat->nb_chapters)
     {
         return E_FAIL;
     }
 
-    REFERENCE_TIME rt =
+    REFERENCE_TIME const rt =
         ConvertTimestampToRT(m_avFormat->chapters[index]->start, m_avFormat->chapters[index]->time_base.num,
                              m_avFormat->chapters[index]->time_base.den);
-    *pMarkerTime = (double)rt / DSHOW_TIME_BASE;
+    *pMarkerTime = static_cast<double>(rt) / DSHOW_TIME_BASE;
 
     return S_OK;
 }
@@ -2255,7 +2384,7 @@ STDMETHODIMP CLAVFDemuxer::GetMarkerName(long MarkerNum, BSTR *pbstrMarkerName)
 {
     CheckPointer(pbstrMarkerName, E_POINTER);
     // Chapters go by a 1-based index, doh
-    unsigned int index = MarkerNum - 1;
+    unsigned int const index = MarkerNum - 1;
     if (index >= m_avFormat->nb_chapters)
     {
         return E_FAIL;
@@ -2267,9 +2396,9 @@ STDMETHODIMP CLAVFDemuxer::GetMarkerName(long MarkerNum, BSTR *pbstrMarkerName)
     }
     else
     {
-        OLECHAR wTitle[128];
-        swprintf_s(wTitle, L"Chapter %d", MarkerNum);
-        *pbstrMarkerName = SysAllocString(wTitle);
+        std::array<OLECHAR, 128U> wTitle{};
+        ::swprintf_s(wTitle.data(), wTitle.size(),  L"Chapter %d", MarkerNum);
+        *pbstrMarkerName = SysAllocString(wTitle.data());
     }
 
     return S_OK;
@@ -2292,20 +2421,20 @@ STDMETHODIMP CLAVFDemuxer::GetKeyFrameCount(UINT &nKFs)
     // No reliable info for fragmented mp4 files
     if (m_bMP4)
     {
-        MOVContext *mov = (MOVContext *)m_avFormat->priv_data;
-        if (mov->frag_index.nb_items)
-            return S_FALSE;
+        MOVContext *mov = reinterpret_cast<MOVContext *>(m_avFormat->priv_data);
+        if (mov->frag_index.nb_items) { return S_FALSE; }
     }
 
     nKFs = 0;
 
     AVStream *stream = m_avFormat->streams[m_dActiveStreams[video]];
-    int nb_indexes = avformat_index_get_entries_count(stream);
-    for (int i = 0; i < nb_indexes; i++)
+    int const nb_indexes = avformat_index_get_entries_count(stream);
+    for (int i{ 0 }; i < nb_indexes; ++i)
     {
         const AVIndexEntry *entry = avformat_index_get_entry(stream, i);
-        if (entry && (entry->flags & AVINDEX_KEYFRAME))
-            nKFs++;
+        if (entry && (entry->flags & AVINDEX_KEYFRAME)) {
+            ++nKFs;
+}
     }
     return (nKFs == stream->nb_frames) ? S_FALSE : S_OK;
 }
@@ -2328,77 +2457,76 @@ STDMETHODIMP CLAVFDemuxer::GetKeyFrames(const GUID *pFormat, REFERENCE_TIME *pKF
     // No reliable info for fragmented mp4 files
     if (m_bMP4)
     {
-        MOVContext *mov = (MOVContext *)m_avFormat->priv_data;
-        if (mov->frag_index.nb_items)
-            return S_FALSE;
+        MOVContext *mov = reinterpret_cast<MOVContext *>(m_avFormat->priv_data);
+        if (mov->frag_index.nb_items) { return S_FALSE; }
     }
 
-    if (*pFormat != TIME_FORMAT_MEDIA_TIME)
-        return E_INVALIDARG;
+    if (*pFormat != TIME_FORMAT_MEDIA_TIME) { return E_INVALIDARG; }
 
-    UINT nKFsMax = nKFs;
+    UINT const nKFsMax = nKFs;
     nKFs = 0;
 
     // CTTS counter for MP4
-    int ctts_sample_counter = 0;
-    uint32_t ctts_index = 0;
+    int ctts_sample_counter{ 0 };
+    std::uint32_t ctts_index{ 0U };
 
     AVStream *stream = m_avFormat->streams[m_dActiveStreams[video]];
-    int nb_indexes = avformat_index_get_entries_count(stream);
-    for (int i = 0; i < nb_indexes && nKFs < nKFsMax; i++)
+    int const nb_indexes = avformat_index_get_entries_count(stream);
+    for (int i{ 0 }; i < nb_indexes && nKFs < nKFsMax; ++i)
     {
         const AVIndexEntry *entry = avformat_index_get_entry(stream, i);
         if (entry && (entry->flags & AVINDEX_KEYFRAME))
         {
-            int64_t timestamp = entry->timestamp;
+            std::int64_t timestamp = entry->timestamp;
 
             // MP4 index timestamps are DTS, seeking expects PTS however, so offset them accordingly to ensure seeking
             // works as expected
             if (m_bMP4)
             {
-                MOVStreamContext *sc = (MOVStreamContext *)stream->priv_data;
-                if (i < sc->sample_offsets_count)
+                MOVStreamContext *sc = reinterpret_cast<MOVStreamContext *>(stream->priv_data);
+                if (i < sc->sample_offsets_count) {
                     timestamp += (sc->sample_offsets[i] + sc->dts_shift);
-                else if (sc->tts_count)
+                } else if (sc->tts_count)
                 {
                     // find the next CTTS entry, if needed
-                    while (ctts_sample_counter <= i && ctts_index < sc->tts_count)
+                    while ((ctts_sample_counter <= i) && (ctts_index < sc->tts_count))
                     {
                         ctts_sample_counter += sc->tts_data[ctts_index++].count;
                     }
 
                     // apply the CTTS offset to the timestamp
-                    if (ctts_sample_counter > i)
+                    if (ctts_sample_counter > i) {
                         timestamp += (sc->tts_data[ctts_index - 1].offset + sc->dts_shift);
-                    else
+                    } else {
                         timestamp += (sc->min_corrected_pts + sc->dts_shift);
+}
                 }
-                else
+                else {
                     timestamp += (sc->min_corrected_pts + sc->dts_shift);
+}
             }
 
             pKFs[nKFs] = ConvertTimestampToRT(timestamp, stream->time_base.num, stream->time_base.den);
-            nKFs++;
+            ++nKFs;
         }
     }
     return S_OK;
 }
 
-int CLAVFDemuxer::GetStreamIdxFromTotalIdx(size_t index) const
+int CLAVFDemuxer::GetStreamIdxFromTotalIdx(std::size_t index) const
 {
     const stream *st = GetStreamFromTotalIdx(index);
-    if (st)
-        return st->pid;
+    if (st) { return st->pid; }
     return -1;
 }
 
-const CBaseDemuxer::stream *CLAVFDemuxer::GetStreamFromTotalIdx(size_t index) const
+const CBaseDemuxer::stream *CLAVFDemuxer::GetStreamFromTotalIdx(std::size_t index) const
 {
     int type = video;
-    size_t count_v = m_streams[video].size();
-    size_t count_a = m_streams[audio].size();
-    size_t count_s = m_streams[subpic].size();
-    size_t count_el = m_streams[video_el].size();
+    std::size_t const count_v = m_streams[video].size();
+    std::size_t const count_a = m_streams[audio].size();
+    std::size_t const count_s = m_streams[subpic].size();
+    std::size_t const count_el = m_streams[video_el].size();
     if (index >= count_v)
     {
         index -= count_v;
@@ -2411,8 +2539,7 @@ const CBaseDemuxer::stream *CLAVFDemuxer::GetStreamFromTotalIdx(size_t index) co
             {
                 index -= count_s;
                 type = video_el;
-                if (index >= count_el)
-                    return nullptr;
+                if (index >= count_el) { return nullptr; }
             }
         }
     }
@@ -2424,12 +2551,11 @@ const CBaseDemuxer::stream *CLAVFDemuxer::GetStreamFromTotalIdx(size_t index) co
 // ITrackInfo
 STDMETHODIMP_(UINT) CLAVFDemuxer::GetTrackCount()
 {
-    if (!m_avFormat)
-        return 0;
+    if (!m_avFormat) { return 0; }
 
-    size_t count = m_streams[video].size() + m_streams[audio].size() + m_streams[subpic].size() + m_streams[video_el].size();
+    std::size_t const count = m_streams[video].size() + m_streams[audio].size() + m_streams[subpic].size() + m_streams[video_el].size();
 
-    return (UINT)count;
+    return static_cast<UINT>(count);
 }
 
 // \param aTrackIdx the track index (from 0 to GetTrackCount()-1)
@@ -2437,22 +2563,22 @@ STDMETHODIMP_(BOOL) CLAVFDemuxer::GetTrackInfo(UINT aTrackIdx, struct TrackEleme
 {
     DbgLog((LOG_TRACE, 20, L"ITrackInfo::GetTrackInfo(): index %d, struct: %p", aTrackIdx, pStructureToFill));
 
-    if (!m_avFormat || !pStructureToFill)
-        return FALSE;
+    if (!m_avFormat || !pStructureToFill) { return FALSE; }
 
     ZeroMemory(pStructureToFill, sizeof(*pStructureToFill));
     pStructureToFill->Size = sizeof(*pStructureToFill);
 
     const stream *st = GetStreamFromTotalIdx(aTrackIdx);
-    if (!st || st->pid < 0 || (st->pid >= m_avFormat->nb_streams && !(st->pid == FORCED_SUBTITLE_PID)))
+    if (!st || (st->pid < 0) || (st->pid >= m_avFormat->nb_streams && !(st->pid == FORCED_SUBTITLE_PID))) {
         return FALSE;
+}
 
     if (st->pid == FORCED_SUBTITLE_PID)
     {
         pStructureToFill->FlagDefault = 0;
         pStructureToFill->FlagForced = 1;
         pStructureToFill->Type = TypeSubtitle;
-        strcpy_s(pStructureToFill->Language, "und");
+        ::strcpy_s(pStructureToFill->Language.data(), pStructureToFill->Language.size(), "und");
     }
     else
     {
@@ -2461,8 +2587,8 @@ STDMETHODIMP_(BOOL) CLAVFDemuxer::GetTrackInfo(UINT aTrackIdx, struct TrackEleme
         // Fill structure
         pStructureToFill->FlagDefault = (avst->disposition & AV_DISPOSITION_DEFAULT);
         pStructureToFill->FlagForced = (avst->disposition & AV_DISPOSITION_FORCED);
-        strncpy_s(pStructureToFill->Language, st->language.c_str(), _TRUNCATE);
-        pStructureToFill->Language[3] = '\0';
+        ::strncpy_s(pStructureToFill->Language.data(), pStructureToFill->Language.size(), st->language.c_str(), _TRUNCATE);
+        pStructureToFill->Language[3U] = '\0';
 
         pStructureToFill->Type = (avst->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                                      ? TypeVideo
@@ -2482,18 +2608,18 @@ STDMETHODIMP_(BOOL) CLAVFDemuxer::GetTrackInfo(UINT aTrackIdx, struct TrackEleme
 // Get an extended information struct relative to the track type
 STDMETHODIMP_(BOOL) CLAVFDemuxer::GetTrackExtendedInfo(UINT aTrackIdx, void *pStructureToFill)
 {
-    if (!m_avFormat || !pStructureToFill)
-        return FALSE;
+    if (!m_avFormat || !pStructureToFill) { return FALSE; }
 
-    int id = GetStreamIdxFromTotalIdx(aTrackIdx);
-    if (id < 0 || (unsigned)id >= m_avFormat->nb_streams)
+    int const id = GetStreamIdxFromTotalIdx(aTrackIdx);
+    if ((id < 0) || (static_cast<unsigned>(id) >= m_avFormat->nb_streams)) {
         return FALSE;
+}
 
     const AVStream *st = m_avFormat->streams[id];
 
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
     {
-        TrackExtendedInfoVideo *pTEIV = (TrackExtendedInfoVideo *)pStructureToFill;
+        TrackExtendedInfoVideo *pTEIV = reinterpret_cast<TrackExtendedInfoVideo *>(pStructureToFill);
 
         ZeroMemory(pTEIV, sizeof(*pTEIV));
 
@@ -2510,15 +2636,15 @@ STDMETHODIMP_(BOOL) CLAVFDemuxer::GetTrackExtendedInfo(UINT aTrackIdx, void *pSt
     }
     else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
     {
-        TrackExtendedInfoAudio *pTEIA = (TrackExtendedInfoAudio *)pStructureToFill;
+        TrackExtendedInfoAudio *pTEIA = reinterpret_cast<TrackExtendedInfoAudio *>(pStructureToFill);
 
         ZeroMemory(pTEIA, sizeof(*pTEIA));
 
         pTEIA->Size = sizeof(*pTEIA);
         pTEIA->BitDepth = st->codecpar->bits_per_coded_sample;
         pTEIA->Channels = st->codecpar->ch_layout.nb_channels;
-        pTEIA->OutputSamplingFrequency = (FLOAT)st->codecpar->sample_rate;
-        pTEIA->SamplingFreq = (FLOAT)st->codecpar->sample_rate;
+        pTEIA->OutputSamplingFrequency = static_cast<FLOAT>(st->codecpar->sample_rate);
+        pTEIA->SamplingFreq = static_cast<FLOAT>(st->codecpar->sample_rate);
     }
 
     return TRUE;
@@ -2528,10 +2654,9 @@ STDMETHODIMP_(BSTR) CLAVFDemuxer::GetTrackName(UINT aTrackIdx)
 {
 
     const stream *st = GetStreamFromTotalIdx(aTrackIdx);
-    if (!st)
-        return nullptr;
+    if (!st) { return nullptr; }
 
-    BSTR trackName = nullptr;
+    BSTR trackName{ nullptr };
     if (!st->trackName.empty())
     {
         trackName = ConvertCharToBSTR(st->trackName.c_str());
@@ -2542,18 +2667,18 @@ STDMETHODIMP_(BSTR) CLAVFDemuxer::GetTrackName(UINT aTrackIdx)
 
 STDMETHODIMP_(BSTR) CLAVFDemuxer::GetTrackCodecName(UINT aTrackIdx)
 {
-    if (!m_avFormat)
-        return nullptr;
+    if (!m_avFormat) { return nullptr; }
 
-    int id = GetStreamIdxFromTotalIdx(aTrackIdx);
-    if (id < 0 || (unsigned)id >= m_avFormat->nb_streams)
+    int const id = GetStreamIdxFromTotalIdx(aTrackIdx);
+    if ((id < 0) || (static_cast<unsigned>(id) >= m_avFormat->nb_streams)) {
         return FALSE;
+}
 
     const AVStream *st = m_avFormat->streams[id];
 
-    BSTR codecName = nullptr;
+    BSTR codecName{ nullptr };
 
-    std::string codec = get_codec_name(st->codecpar);
+    std::string const codec = get_codec_name(st->codecpar);
     if (!codec.empty())
     {
         codecName = ConvertCharToBSTR(codec.c_str());
@@ -2584,35 +2709,36 @@ STDMETHODIMP CLAVFDemuxer::Read(LPCOLESTR pszPropName, VARIANT *pVar, IErrorLog 
 {
     CheckPointer(pszPropName, E_INVALIDARG);
     CheckPointer(pVar, E_INVALIDARG);
-    int stream = -1;
+    int stream{ -1 };
 
     // Verify type
-    if (pVar->vt != VT_EMPTY && pVar->vt != VT_BSTR)
-        return E_FAIL;
+    if ((pVar->vt != VT_EMPTY) && (pVar->vt != VT_BSTR)) { return E_FAIL; }
 
-    ATL::CW2A propNameConv(pszPropName);
+    ATL::CW2A const propNameConv(pszPropName);
     const char *propName = propNameConv;
 
     // Map property names
-    for (int i = 0; i < countof(mappedPropertys); i++)
+    for (int i{ 0 }; i < countof(mappedPropertys); ++i)
     {
-        if (_stricmp(propName, mappedPropertys[i].original) == 0)
+        if (::_stricmp(propName, mappedPropertys[i].original) == 0)
         {
-            if (mappedPropertys[i].map)
+            if (mappedPropertys[i].map) {
                 propName = mappedPropertys[i].map;
+}
             if (mappedPropertys[i].stream)
             {
-                int nStreamType = mappedPropertys[i].stream - 1;
+                int const nStreamType = mappedPropertys[i].stream - 1;
                 stream = m_dActiveStreams[nStreamType];
-                if (nStreamType == subpic && stream == FORCED_SUBTITLE_PID)
+                if ((nStreamType == subpic) && (stream == FORCED_SUBTITLE_PID)) {
                     stream = m_ForcedSubStream;
+}
             }
             break;
         }
     }
 
-    BSTR bstrValue = nullptr;
-    HRESULT hr = GetBSTRMetadata(propName, &bstrValue, stream);
+    BSTR bstrValue{ nullptr };
+    HRESULT const hr = GetBSTRMetadata(propName, &bstrValue, stream);
     if (SUCCEEDED(hr))
     {
         VariantClear(pVar);
@@ -2629,9 +2755,9 @@ STDMETHODIMP CLAVFDemuxer::Write(LPCOLESTR pszPropName, VARIANT *pVar)
 
 static int s_GetHEVCNALSize(const BYTE *extradata, int extradata_size)
 {
-    if (extradata && extradata_size >= 23 && (extradata[0] || extradata[1] || extradata[2] > 1))
+    if (extradata && (extradata_size >= 23) && (extradata[0U] || extradata[1U] || extradata[2U] > 1))
     {
-        return (extradata[21] & 3) + 1;
+        return (extradata[21U] & 3) + 1;
     }
 
     return 0;
@@ -2644,7 +2770,7 @@ STDMETHODIMP CLAVFDemuxer::AddStream(int streamId, bool bIsVideoEnhancementLayer
     HRESULT hr = S_OK;
     AVStream *pStream = m_avFormat->streams[streamId];
 
-    if (pStream->codecpar->codec_type == AVMEDIA_TYPE_UNKNOWN || pStream->discard == AVDISCARD_ALL ||
+    if ((pStream->codecpar->codec_type == AVMEDIA_TYPE_UNKNOWN) || (pStream->discard == AVDISCARD_ALL) ||
         (pStream->codecpar->codec_id == AV_CODEC_ID_NONE && pStream->codecpar->codec_tag == 0) ||
         (!m_bSubStreams && (pStream->disposition & LAVF_DISPOSITION_SUB_STREAM)) ||
         (pStream->disposition & AV_DISPOSITION_ATTACHED_PIC))
@@ -2673,19 +2799,20 @@ STDMETHODIMP CLAVFDemuxer::AddStream(int streamId, bool bIsVideoEnhancementLayer
         s.lcid = 0;
     }
     const char *title = lavf_get_stream_title(pStream);
-    if (title)
+    if (title) {
         s.trackName = title;
+}
 
     // determine if the stream is an EL stream
-    if (bIsVideoEnhancementLayer == false && pStream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+    if ((bIsVideoEnhancementLayer == false) && (pStream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO))
     {
-        for (unsigned int i = 0; i < m_avFormat->nb_stream_groups; i++)
+        for (unsigned int i{ 0U }; i < m_avFormat->nb_stream_groups; ++i)
         {
-            if (m_avFormat->stream_groups[i]->type == AV_STREAM_GROUP_PARAMS_DOLBY_VISION &&
-                m_avFormat->stream_groups[i]->nb_streams == 2)
+            if ((m_avFormat->stream_groups[i]->type == AV_STREAM_GROUP_PARAMS_DOLBY_VISION) &&
+                (m_avFormat->stream_groups[i]->nb_streams == 2))
             {
-                unsigned int el_idx = m_avFormat->stream_groups[i]->params.layered_video->el_index;
-                unsigned int bl_idx = !el_idx;
+                unsigned int const el_idx = m_avFormat->stream_groups[i]->params.layered_video->el_index;
+                unsigned int const bl_idx = !el_idx;
                 if (m_avFormat->stream_groups[i]->streams[el_idx]->index == streamId)
                 {
                     bIsVideoEnhancementLayer = true;
@@ -2720,10 +2847,11 @@ STDMETHODIMP CLAVFDemuxer::AddStream(int streamId, bool bIsVideoEnhancementLayer
     switch (pStream->codecpar->codec_type)
     {
     case AVMEDIA_TYPE_VIDEO:
-        if (bIsVideoEnhancementLayer)
+        if (bIsVideoEnhancementLayer) {
             m_streams[video_el].push_back(s);
-        else
+        } else {
             m_streams[video].push_back(s);
+}
         break;
     case AVMEDIA_TYPE_AUDIO: m_streams[audio].push_back(s); break;
     case AVMEDIA_TYPE_SUBTITLE: m_streams[subpic].push_back(s); break;
@@ -2740,16 +2868,16 @@ STDMETHODIMP CLAVFDemuxer::AddStream(int streamId, bool bIsVideoEnhancementLayer
 STDMETHODIMP CLAVFDemuxer::CreateStreams()
 {
     DbgLog((LOG_TRACE, 10, L"CLAVFDemuxer::CreateStreams()"));
-    CAutoLock lock(m_pLock);
+    CAutoLock const lock(m_pLock);
 
-    for (int i = 0; i < countof(m_streams); ++i)
+    for (int i{ 0 }; i < countof(m_streams); ++i)
     {
         m_streams[i].Clear();
     }
 
     m_program = UINT_MAX;
 
-    if (m_avFormat->nb_programs && !m_pBluRay)
+    if ((m_avFormat->nb_programs) && !m_pBluRay)
     {
         DbgLog(
             (LOG_TRACE, 10, L" -> File has %d programs, trying to detect the correct one..", m_avFormat->nb_programs));
@@ -2761,54 +2889,58 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
         // Valid video streams have a width and height, valid audio streams have a channel count.
         // Total program bitrate is used as a tiebreaker.
         // We search for "good" program with highest score.
-        DWORD dwScore = 0;                       // Stream found: 1, stream valid: 4
-        DWORD dwVideoResolutionProgramScore = 0; // Score = width x height
-        DWORD dwProgramBitrate = 0;              // Total bitrate of the program
-        for (unsigned int i = 0; i < m_avFormat->nb_programs; ++i)
+        DWORD dwScore{ 0U };                       // Stream found: 1, stream valid: 4
+        DWORD dwVideoResolutionProgramScore{ 0U }; // Score = width x height
+        DWORD dwProgramBitrate{ 0U };              // Total bitrate of the program
+        for (unsigned int i{ 0U }; i < m_avFormat->nb_programs; ++i)
         {
             AVProgram *program = m_avFormat->programs[i];
             if (program->nb_stream_indexes > 0)
             {
-                DWORD dwVideoScore = 0;
-                DWORD dwVideoResolutionScore = 0;
-                DWORD dwAudioScore = 0;
-                DWORD dwBitrate = 0;
-                for (unsigned k = 0; k < program->nb_stream_indexes; ++k)
+                DWORD dwVideoScore{ 0U };
+                DWORD dwVideoResolutionScore{ 0U };
+                DWORD dwAudioScore{ 0U };
+                DWORD dwBitrate{ 0U };
+                for (unsigned k{ 0U }; k < program->nb_stream_indexes; ++k)
                 {
-                    unsigned streamIdx = program->stream_index[k];
+                    unsigned const streamIdx = program->stream_index[k];
                     AVStream *st = m_avFormat->streams[streamIdx];
                     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                     {
-                        if (st->codecpar->width != 0 && st->codecpar->height != 0)
+                        if ((st->codecpar->width != 0) && (st->codecpar->height != 0))
                         {
                             dwVideoScore = 4;
-                            DWORD dwResolutionScore = st->codecpar->width * st->codecpar->height;
-                            if (dwResolutionScore > dwVideoResolutionScore)
+                            DWORD const dwResolutionScore = st->codecpar->width * st->codecpar->height;
+                            if (dwResolutionScore > dwVideoResolutionScore) {
                                 dwVideoResolutionScore = dwResolutionScore;
+}
                         }
-                        else if (dwVideoScore == 0)
+                        else if (dwVideoScore == 0) {
                             dwVideoScore = 1;
+}
                     }
-                    else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && dwAudioScore < 4)
+                    else if ((st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) && (dwAudioScore < 4))
                     {
-                        if (st->codecpar->ch_layout.nb_channels != 0)
+                        if (st->codecpar->ch_layout.nb_channels != 0) {
                             dwAudioScore = 4;
-                        else
+                        } else {
                             dwAudioScore = 1;
+}
                     }
                 }
 
                 AVDictionaryEntry *dict = av_dict_get(program->metadata, "variant_bitrate", nullptr, 0);
-                if (dict && dict->value)
-                    dwBitrate = atol(dict->value);
+                if (dict && (dict->value)) {
+                    dwBitrate = std::atol(dict->value);
+}
 
                 // Check the score of the previously found stream
                 // In addition, we always require a valid video stream (or none), a invalid one is not allowed.
                 DbgLog((LOG_TRACE, 10,
                         L"  -> Program %d with score: %ld (video), %ld (video resolution), %ld (audio), %ld (bitrate)",
                         i, dwVideoScore, dwVideoResolutionScore, dwAudioScore, dwBitrate));
-                DWORD dwVideoAndAudioScore = dwVideoScore + dwAudioScore;
-                if (dwVideoScore != 1 &&
+                DWORD const dwVideoAndAudioScore = dwVideoScore + dwAudioScore;
+                if ((dwVideoScore != 1) &&
                     (dwVideoAndAudioScore > dwScore ||
                      (dwVideoAndAudioScore == dwScore && dwVideoResolutionScore > dwVideoResolutionProgramScore) ||
                      (dwVideoAndAudioScore == dwScore && dwVideoResolutionScore == dwVideoResolutionProgramScore &&
@@ -2825,77 +2957,82 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
     }
 
     // File has programs
-    bool bProgram = (m_program < m_avFormat->nb_programs);
+    bool const bProgram = (m_program < m_avFormat->nb_programs);
 
     // Discard unwanted programs
     if (bProgram)
     {
-        for (unsigned int i = 0; i < m_avFormat->nb_programs; ++i)
+        for (unsigned int i{ 0U }; i < m_avFormat->nb_programs; ++i)
         {
-            if (i != m_program)
+            if (i != m_program) {
                 m_avFormat->programs[i]->discard = AVDISCARD_ALL;
+}
         }
     }
 
     // Re-compute the overall file duration based on video and audio durations
-    int64_t duration = INT64_MIN;
-    int64_t st_duration = 0;
-    int64_t start_time = INT64_MAX;
-    int64_t st_start_time = 0;
+    std::int64_t duration = INT64_MIN;
+    std::int64_t st_duration{ 0 };
+    std::int64_t start_time = INT64_MAX;
+    std::int64_t st_start_time{ 0 };
 
     // Number of streams (either in file or in program)
-    unsigned int nbIndex = bProgram ? m_avFormat->programs[m_program]->nb_stream_indexes : m_avFormat->nb_streams;
+    unsigned int const nbIndex = bProgram ? m_avFormat->programs[m_program]->nb_stream_indexes : m_avFormat->nb_streams;
 
     // File has PGS streams
-    bool bHasPGS = false;
+    bool bHasPGS{ false };
 
     // add streams from selected program, or all streams if no program was selected
-    for (unsigned int i = 0; i < nbIndex; ++i)
+    for (unsigned int i{ 0U }; i < nbIndex; ++i)
     {
-        int streamIdx = bProgram ? m_avFormat->programs[m_program]->stream_index[i] : i;
-        if (S_OK != AddStream(streamIdx))
+        int const streamIdx = bProgram ? m_avFormat->programs[m_program]->stream_index[i] : i;
+        if (S_OK != AddStream(streamIdx)) {
             continue;
+}
 
         AVStream *st = m_avFormat->streams[streamIdx];
-        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO || st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        if ((st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) || (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
         {
             if (st->duration != AV_NOPTS_VALUE)
             {
                 st_duration = av_rescale_q(st->duration, st->time_base, AV_RATIONAL_TIMEBASE);
-                if (st_duration > duration)
+                if (st_duration > duration) {
                     duration = st_duration;
+}
             }
 
             if (st->start_time != AV_NOPTS_VALUE)
             {
                 st_start_time = av_rescale_q(st->start_time, st->time_base, AV_RATIONAL_TIMEBASE);
-                if (st_start_time < start_time)
+                if (st_start_time < start_time) {
                     start_time = st_start_time;
+}
             }
         }
-        if (st->codecpar->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE)
+        if (st->codecpar->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE) {
             bHasPGS = true;
+}
     }
 
-    if ((m_bTSDiscont || m_avFormat->duration == AV_NOPTS_VALUE) && duration != INT64_MIN)
+    if ((m_bTSDiscont || m_avFormat->duration == AV_NOPTS_VALUE) && (duration != INT64_MIN))
     {
         DbgLog(
             (LOG_TRACE, 10, L" -> Changing duration to %I64d (from %I64d, diff %.3fs)", duration, m_avFormat->duration,
              m_avFormat->duration == AV_NOPTS_VALUE ? 0.0f
-                                                    : (float)(duration - m_avFormat->duration) / (float)AV_TIME_BASE));
+                                                    : static_cast<float>((duration - m_avFormat->duration)) / static_cast<float>(AV_TIME_BASE)));
         m_avFormat->duration = duration;
     }
-    if ((m_bTSDiscont || m_avFormat->start_time == AV_NOPTS_VALUE) && start_time != INT64_MAX)
+    if ((m_bTSDiscont || m_avFormat->start_time == AV_NOPTS_VALUE) && (start_time != INT64_MAX))
     {
         DbgLog((LOG_TRACE, 10, L" -> Changing start_time to %I64d (from %I64d, diff %.3fs)", start_time,
                 m_avFormat->start_time,
                 m_avFormat->start_time == AV_NOPTS_VALUE
                     ? 0.0f
-                    : (float)(start_time - m_avFormat->start_time) / (float)AV_TIME_BASE));
+                    : static_cast<float>((start_time - m_avFormat->start_time)) / static_cast<float>(AV_TIME_BASE)));
         m_avFormat->start_time = start_time;
     }
 
-    if (bHasPGS && m_pSettings->GetPGSForcedStream())
+    if (bHasPGS && (m_pSettings->GetPGSForcedStream()))
     {
         CreatePGSForcedSubtitleStream();
     }
@@ -2914,13 +3051,13 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
     if (m_bMatroska)
     {
         std::list<std::string> pg_sequences;
-        for (unsigned i = 0; i < m_avFormat->nb_streams; i++)
+        for (unsigned i{ 0U }; i < m_avFormat->nb_streams; ++i)
         {
             if (m_avFormat->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE)
             {
                 AVDictionaryEntry *e =
                     av_dict_get(m_avFormat->streams[i]->metadata, "3d-plane", nullptr, AV_DICT_IGNORE_SUFFIX);
-                if (e && e->value)
+                if (e && (e->value))
                 {
                     pg_sequences.push_back(std::string(e->value));
                 }
@@ -2934,33 +3071,26 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
             pg_sequences.sort();
             pg_sequences.unique();
 
-            size_t size = pg_sequences.size() * 4;
-            char *offsets = new char[size];
-            offsets[0] = 0;
-
-            // Append all offsets to the string
-            for (auto it = pg_sequences.begin(); it != pg_sequences.end(); it++)
+            std::string offsets;
+            for (auto it = pg_sequences.begin(); it != pg_sequences.end(); ++it)
             {
-                size_t len = strlen(offsets);
-                if (len > 0)
+                if (!offsets.empty())
                 {
-                    offsets[len] = ',';
-                    len++;
+                    offsets.push_back(',');
                 }
-                strcpy_s(offsets + len, size - len, it->c_str());
+                offsets += *it;
             }
 
-            av_dict_set(&m_avFormat->metadata, "pg_offset_sequences", offsets, 0);
-            delete[] offsets;
+            av_dict_set(&m_avFormat->metadata, "pg_offset_sequences", offsets.c_str(), 0);
         }
     }
 
     auto pLayerConfig = dynamic_cast<ILAVFSettingsEnhancementLayers *>(m_pSettings);
-    if (pLayerConfig && pLayerConfig->GetDemuxVideoEnhancementLayers() && m_streams[video_el].empty())
+    if (pLayerConfig && (pLayerConfig->GetDemuxVideoEnhancementLayers()) && m_streams[video_el].empty())
     {
-        for (unsigned int i = 0; i < nbIndex; ++i)
+        for (unsigned int i{ 0U }; i < nbIndex; ++i)
         {
-            unsigned int streamIdx = bProgram ? m_avFormat->programs[m_program]->stream_index[i] : i;
+            unsigned int const streamIdx = bProgram ? m_avFormat->programs[m_program]->stream_index[i] : i;
             AVStream *st = m_avFormat->streams[streamIdx];
 
             if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
@@ -2968,8 +3098,8 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
                 const AVPacketSideData *data = av_packet_side_data_get(st->codecpar->coded_side_data, st->codecpar->nb_coded_side_data, AV_PKT_DATA_DOVI_CONF);
                 if (data)
                 {
-                    AVDOVIDecoderConfigurationRecord *dovi = (AVDOVIDecoderConfigurationRecord *)data->data;
-                    if (dovi->dv_profile == 7 && dovi->el_present_flag)
+                    AVDOVIDecoderConfigurationRecord *dovi = reinterpret_cast<AVDOVIDecoderConfigurationRecord *>(data->data);
+                    if ((dovi->dv_profile == 7) && (dovi->el_present_flag))
                     {
                         CreateDOVIEnhancementLayerSubStream(streamIdx);
                         break;
@@ -2984,18 +3114,17 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
 
 STDMETHODIMP CLAVFDemuxer::CreateDOVIEnhancementLayerSubStream(DWORD dwParentStream)
 {
-    if (!m_bMatroska && !m_bMP4) // creating faux streams is kinda dangerous
+    if (!m_bMatroska && !m_bMP4) { // creating faux streams is kinda dangerous
         return E_UNEXPECTED;
+}
 
     const AVBitStreamFilter *dovi_bsf = av_bsf_get_by_name("dovi_split");
-    if (dovi_bsf == NULL)
-        return E_UNEXPECTED;
+    if (dovi_bsf == nullptr) { return E_UNEXPECTED; }
 
     AVStream *bl_st = m_avFormat->streams[dwParentStream];
 
     int ret = av_bsf_alloc(dovi_bsf, &m_DOVI.bsf);
-    if (ret < 0)
-        return E_FAIL;
+    if (ret < 0) { return E_FAIL; }
 
     // set mode for the EL stream, we want the EL and the RPU data
     av_opt_set(m_DOVI.bsf, "mode", "el_rpu", AV_OPT_SEARCH_CHILDREN);
@@ -3012,7 +3141,7 @@ STDMETHODIMP CLAVFDemuxer::CreateDOVIEnhancementLayerSubStream(DWORD dwParentStr
     }
 
     // create fake stream for the Enhancement Layer
-    AVStream *el_st = avformat_new_stream(m_avFormat, NULL);
+    AVStream *el_st = avformat_new_stream(m_avFormat, nullptr);
     avcodec_parameters_copy(el_st->codecpar, m_DOVI.bsf->par_out);
 
     // setup faux per-stream data for MP4/MOV
@@ -3046,9 +3175,9 @@ REFERENCE_TIME CLAVFDemuxer::GetStartTime() const
 
 // Converts the lavf pts timestamp to a DShow REFERENCE_TIME
 // Based on DVDDemuxFFMPEG
-REFERENCE_TIME CLAVFDemuxer::ConvertTimestampToRT(int64_t pts, int num, int den, int64_t starttime) const
+REFERENCE_TIME CLAVFDemuxer::ConvertTimestampToRT(std::int64_t pts, int num, int den, std::int64_t starttime) const
 {
-    if (pts == (int64_t)AV_NOPTS_VALUE)
+    if (pts == static_cast<std::int64_t>(AV_NOPTS_VALUE))
     {
         return Packet::INVALID_TIME;
     }
@@ -3057,7 +3186,7 @@ REFERENCE_TIME CLAVFDemuxer::ConvertTimestampToRT(int64_t pts, int num, int den,
     {
         if (m_avFormat->start_time != AV_NOPTS_VALUE)
         {
-            starttime = av_rescale(m_avFormat->start_time, den, (int64_t)AV_TIME_BASE * num);
+            starttime = av_rescale(m_avFormat->start_time, den, static_cast<std::int64_t>(AV_TIME_BASE) * num);
         }
         else
         {
@@ -3071,25 +3200,25 @@ REFERENCE_TIME CLAVFDemuxer::ConvertTimestampToRT(int64_t pts, int num, int den,
     }
 
     // Let av_rescale do the work, its smart enough to not overflow
-    REFERENCE_TIME timestamp = av_rescale(pts, (int64_t)num * DSHOW_TIME_BASE, den);
+    REFERENCE_TIME const timestamp = av_rescale(pts, static_cast<std::int64_t>(num) * DSHOW_TIME_BASE, den);
 
     return timestamp;
 }
 
 // Converts the lavf pts timestamp to a DShow REFERENCE_TIME
 // Based on DVDDemuxFFMPEG
-int64_t CLAVFDemuxer::ConvertRTToTimestamp(REFERENCE_TIME timestamp, int num, int den, int64_t starttime) const
+std::int64_t CLAVFDemuxer::ConvertRTToTimestamp(REFERENCE_TIME timestamp, int num, int den, std::int64_t starttime) const
 {
     if (timestamp == Packet::INVALID_TIME)
     {
-        return (int64_t)AV_NOPTS_VALUE;
+        return static_cast<std::int64_t>(AV_NOPTS_VALUE);
     }
 
     if (starttime == AV_NOPTS_VALUE)
     {
         if (m_avFormat->start_time != AV_NOPTS_VALUE)
         {
-            starttime = av_rescale(m_avFormat->start_time, den, (int64_t)AV_TIME_BASE * num);
+            starttime = av_rescale(m_avFormat->start_time, den, static_cast<std::int64_t>(AV_TIME_BASE) * num);
         }
         else
         {
@@ -3097,7 +3226,7 @@ int64_t CLAVFDemuxer::ConvertRTToTimestamp(REFERENCE_TIME timestamp, int num, in
         }
     }
 
-    int64_t pts = av_rescale(timestamp, den, (int64_t)num * DSHOW_TIME_BASE);
+    std::int64_t pts = av_rescale(timestamp, den, static_cast<std::int64_t>(num) * DSHOW_TIME_BASE);
     if (starttime != 0)
     {
         pts += starttime;
@@ -3108,12 +3237,10 @@ int64_t CLAVFDemuxer::ConvertRTToTimestamp(REFERENCE_TIME timestamp, int num, in
 
 HRESULT CLAVFDemuxer::UpdateForcedSubtitleStream(unsigned audio_pid)
 {
-    if (!m_avFormat || audio_pid >= m_avFormat->nb_streams)
-        return E_UNEXPECTED;
+    if (!m_avFormat || (audio_pid >= m_avFormat->nb_streams)) { return E_UNEXPECTED; }
 
     stream *audiost = GetStreams(audio)->FindStream(audio_pid);
-    if (!audiost)
-        return E_FAIL;
+    if (!audiost) { return E_FAIL; }
 
     // Build CSubtitleSelector for this special case
     std::list<CSubtitleSelector> selectors;
@@ -3136,14 +3263,14 @@ HRESULT CLAVFDemuxer::UpdateForcedSubtitleStream(unsigned audio_pid)
         stream *forced = streams->FindStream(FORCED_SUBTITLE_PID);
         if (forced)
         {
-            CMediaType mtype = forced->streamInfo->mtypes.back();
+            CMediaType const mtype = forced->streamInfo->mtypes.back();
             forced->streamInfo->mtypes.pop_back();
             forced->language = audiost->language;
             forced->lcid = audiost->lcid;
 
-            SUBTITLEINFO *subInfo = (SUBTITLEINFO *)mtype.Format();
-            strncpy_s(subInfo->IsoLang, audiost->language.c_str(), 3);
-            subInfo->IsoLang[3] = 0;
+            SUBTITLEINFO *subInfo = reinterpret_cast<SUBTITLEINFO *>(mtype.Format());
+            ::strncpy_s(subInfo->IsoLang.data(), subInfo->IsoLang.size(), audiost->language.c_str(), 3);
+            subInfo->IsoLang[3U] = 0;
 
             forced->streamInfo->mtypes.push_back(mtype);
         }
@@ -3170,45 +3297,46 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectVideoStream()
         }
 
         // if the best stream is an unknown codec, prefer any other
-        if (m_avFormat->streams[best->pid]->codecpar->codec_id == AV_CODEC_ID_NONE &&
-            m_avFormat->streams[check->pid]->codecpar->codec_id != AV_CODEC_ID_NONE)
+        if ((m_avFormat->streams[best->pid]->codecpar->codec_id == AV_CODEC_ID_NONE) &&
+            (m_avFormat->streams[check->pid]->codecpar->codec_id != AV_CODEC_ID_NONE))
         {
             best = check;
             continue;
         }
 
         // prefer default streams
-        bool checkDefault = m_avFormat->streams[check->pid]->disposition & AV_DISPOSITION_DEFAULT;
-        bool bestDefault = m_avFormat->streams[best->pid]->disposition & AV_DISPOSITION_DEFAULT;
+        bool const checkDefault = m_avFormat->streams[check->pid]->disposition & AV_DISPOSITION_DEFAULT;
+        bool const bestDefault = m_avFormat->streams[best->pid]->disposition & AV_DISPOSITION_DEFAULT;
 
         if (checkDefault != bestDefault)
         {
-            if (checkDefault)
+            if (checkDefault) {
                 best = check;
+}
             continue;
         }
 
-        uint64_t bestPixels = (uint64_t)m_avFormat->streams[best->pid]->codecpar->width *
+        std::uint64_t const bestPixels = static_cast<std::uint64_t>(m_avFormat->streams[best->pid]->codecpar->width) *
                               m_avFormat->streams[best->pid]->codecpar->height;
-        uint64_t checkPixels = (uint64_t)m_avFormat->streams[check->pid]->codecpar->width *
+        std::uint64_t const checkPixels = static_cast<std::uint64_t>(m_avFormat->streams[check->pid]->codecpar->width) *
                                m_avFormat->streams[check->pid]->codecpar->height;
 
-        int check_nb_f = av_lav_stream_codec_info_nb_frames(m_avFormat->streams[check->pid]);
-        int best_nb_f = av_lav_stream_codec_info_nb_frames(m_avFormat->streams[best->pid]);
+        int const check_nb_f = av_lav_stream_codec_info_nb_frames(m_avFormat->streams[check->pid]);
+        int const best_nb_f = av_lav_stream_codec_info_nb_frames(m_avFormat->streams[best->pid]);
         if (m_bRM && (check_nb_f > 0 && best_nb_f <= 0))
         {
             best = check;
         }
-        else if (m_bMP4 && m_avFormat->streams[check->pid]->nb_frames == 1 && m_avFormat->streams[best->pid]->nb_frames > 1)
+        else if (m_bMP4 && (m_avFormat->streams[check->pid]->nb_frames == 1) && (m_avFormat->streams[best->pid]->nb_frames > 1))
         {
             // avoid selecting a video stream with only one frame
         }
-        else if (m_bMP4 && m_avFormat->streams[best->pid]->nb_frames == 1 && m_avFormat->streams[check->pid]->nb_frames > 1)
+        else if (m_bMP4 && (m_avFormat->streams[best->pid]->nb_frames == 1) && (m_avFormat->streams[check->pid]->nb_frames > 1))
         {
             // prefer a stream with more then one frame, if available
             best = check;
         }
-        else if (!m_bRM || check_nb_f > 0)
+        else if (!m_bRM || (check_nb_f > 0))
         {
             if (checkPixels > bestPixels)
             {
@@ -3216,10 +3344,11 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectVideoStream()
             }
             else if (checkPixels == bestPixels)
             {
-                int64_t best_rate = m_avFormat->streams[best->pid]->codecpar->bit_rate;
-                int64_t check_rate = m_avFormat->streams[check->pid]->codecpar->bit_rate;
-                if (best_rate && check_rate && check_rate > best_rate)
+                std::int64_t const best_rate = m_avFormat->streams[best->pid]->codecpar->bit_rate;
+                std::int64_t const check_rate = m_avFormat->streams[check->pid]->codecpar->bit_rate;
+                if (best_rate && check_rate && (check_rate > best_rate)) {
                     best = check;
+}
             }
         }
     }
@@ -3230,15 +3359,16 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectVideoStream()
 const CBaseDemuxer::stream* CLAVFDemuxer::SelectVideoELStream(DWORD dwVideoStreamPID)
 {
     CStreamList *streams = GetStreams(video_el);
-    if (streams->empty() == false)
+    if (streams->empty() == false) {
         return &streams->front();
+}
 
-    return NULL;
+    return nullptr;
 }
 
 static int audio_codec_priority(const AVCodecParameters *par)
 {
-    int priority = 0;
+    int priority{ 0 };
     const AVCodecDescriptor *desc = avcodec_descriptor_get(par->codec_id);
 
     // lossless codecs have highest priority
@@ -3291,8 +3421,9 @@ static int audio_codec_priority(const AVCodecParameters *par)
     }
 
     // low priority for S302M with non-pcm content
-    if (par->codec_id == AV_CODEC_ID_S302M && par->codec_tag != -1)
+    if ((par->codec_id == AV_CODEC_ID_S302M) && (par->codec_tag != -1)) {
         priority = -1;
+}
 
     return priority;
 }
@@ -3311,11 +3442,11 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
         std::list<std::string>::iterator it;
         for (it = prefLanguages.begin(); it != prefLanguages.end(); ++it)
         {
-            std::string checkLanguage = ProbeForISO6392(it->c_str());
+            std::string const checkLanguage = ProbeForISO6392(it->c_str());
             std::deque<stream>::iterator sit;
             for (sit = streams->begin(); sit != streams->end(); ++sit)
             {
-                std::string language = sit->language;
+                std::string const language = sit->language;
                 // check if the language matches
                 if (language == checkLanguage)
                 {
@@ -3353,8 +3484,8 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
         }
     }
 
-    BOOL bCheckQuality = m_pSettings->GetPreferHighQualityAudioStreams();
-    BOOL bImpaired = m_pSettings->GetUseAudioForHearingVisuallyImpaired();
+    BOOL const bCheckQuality = m_pSettings->GetPreferHighQualityAudioStreams();
+    BOOL const bImpaired = m_pSettings->GetUseAudioForHearingVisuallyImpaired();
 #define DISPO_IMPAIRED (AV_DISPOSITION_HEARING_IMPAIRED | AV_DISPOSITION_VISUAL_IMPAIRED)
 
     if (!best && !checkedStreams.empty())
@@ -3379,21 +3510,21 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                 AVStream *new_stream = m_avFormat->streams[(*sit)->pid];
 
                 // ignore streams with an unknown codec or no decoder
-                if (new_stream->codecpar->codec_id == AV_CODEC_ID_NONE || avcodec_find_decoder(new_stream->codecpar->codec_id) == NULL)
+                if ((new_stream->codecpar->codec_id == AV_CODEC_ID_NONE) || (avcodec_find_decoder(new_stream->codecpar->codec_id) == nullptr)) {
                     continue;
-                else if (old_stream->codecpar->codec_id == AV_CODEC_ID_NONE || avcodec_find_decoder(old_stream->codecpar->codec_id) == NULL)
+                } else if ((old_stream->codecpar->codec_id == AV_CODEC_ID_NONE) || (avcodec_find_decoder(old_stream->codecpar->codec_id) == nullptr))
                 {
                     best = *sit;
                     continue;
                 }
 
-                int check_nb_f = av_lav_stream_codec_info_nb_frames(new_stream);
-                int best_nb_f = av_lav_stream_codec_info_nb_frames(old_stream);
+                int const check_nb_f = av_lav_stream_codec_info_nb_frames(new_stream);
+                int const best_nb_f = av_lav_stream_codec_info_nb_frames(old_stream);
                 if (m_bRM && (check_nb_f > 0 && best_nb_f <= 0))
                 {
                     best = *sit;
                 }
-                else if (!m_bRM || check_nb_f > 0)
+                else if (!m_bRM || (check_nb_f > 0))
                 {
                     if (!(old_stream->disposition & DISPO_IMPAIRED) != !(new_stream->disposition & DISPO_IMPAIRED))
                     {
@@ -3404,12 +3535,13 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                         }
                         continue;
                     }
-                    if (!bCheckQuality)
+                    if (!bCheckQuality) {
                         continue;
+}
 
                     // First, check number of channels
-                    int old_num_chans = old_stream->codecpar->ch_layout.nb_channels;
-                    int new_num_chans = new_stream->codecpar->ch_layout.nb_channels;
+                    int const old_num_chans = old_stream->codecpar->ch_layout.nb_channels;
+                    int const new_num_chans = new_stream->codecpar->ch_layout.nb_channels;
                     if (new_num_chans > old_num_chans)
                     {
                         best = *sit;
@@ -3417,8 +3549,8 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                     else if (new_num_chans == old_num_chans)
                     {
                         // Same number of channels, check codec
-                        int old_priority = audio_codec_priority(old_stream->codecpar);
-                        int new_priority = audio_codec_priority(new_stream->codecpar);
+                        int const old_priority = audio_codec_priority(old_stream->codecpar);
+                        int const new_priority = audio_codec_priority(new_stream->codecpar);
                         if (new_priority > old_priority)
                         {
                             best = *sit;
@@ -3440,8 +3572,7 @@ static inline bool does_language_match(std::string selector, std::string selecte
 // ugly hack to only convert ascii to lower case, as there is no proper unicode function for utf-8 in std::string
 static inline char asciitolower(char in)
 {
-    if (in <= 'Z' && in >= 'A')
-        return in - ('Z' - 'z');
+    if ((in <= 'Z') && (in >= 'A')) { return in - ('Z' - 'z'); }
     return in;
 }
 
@@ -3455,27 +3586,30 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectSubtitleStream(std::list<CSubtit
     std::deque<stream *> checkedStreams;
 
     std::list<CSubtitleSelector>::iterator it = subtitleSelectors.begin();
-    for (it = subtitleSelectors.begin(); it != subtitleSelectors.end() && checkedStreams.empty(); it++)
+    for (it = subtitleSelectors.begin(); it != subtitleSelectors.end() && checkedStreams.empty(); ++it)
     {
 
-        if (!does_language_match(it->audioLanguage, audioLanguage))
+        if (!does_language_match(it->audioLanguage, audioLanguage)) {
             continue;
+}
 
-        if (it->subtitleLanguage == "off")
+        if (it->subtitleLanguage == "off") {
             break;
+}
 
         // lower-case version of the trackname query
         std::string subtitleTrackNameQueryLower = it->subtitleTrackName;
-        if (subtitleTrackNameQueryLower.empty() == false)
+        if (subtitleTrackNameQueryLower.empty() == false) {
             std::transform(subtitleTrackNameQueryLower.begin(), subtitleTrackNameQueryLower.end(),
                            subtitleTrackNameQueryLower.begin(), asciitolower);
+}
 
         std::deque<stream>::iterator sit;
-        for (sit = streams->begin(); sit != streams->end(); sit++)
+        for (sit = streams->begin(); sit != streams->end(); ++sit)
         {
-            if (sit->pid == NO_SUBTITLE_PID)
+            if (sit->pid == NO_SUBTITLE_PID) {
                 continue;
-
+}
 
 
             if (!subtitleTrackNameQueryLower.empty())
@@ -3484,27 +3618,29 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectSubtitleStream(std::list<CSubtit
                 std::string trackNameLower = sit->trackName;
                 std::transform(trackNameLower.begin(), trackNameLower.end(), trackNameLower.begin(), asciitolower);
 
-                if (trackNameLower.find(subtitleTrackNameQueryLower) == std::string::npos)
+                if (trackNameLower.find(subtitleTrackNameQueryLower) == std::string::npos) {
                     continue;
+}
             }
 
             if (sit->pid == FORCED_SUBTITLE_PID)
             {
                 if ((it->dwFlagsSet == 0 || it->dwFlagsSet & SUBTITLE_FLAG_VIRTUAL) &&
-                    does_language_match(it->subtitleLanguage, audioLanguage))
+                    (does_language_match(it->subtitleLanguage, audioLanguage))) {
                     checkedStreams.push_back(&*sit);
+}
                 continue;
             }
 
-            bool streamIsDefault = m_avFormat->streams[sit->pid]->disposition & AV_DISPOSITION_DEFAULT;
-            bool streamIsForced = m_avFormat->streams[sit->pid]->disposition & AV_DISPOSITION_FORCED;
-            bool streamIsImpaired = m_avFormat->streams[sit->pid]->disposition &
+            bool const streamIsDefault = m_avFormat->streams[sit->pid]->disposition & AV_DISPOSITION_DEFAULT;
+            bool const streamIsForced = m_avFormat->streams[sit->pid]->disposition & AV_DISPOSITION_FORCED;
+            bool const streamIsImpaired = m_avFormat->streams[sit->pid]->disposition &
                                     (AV_DISPOSITION_HEARING_IMPAIRED | AV_DISPOSITION_VISUAL_IMPAIRED);
-            bool streamIsNormal = !streamIsDefault && !streamIsForced && !streamIsImpaired;
-            bool streamIsPgsFormat =
+            bool const streamIsNormal = !streamIsDefault && !streamIsForced && !streamIsImpaired;
+            bool const streamIsPgsFormat =
                 (m_avFormat->streams[sit->pid]->codecpar->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE);
 
-            bool flagsSetMatch =
+            bool const flagsSetMatch =
                 ((it->dwFlagsSet == 0) ||
                  ((it->dwFlagsSet & SUBTITLE_FLAG_DEFAULT) && streamIsDefault) ||
                  ((it->dwFlagsSet & SUBTITLE_FLAG_FORCED) && streamIsForced) ||
@@ -3513,7 +3649,7 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectSubtitleStream(std::list<CSubtit
                  ((it->dwFlagsSet & SUBTITLE_FLAG_NORMAL) && streamIsNormal)
                 );
 
-            bool flagsNotMatch =
+            bool const flagsNotMatch =
                 (!((it->dwFlagsNot & SUBTITLE_FLAG_DEFAULT) && streamIsDefault) &&
                  !((it->dwFlagsNot & SUBTITLE_FLAG_FORCED) && streamIsForced) &&
                  !((it->dwFlagsNot & SUBTITLE_FLAG_IMPAIRED) && streamIsImpaired) &&
@@ -3522,17 +3658,19 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectSubtitleStream(std::list<CSubtit
 
             if (flagsSetMatch && flagsNotMatch)
             {
-                std::string streamLanguage = sit->language;
-                if (does_language_match(it->subtitleLanguage, streamLanguage))
+                std::string const streamLanguage = sit->language;
+                if (does_language_match(it->subtitleLanguage, streamLanguage)) {
                     checkedStreams.push_back(&*sit);
+}
             }
         }
     }
 
-    if (!checkedStreams.empty())
+    if (!checkedStreams.empty()) {
         best = streams->FindStream(checkedStreams.front()->pid);
-    else
+    } else {
         best = streams->FindStream(NO_SUBTITLE_PID);
+}
 
     return best;
 }
@@ -3541,71 +3679,73 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectSubtitleStream(std::list<CSubtit
 
 STDMETHODIMP_(DWORD) CLAVFDemuxer::GetStreamFlags(DWORD dwStream)
 {
-    if (!m_avFormat || dwStream >= m_avFormat->nb_streams)
-        return 0;
+    if (!m_avFormat || (dwStream >= m_avFormat->nb_streams)) { return 0; }
 
     // redirect to the original stream
-    if (m_bMP4 && m_DOVI.bBSFSplit && dwStream == m_DOVI.nELStreamId)
+    if (m_bMP4 && m_DOVI.bBSFSplit && (dwStream == m_DOVI.nELStreamId)) {
         dwStream = m_DOVI.nBLStreamId;
+}
 
-    DWORD dwFlags = 0;
+    DWORD dwFlags{ 0U };
     AVStream *st = m_avFormat->streams[dwStream];
 
-    if (strcmp(m_pszInputFormat, "rawvideo") == 0)
+    if (std::strcmp(m_pszInputFormat, "rawvideo") == 0) {
         dwFlags |= LAV_STREAM_FLAG_ONLY_DTS;
+}
 
-    if (st->codecpar->codec_id == AV_CODEC_ID_H264 &&
-        (m_bAVI || m_bPMP || (m_bMatroska && (!st->codecpar->extradata_size || st->codecpar->extradata[0] != 1)) ||
-         (m_bMP4 && st->priv_data && ((MOVStreamContext *)st->priv_data)->ctts_count == 0)))
+    if ((st->codecpar->codec_id == AV_CODEC_ID_H264) &&
+        (m_bAVI || m_bPMP || (m_bMatroska && (!st->codecpar->extradata_size || st->codecpar->extradata[0U] != 1)) ||
+         (m_bMP4 && st->priv_data && (reinterpret_cast<MOVStreamContext *>(st->priv_data))->ctts_count == 0))) {
         dwFlags |= LAV_STREAM_FLAG_ONLY_DTS;
+}
 
-    if (st->codecpar->codec_id == AV_CODEC_ID_HEVC &&
-        (m_bAVI || (m_bMP4 && st->priv_data && ((MOVStreamContext *)st->priv_data)->ctts_count == 0)))
+    if ((st->codecpar->codec_id == AV_CODEC_ID_HEVC) &&
+        (m_bAVI || (m_bMP4 && st->priv_data && (reinterpret_cast<MOVStreamContext *>(st->priv_data))->ctts_count == 0))) {
         dwFlags |= LAV_STREAM_FLAG_ONLY_DTS;
+}
 
-    if (st->codecpar->codec_id == AV_CODEC_ID_VVC &&
-        (m_bAVI || (m_bMP4 && st->priv_data && ((MOVStreamContext *)st->priv_data)->ctts_count == 0)))
+    if ((st->codecpar->codec_id == AV_CODEC_ID_VVC) &&
+        (m_bAVI || (m_bMP4 && st->priv_data && (reinterpret_cast<MOVStreamContext *>(st->priv_data))->ctts_count == 0))) {
         dwFlags |= LAV_STREAM_FLAG_ONLY_DTS;
+}
 
-    if (m_bMatroska && (st->codecpar->codec_id == AV_CODEC_ID_RV30 || st->codecpar->codec_id == AV_CODEC_ID_RV40))
+    if (m_bMatroska && (st->codecpar->codec_id == AV_CODEC_ID_RV30 || st->codecpar->codec_id == AV_CODEC_ID_RV40)) {
         dwFlags |= LAV_STREAM_FLAG_RV34_MKV;
+}
 
-    if (m_avFormat->flags & AVFMT_FLAG_NETWORK)
+    if (m_avFormat->flags & AVFMT_FLAG_NETWORK) {
         dwFlags |= LAV_STREAM_FLAG_LIVE;
+}
 
     return dwFlags;
 }
 
 STDMETHODIMP_(int) CLAVFDemuxer::GetPixelFormat(DWORD dwStream)
 {
-    if (!m_avFormat || dwStream >= m_avFormat->nb_streams)
-        return AV_PIX_FMT_NONE;
+    if (!m_avFormat || (dwStream >= m_avFormat->nb_streams)) { return AV_PIX_FMT_NONE; }
 
     return m_avFormat->streams[dwStream]->codecpar->format;
 }
 
 STDMETHODIMP_(int) CLAVFDemuxer::GetHasBFrames(DWORD dwStream)
 {
-    if (!m_avFormat || dwStream >= m_avFormat->nb_streams)
-        return -1;
+    if (!m_avFormat || (dwStream >= m_avFormat->nb_streams)) { return -1; }
 
     return m_avFormat->streams[dwStream]->codecpar->video_delay;
 }
 
-STDMETHODIMP CLAVFDemuxer::GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, size_t *pSize)
+STDMETHODIMP CLAVFDemuxer::GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, std::size_t *pSize)
 {
-    if (!m_avFormat || dwStream >= m_avFormat->nb_streams)
-        return E_INVALIDARG;
+    if (!m_avFormat || (dwStream >= m_avFormat->nb_streams)) { return E_INVALIDARG; }
 
     if (guidType == IID_MediaSideDataFFMpeg)
     {
         CBaseDemuxer::stream *pStream = FindStream(dwStream);
-        if (!pStream)
-            return E_FAIL;
+        if (!pStream) { return E_FAIL; }
 
         pStream->SideData.side_data = m_avFormat->streams[dwStream]->codecpar->coded_side_data;
         pStream->SideData.side_data_elems = m_avFormat->streams[dwStream]->codecpar->nb_coded_side_data;
-        *pData = (BYTE *)&pStream->SideData;
+        *pData = reinterpret_cast<BYTE *>(&pStream->SideData);
         *pSize = sizeof(pStream->SideData);
 
         return S_OK;
@@ -3616,35 +3756,36 @@ STDMETHODIMP CLAVFDemuxer::GetSideData(DWORD dwStream, GUID guidType, const BYTE
 
 STDMETHODIMP CLAVFDemuxer::GetBSTRMetadata(const char *key, BSTR *pbstrValue, int stream)
 {
-    if (!m_avFormat)
-        return VFW_E_NOT_FOUND;
+    if (!m_avFormat) { return VFW_E_NOT_FOUND; }
 
-    if (stream >= (int)m_avFormat->nb_streams)
+    if (stream >= static_cast<int>(m_avFormat->nb_streams)) {
         return E_INVALIDARG;
+}
 
-    if (_stricmp(key, "rotate") == 0 && stream >= 0)
+    if ((::_stricmp(key, "rotate") == 0) && (stream >= 0))
     {
         const AVPacketSideData *sd = av_packet_side_data_get(
             m_avFormat->streams[stream]->codecpar->coded_side_data,
             m_avFormat->streams[stream]->codecpar->nb_coded_side_data, AV_PKT_DATA_DISPLAYMATRIX);
 
-        if (sd && sd->size == (9*sizeof(int32_t)))
+        if (sd && (sd->size == (9*sizeof(std::int32_t))))
         {
-            double dRotation = av_display_rotation_get((const int32_t *)sd->data);
+            double const dRotation = av_display_rotation_get(reinterpret_cast<const std::int32_t *>(sd->data));
             int nRotation = -lrint(dRotation);
 
             // normalize rotation to 0-360
-            while (nRotation < 0)
+            while (nRotation < 0) {
                 nRotation += 360;
+}
 
-            while (nRotation >= 360)
+            while (nRotation >= 360) {
                 nRotation -= 360;
+}
 
-            char buf[34] = {0};
-            sprintf_s(buf, "%d", nRotation);
-            *pbstrValue = ConvertCharToBSTR(buf);
-            if (*pbstrValue == nullptr)
-                return E_OUTOFMEMORY;
+            std::array<char, 34U> buf{0};
+            ::sprintf_s(buf.data(), buf.size(),  "%d", nRotation);
+            *pbstrValue = ConvertCharToBSTR(buf.data());
+            if (*pbstrValue == nullptr) { return E_OUTOFMEMORY; }
 
             return S_OK;
         }
@@ -3652,12 +3793,10 @@ STDMETHODIMP CLAVFDemuxer::GetBSTRMetadata(const char *key, BSTR *pbstrValue, in
 
     AVDictionaryEntry *entry = av_dict_get(stream >= 0 ? m_avFormat->streams[stream]->metadata : m_avFormat->metadata,
                                            key, nullptr, AV_DICT_IGNORE_SUFFIX);
-    if (!entry || !entry->value || entry->value[0] == '\0')
-        return VFW_E_NOT_FOUND;
+    if (!entry || (!entry->value) || (entry->value[0U] == '\0')) { return VFW_E_NOT_FOUND; }
 
     *pbstrValue = ConvertCharToBSTR(entry->value);
-    if (*pbstrValue == nullptr)
-        return E_OUTOFMEMORY;
+    if (*pbstrValue == nullptr) { return E_OUTOFMEMORY; }
 
     return S_OK;
 }

@@ -21,6 +21,9 @@
 
 #include "parser.h"
 
+#include <cstdint>
+
+
 /** DCA syncwords */
 #define DCA_MARKER_RAW_BE 0x7FFE8001
 #define DCA_MARKER_RAW_LE 0xFE7F0180
@@ -59,4 +62,4 @@ struct DTSHeader
 int init_dts_parser(DTSParserContext **pContext);
 int close_dts_parser(DTSParserContext **pContext);
 
-int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, uint8_t *pBuffer, unsigned uSize);
+int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, std::uint8_t *pBuffer, unsigned uSize);

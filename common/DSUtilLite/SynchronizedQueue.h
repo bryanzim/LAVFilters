@@ -19,12 +19,13 @@
 
 #pragma once
 
+#include <cstddef>
 #include <deque>
 
 template <class T> class CSynchronizedQueue : public CCritSec
 {
   public:
-    CSynchronizedQueue(){};
+    explicit CSynchronizedQueue(){};
 
     void Push(T item)
     {
@@ -53,7 +54,7 @@ template <class T> class CSynchronizedQueue : public CCritSec
         return m_queue.empty();
     }
 
-    size_t Size()
+    std::size_t Size()
     {
         CAutoLock lock(this);
 

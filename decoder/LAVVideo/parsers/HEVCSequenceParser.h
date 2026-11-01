@@ -21,15 +21,18 @@
 
 #include "ByteParser.h"
 
+#include <cstddef>
+
+
 #define HEVC_REXT_PROFILE_MAIN_12 0x98
 
 class CHEVCSequenceParser
 {
   public:
-    CHEVCSequenceParser();
+    explicit CHEVCSequenceParser();
     ~CHEVCSequenceParser();
 
-    HRESULT ParseNALs(const BYTE *buffer, size_t buflen, int nal_size);
+    HRESULT ParseNALs(const BYTE *buffer, std::size_t buflen, int nal_size);
 
   public:
     struct
@@ -44,5 +47,5 @@ class CHEVCSequenceParser
     } sps;
 
   private:
-    HRESULT ParseSPS(const BYTE *buffer, size_t buflen);
+    HRESULT ParseSPS(const BYTE *buffer, std::size_t buflen);
 };

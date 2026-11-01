@@ -22,23 +22,22 @@
 
 #pragma once
 
-#include <string>
-#include <list>
-#include <set>
-#include <vector>
-#include <map>
-#include "PacketQueue.h"
-
 #include "BaseDemuxer.h"
-
-#include "LAVSplitterSettingsInternal.h"
-#include "SettingsProp.h"
 #include "IBufferInfo.h"
-#include "IURLSourceFilterLAV.h"
-
 #include "ISpecifyPropertyPages2.h"
-
+#include "IURLSourceFilterLAV.h"
+#include "LAVSplitterSettingsInternal.h"
 #include "LAVSplitterTrayIcon.h"
+#include "PacketQueue.h"
+#include "SettingsProp.h"
+
+#include <cstddef>
+#include <list>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 
 #define LAVF_REGISTRY_KEY L"Software\\LAV\\Splitter"
 #define LAVF_REGISTRY_KEY_FORMATS LAVF_REGISTRY_KEY L"\\Formats"
@@ -190,8 +189,7 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
     // ILAVSplitterSettingsInternal
     STDMETHODIMP_(LPCSTR) GetInputFormat()
     {
-        if (m_pDemuxer)
-            return m_pDemuxer->GetContainerFormat();
+        if (m_pDemuxer) { return m_pDemuxer->GetContainerFormat(); }
         return nullptr;
     }
     STDMETHODIMP_(std::set<FormatInfo> &) GetInputFormats();
@@ -209,28 +207,24 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
 
     STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream)
     {
-        if (m_pDemuxer)
-            return m_pDemuxer->GetStreamFlags(dwStream);
+        if (m_pDemuxer) { return m_pDemuxer->GetStreamFlags(dwStream); }
         return 0;
     }
     STDMETHODIMP_(int) GetPixelFormat(DWORD dwStream)
     {
-        if (m_pDemuxer)
-            return m_pDemuxer->GetPixelFormat(dwStream);
+        if (m_pDemuxer) { return m_pDemuxer->GetPixelFormat(dwStream); }
         return AV_PIX_FMT_NONE;
     }
     STDMETHODIMP_(int) GetHasBFrames(DWORD dwStream)
     {
-        if (m_pDemuxer)
-            return m_pDemuxer->GetHasBFrames(dwStream);
+        if (m_pDemuxer) { return m_pDemuxer->GetHasBFrames(dwStream); }
         return -1;
     }
-    STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, size_t *pSize)
+    STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, std::size_t *pSize)
     {
-        if (m_pDemuxer)
-            return m_pDemuxer->GetSideData(dwStream, guidType, pData, pSize);
-        else
+        if (m_pDemuxer) { return m_pDemuxer->GetSideData(dwStream, guidType, pData, pSize); } else {
             return E_FAIL;
+}
     }
 
     // Settings helper
@@ -297,28 +291,29 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
 
     CBaseDemuxer *m_pDemuxer = nullptr;
 
-    BOOL m_bPlaybackStarted = FALSE;
-    BOOL m_bFakeASFReader = FALSE;
+    BOOL m_bPlaybackStarted{ FALSE };
+    BOOL m_bFakeASFReader{ FALSE };
 
     // Times
-    REFERENCE_TIME m_rtStart = 0;
-    REFERENCE_TIME m_rtStop = 0;
-    REFERENCE_TIME m_rtCurrent = 0;
-    REFERENCE_TIME m_rtNewStart = 0;
-    REFERENCE_TIME m_rtNewStop = 0;
+    REFERENCE_TIME m_rtStart{ 0 };
+    REFERENCE_TIME m_rtStop{ 0 };
+    REFERENCE_TIME m_rtCurrent{ 0 };
+    REFERENCE_TIME m_rtNewStart{ 0 };
+    REFERENCE_TIME m_rtNewStop{ 0 };
     REFERENCE_TIME m_rtOffset = AV_NOPTS_VALUE;
     double m_dRate = 1.0;
-    BOOL m_bStopValid = FALSE;
+    BOOL m_bStopValid{ FALSE };
 
     // Seeking
     REFERENCE_TIME m_rtLastStart = _I64_MIN;
     REFERENCE_TIME m_rtLastStop = _I64_MIN;
     std::set<void *> m_LastSeekers;
+    LONG m_ActiveSeekSerial{ 0 };
 
     CAMEvent m_ePlaybackInit{TRUE};
 
     // flushing
-    bool m_fFlushing = FALSE;
+    bool m_fFlushing{ FALSE };
     CAMEvent m_eEndFlush;
 
     std::set<FormatInfo> m_InputFormats;
@@ -352,7 +347,7 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
         std::map<std::string, BOOL> formats;
     } m_settings;
 
-    BOOL m_bRuntimeConfig = FALSE;
+    BOOL m_bRuntimeConfig{ FALSE };
 
     IUnknown *m_pSite = nullptr;
     CBaseTrayIcon *m_pTrayIcon = nullptr;

@@ -22,22 +22,26 @@
 #include <emmintrin.h>
 #include <smmintrin.h>
 
+#include <cstddef>
+#include <cstring>
+
+
 // gpu_memcpy is a memcpy style function that copied data very fast from a
 // GPU tiled memory (write back)
 // Performance tip: page offset (12 lsb) of both addresses should be different
 //  optimally use a 2K offset between them.
-inline void *gpu_memcpy(void *d, const void *s, size_t size)
+inline void *gpu_memcpy(void *d, const void *s, std::size_t size)
 {
-    static const size_t regsInLoop = sizeof(size_t) * 2; // 8 or 16
+    static const std::size_t regsInLoop = sizeof(std::size_t) * 2; // 8 or 16
 
-    if (d == nullptr || s == nullptr)
+    if ((d == nullptr) || (s == nullptr))
         return nullptr;
 
     // If memory is not aligned, use memcpy
-    bool isAligned = (((size_t)(s) | (size_t)(d)) & 0xF) == 0;
+    bool isAligned = ((static_cast<std::size_t>((s)) | static_cast<std::size_t>((d))) & 0xF) == 0;
     if (!isAligned)
     {
-        return memcpy(d, s, size);
+        return std::memcpy(d, s, size);
     }
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
@@ -45,12 +49,12 @@ inline void *gpu_memcpy(void *d, const void *s, size_t size)
     __m128i xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15;
 #endif
 
-    size_t remainder = size & (regsInLoop * sizeof(xmm0) - 1); // Copy 128 or 256 bytes every loop
-    size_t end = 0;
+    std::size_t remainder = size & (regsInLoop * sizeof(xmm0) - 1); // Copy 128 or 256 bytes every loop
+    std::size_t end{ 0U };
 
-    __m128i *pTrg = (__m128i *)d;
+    __m128i *pTrg = reinterpret_cast<__m128i *>(d);
     __m128i *pTrgEnd = pTrg + ((size - remainder) >> 4);
-    __m128i *pSrc = (__m128i *)s;
+    __m128i *pSrc = reinterpret_cast<__m128i *>(s);
 
     // Make sure source is synced - doesn't hurt if not needed.
     _mm_sfence();
@@ -109,7 +113,7 @@ inline void *gpu_memcpy(void *d, const void *s, size_t size)
         size = remainder;
         remainder = size & 15;
         end = size >> 4;
-        for (size_t i = 0; i < end; ++i)
+        for (std::size_t i{ 0U }; i < end; ++i)
         {
             pTrg[i] = _mm_stream_load_si128(pSrc + i);
         }
@@ -120,10 +124,10 @@ inline void *gpu_memcpy(void *d, const void *s, size_t size)
     {
         __m128i temp = _mm_stream_load_si128(pSrc + end);
 
-        char *ps = (char *)(&temp);
-        char *pt = (char *)(pTrg + end);
+        char *ps = reinterpret_cast<char *>((&temp));
+        char *pt = reinterpret_cast<char *>((pTrg + end));
 
-        for (size_t i = 0; i < remainder; ++i)
+        for (std::size_t i{ 0U }; i < remainder; ++i)
         {
             pt[i] = ps[i];
         }

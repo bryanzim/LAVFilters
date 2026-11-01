@@ -19,9 +19,12 @@
 
 #pragma once
 
-#include "LAVVideoSettings.h"
 #include "BaseDSPropPage.h"
+#include "LAVVideoSettings.h"
 #include "Media.h"
+
+#include <array>
+
 
 // {278407C2-558C-4BED-83A0-B6FA454200BD}
 DEFINE_GUID(CLSID_LAVVideoSettingsProp, 0x278407c2, 0x558c, 0x4bed, 0x83, 0xa0, 0xb6, 0xfa, 0x45, 0x42, 0x0, 0xbd);
@@ -65,9 +68,9 @@ class CLAVVideoSettingsProp : public CBaseDSPropPage
     LAVDeintMode m_DeintMode;
     DWORD m_dwRGBOutput;
 
-    BOOL m_bPixFmts[LAVOutPixFmt_NB];
+    std::array<BOOL, LAVOutPixFmt_NB> m_bPixFmts{};
     DWORD m_HWAccel;
-    BOOL m_HWAccelCodecs[HWCodec_NB];
+    std::array<BOOL, HWCodec_NB> m_HWAccelCodecs{};
     BOOL m_HWAccelCUVIDDXVA;
 
     DWORD m_HWRes;
@@ -109,7 +112,7 @@ class CLAVVideoFormatsProp : public CBaseDSPropPage
   private:
     ILAVVideoSettings *m_pVideoSettings = nullptr;
 
-    BOOL m_bFormats[Codec_VideoNB];
+    std::array<BOOL, Codec_VideoNB> m_bFormats{};
     BOOL m_bWMVDMO;
     BOOL m_bDVD;
 };

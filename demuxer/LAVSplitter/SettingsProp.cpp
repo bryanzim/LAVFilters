@@ -19,13 +19,22 @@
 
 #include "stdafx.h"
 
-#include <assert.h>
-#include <Commctrl.h>
-
 #include "SettingsProp.h"
 
 #include "DShowUtil.h"
 #include "version.h"
+
+#include <array>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+#include <cwchar>
+
+
+#ifdef _WIN32
+#include <Commctrl.h>
+#endif
+
 
 CLAVSplitterSettingsProp::CLAVSplitterSettingsProp(LPUNKNOWN pUnk, HRESULT *phr)
     : CBaseDSPropPage(NAME("LAVF Settings"), pUnk, IDD_PROPPAGE_LAVFSETTINGS, IDS_PAGE_TITLE)
@@ -63,69 +72,69 @@ HRESULT CLAVSplitterSettingsProp::OnApplyChanges()
     DWORD dwVal;
     BOOL bFlag;
 
-    WCHAR buffer[LANG_BUFFER_SIZE];
+    std::array<WCHAR, LANG_BUFFER_SIZE> buffer{};
     // Save audio language
-    SendDlgItemMessage(m_Dlg, IDC_PREF_LANG, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&buffer);
-    CHECK_HR(hr = m_pLAVF->SetPreferredLanguages(buffer));
+    SendDlgItemMessage(m_Dlg, IDC_PREF_LANG, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
+    CHECK_HR(hr = m_pLAVF->SetPreferredLanguages(buffer.data()));
 
     // Save subtitle language
-    SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&buffer);
+    SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
 
     if (m_selectedSubMode == LAVSubtitleMode_Advanced)
     {
-        CHECK_HR(hr = m_pLAVF->SetPreferredSubtitleLanguages(m_subLangBuffer));
-        CHECK_HR(hr = m_pLAVF->SetAdvancedSubtitleConfig(buffer));
+        CHECK_HR(hr = m_pLAVF->SetPreferredSubtitleLanguages(m_subLangBuffer.data()));
+        CHECK_HR(hr = m_pLAVF->SetAdvancedSubtitleConfig(buffer.data()));
     }
     else
     {
-        CHECK_HR(hr = m_pLAVF->SetPreferredSubtitleLanguages(buffer));
-        CHECK_HR(hr = m_pLAVF->SetAdvancedSubtitleConfig(m_advSubBuffer));
+        CHECK_HR(hr = m_pLAVF->SetPreferredSubtitleLanguages(buffer.data()));
+        CHECK_HR(hr = m_pLAVF->SetAdvancedSubtitleConfig(m_advSubBuffer.data()));
     }
 
     // Save subtitle mode
-    dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0);
+    dwVal = static_cast<DWORD>(SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetSubtitleMode((LAVSubtitleMode)dwVal));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetPGSForcedStream(bFlag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetPGSOnlyForced(bFlag));
 
-    int vc1flag = (int)SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_GETCHECK, 0, 0);
+    int const vc1flag = static_cast<int>(SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetVC1TimestampMode(vc1flag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MKV_EXTERNAL, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MKV_EXTERNAL, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetLoadMatroskaExternalSegments(bFlag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_SUBSTREAMS, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_SUBSTREAMS, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetSubstreamsEnabled(bFlag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetStreamSwitchRemoveAudio(bFlag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_RESELECT_SUBS, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_RESELECT_SUBS, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetStreamSwitchReselectSubtitles(bFlag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_SELECT_AUDIO_QUALITY, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_SELECT_AUDIO_QUALITY, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetPreferHighQualityAudioStreams(bFlag));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_IMPAIRED_AUDIO, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_IMPAIRED_AUDIO, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetUseAudioForHearingVisuallyImpaired(bFlag));
 
-    SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&buffer);
-    int maxMem = _wtoi(buffer);
+    SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
+    int const maxMem = ::_wtoi(buffer.data());
     CHECK_HR(hr = m_pLAVF->SetMaxQueueMemSize(maxMem));
 
-    SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&buffer);
-    int maxPackets = _wtoi(buffer);
+    SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
+    int const maxPackets = ::_wtoi(buffer.data());
     CHECK_HR(hr = m_pLAVF->SetMaxQueueSize(maxPackets));
 
-    SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&buffer);
-    int duration = _wtoi(buffer);
+    SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
+    int const duration = ::_wtoi(buffer.data());
     CHECK_HR(hr = m_pLAVF->SetNetworkStreamAnalysisDuration(duration));
 
-    bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0);
+    bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetTrayIcon(bFlag));
 
     LoadData();
@@ -163,19 +172,19 @@ void CLAVSplitterSettingsProp::UpdateSubtitleMode(LAVSubtitleMode mode)
         SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_NOTE, WM_SETTEXT, 0, (LPARAM)empty);
     }
 
-    LAVSubtitleMode oldMode = m_selectedSubMode;
+    LAVSubtitleMode const oldMode = m_selectedSubMode;
     m_selectedSubMode = mode;
     // Switch away from advanced
-    if (oldMode != mode && oldMode == LAVSubtitleMode_Advanced)
+    if ((oldMode != mode) && (oldMode == LAVSubtitleMode_Advanced))
     {
-        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&m_advSubBuffer);
-        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_SETTEXT, 0, (LPARAM)&m_subLangBuffer);
+        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)m_advSubBuffer.data());
+        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_SETTEXT, 0, (LPARAM)m_subLangBuffer.data());
         // Switch to advanced
     }
-    else if (oldMode != mode && mode == LAVSubtitleMode_Advanced)
+    else if ((oldMode != mode) && (mode == LAVSubtitleMode_Advanced))
     {
-        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&m_subLangBuffer);
-        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_SETTEXT, 0, (LPARAM)&m_advSubBuffer);
+        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)m_subLangBuffer.data());
+        SendDlgItemMessage(m_Dlg, IDC_PREF_LANG_SUBS, WM_SETTEXT, 0, (LPARAM)m_advSubBuffer.data());
     }
 }
 
@@ -195,12 +204,13 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
     SendDlgItemMessage(m_Dlg, IDC_SPLITTER_FOOTER, WM_SETTEXT, 0, (LPARAM)version);
 
     hr = LoadData();
-    memset(m_subLangBuffer, 0, sizeof(m_advSubBuffer));
-    memset(m_advSubBuffer, 0, sizeof(m_advSubBuffer));
+    std::memset(m_subLangBuffer.data(), 0, sizeof(m_advSubBuffer));
+    std::memset(m_advSubBuffer.data(), 0, sizeof(m_advSubBuffer));
 
     m_selectedSubMode = LAVSubtitleMode_Default;
-    if (m_pszAdvSubConfig)
-        wcsncpy_s(m_advSubBuffer, m_pszAdvSubConfig, _TRUNCATE);
+    if (m_pszAdvSubConfig) {
+        ::wcsncpy_s(m_advSubBuffer.data(), m_advSubBuffer.size(),  m_pszAdvSubConfig, _TRUNCATE);
+}
 
     // Notify the UI about those settings
     SendDlgItemMessage(m_Dlg, IDC_PREF_LANG, WM_SETTEXT, 0, (LPARAM)m_pszPrefLang);
@@ -208,14 +218,14 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
 
     // Init the Combo Box
     SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_RESETCONTENT, 0, 0);
-    WideStringFromResource(stringBuffer, IDS_SUBMODE_NO_SUBS);
-    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer);
-    WideStringFromResource(stringBuffer, IDS_SUBMODE_FORCED_SUBS);
-    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer);
-    WideStringFromResource(stringBuffer, IDS_SUBMODE_DEFAULT);
-    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer);
-    WideStringFromResource(stringBuffer, IDS_SUBMODE_ADVANCED);
-    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer);
+    WideStringFromResource(stringBuffer.data(), IDS_SUBMODE_NO_SUBS);
+    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer.data());
+    WideStringFromResource(stringBuffer.data(), IDS_SUBMODE_FORCED_SUBS);
+    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer.data());
+    WideStringFromResource(stringBuffer.data(), IDS_SUBMODE_DEFAULT);
+    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer.data());
+    WideStringFromResource(stringBuffer.data(), IDS_SUBMODE_ADVANCED);
+    SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_ADDSTRING, 0, (LPARAM)stringBuffer.data());
 
     SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_SETCURSEL, m_subtitleMode, 0);
     addHint(IDC_SUBTITLE_MODE, L"Configure how subtitles are selected.");
@@ -271,8 +281,8 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
             L"Set the maximum memory a frame queue can use for buffering (in megabytes).\nNote that this is the "
             L"maximum value, only very high bitrate files will usually even reach the default maximum value.");
 
-    swprintf_s(stringBuffer, L"%d", m_QueueMaxMem);
-    SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_SETTEXT, 0, (LPARAM)stringBuffer);
+    ::swprintf_s(stringBuffer.data(), stringBuffer.size(), L"%d", m_QueueMaxMem);
+    SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_SETTEXT, 0, (LPARAM)stringBuffer.data());
 
     SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS_SPIN, UDM_SETRANGE32, 100, 100000);
 
@@ -281,8 +291,8 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
     addHint(IDC_QUEUE_PACKETS_SPIN, L"Set the maximum numbers of packets to buffer in the frame queue.\nNote that the "
                                     L"frame queue will never exceed the memory limited set above.");
 
-    swprintf_s(stringBuffer, L"%d", m_QueueMaxPackets);
-    SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_SETTEXT, 0, (LPARAM)stringBuffer);
+    ::swprintf_s(stringBuffer.data(), stringBuffer.size(), L"%d", m_QueueMaxPackets);
+    SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_SETTEXT, 0, (LPARAM)stringBuffer.data());
 
     SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR_SPIN, UDM_SETRANGE32, 200, 10000);
 
@@ -293,8 +303,8 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
                                     L"playback starts.\nA longer duration ensures the stream parameters are properly "
                                     L"detected, however it will delay playback start.\n\nDefault: 1000 (1 second)");
 
-    swprintf_s(stringBuffer, L"%d", m_NetworkAnalysisDuration);
-    SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_SETTEXT, 0, (LPARAM)stringBuffer);
+    ::swprintf_s(stringBuffer.data(), stringBuffer.size(), L"%d", m_NetworkAnalysisDuration);
+    SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_SETTEXT, 0, (LPARAM)stringBuffer.data());
 
     UpdateSubtitleMode(m_subtitleMode);
 
@@ -343,13 +353,13 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
     {
     case WM_COMMAND:
         // Mark the page dirty if the text changed
-        if (HIWORD(wParam) == EN_CHANGE && (LOWORD(wParam) == IDC_PREF_LANG || LOWORD(wParam) == IDC_PREF_LANG_SUBS))
+        if ((HIWORD(wParam) == EN_CHANGE) && (LOWORD(wParam) == IDC_PREF_LANG || LOWORD(wParam) == IDC_PREF_LANG_SUBS))
         {
 
-            WCHAR buffer[LANG_BUFFER_SIZE];
-            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)&buffer);
+            std::array<WCHAR, LANG_BUFFER_SIZE> buffer{};
+            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
 
-            int dirty = 0;
+            int dirty{ 0 };
             WCHAR *source = nullptr;
             if (LOWORD(wParam) == IDC_PREF_LANG)
             {
@@ -362,11 +372,11 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
 
             if (source)
             {
-                dirty = _wcsicmp(buffer, source);
+                dirty = ::_wcsicmp(buffer.data(), source);
             }
             else
             {
-                dirty = (int)wcslen(buffer);
+                dirty = static_cast<int>(std::wcslen(buffer.data()));
             }
 
             if (dirty != 0)
@@ -374,150 +384,156 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == CBN_SELCHANGE && LOWORD(wParam) == IDC_SUBTITLE_MODE)
+        else if ((HIWORD(wParam) == CBN_SELCHANGE) && (LOWORD(wParam) == IDC_SUBTITLE_MODE))
         {
-            DWORD dwVal = (DWORD)SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0);
+            DWORD const dwVal = static_cast<DWORD>(SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0));
             UpdateSubtitleMode((LAVSubtitleMode)dwVal);
             if (dwVal != m_subtitleMode)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_BD_SEPARATE_FORCED_SUBS)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_BD_SEPARATE_FORCED_SUBS))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0));
             if (bFlag != m_PGSForcedStream)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_BD_ONLY_FORCED_SUBS)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_BD_ONLY_FORCED_SUBS))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_GETCHECK, 0, 0));
             if (bFlag != m_PGSOnlyForced)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_VC1TIMESTAMP)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_VC1TIMESTAMP))
         {
-            int iFlag = (int)SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_GETCHECK, 0, 0);
+            int const iFlag = static_cast<int>(SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_GETCHECK, 0, 0));
             if (iFlag != m_VC1Mode)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_MKV_EXTERNAL)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_MKV_EXTERNAL))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_MKV_EXTERNAL, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MKV_EXTERNAL, BM_GETCHECK, 0, 0));
             if (bFlag != m_MKVExternal)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_SUBSTREAMS)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_SUBSTREAMS))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_SUBSTREAMS, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_SUBSTREAMS, BM_GETCHECK, 0, 0));
             if (bFlag != m_substreams)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_STREAM_SWITCH_REMOVE_AUDIO)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_STREAM_SWITCH_REMOVE_AUDIO))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_GETCHECK, 0, 0));
             if (bFlag != m_StreamSwitchRemoveAudio)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_STREAM_SWITCH_RESELECT_SUBS)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_STREAM_SWITCH_RESELECT_SUBS))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_RESELECT_SUBS, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_RESELECT_SUBS, BM_GETCHECK, 0, 0));
             if (bFlag != m_StreamSwitchReselectSubs)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_SELECT_AUDIO_QUALITY)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_SELECT_AUDIO_QUALITY))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_SELECT_AUDIO_QUALITY, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_SELECT_AUDIO_QUALITY, BM_GETCHECK, 0, 0));
             if (bFlag != m_PreferHighQualityAudio)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_IMPAIRED_AUDIO)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_IMPAIRED_AUDIO))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_IMPAIRED_AUDIO, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_IMPAIRED_AUDIO, BM_GETCHECK, 0, 0));
             if (bFlag != m_ImpairedAudio)
             {
                 SetDirty();
             }
         }
-        else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_TRAYICON)
+        else if ((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == IDC_TRAYICON))
         {
-            BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0);
+            BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_TRAYICON, BM_GETCHECK, 0, 0));
             if (bFlag != m_TrayIcon)
             {
                 SetDirty();
             }
         }
-        else if (LOWORD(wParam) == IDC_QUEUE_MEM && HIWORD(wParam) == EN_CHANGE)
+        else if ((LOWORD(wParam) == IDC_QUEUE_MEM) && (HIWORD(wParam) == EN_CHANGE))
         {
-            WCHAR buffer[100];
-            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)&buffer);
-            int maxMem = _wtoi(buffer);
-            size_t len = wcslen(buffer);
-            if (maxMem == 0 && (buffer[0] != L'0' || len > 1))
+            std::array<WCHAR, 100U> buffer{};
+            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)buffer.data());
+            int const maxMem = ::_wtoi(buffer.data());
+            std::size_t const len = std::wcslen(buffer.data());
+            if ((maxMem == 0) && (buffer[0U] != L'0' || len > 1))
             {
                 SendDlgItemMessage(m_Dlg, LOWORD(wParam), EM_UNDO, 0, 0);
             }
             else
             {
-                swprintf_s(buffer, L"%d", maxMem);
-                if (wcslen(buffer) != len)
-                    SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_SETTEXT, 0, (LPARAM)buffer);
-                if (maxMem != m_QueueMaxMem)
+                ::swprintf_s(buffer.data(), buffer.size(),  L"%d", maxMem);
+                if (std::wcslen(buffer.data()) != len) {
+                    SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_SETTEXT, 0, (LPARAM)buffer.data());
+}
+                if (maxMem != m_QueueMaxMem) {
                     SetDirty();
+}
             }
         }
-        else if (LOWORD(wParam) == IDC_QUEUE_PACKETS && HIWORD(wParam) == EN_CHANGE)
+        else if ((LOWORD(wParam) == IDC_QUEUE_PACKETS) && (HIWORD(wParam) == EN_CHANGE))
         {
-            WCHAR buffer[100];
-            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)&buffer);
-            int maxMem = _wtoi(buffer);
-            size_t len = wcslen(buffer);
-            if (maxMem == 0 && (buffer[0] != L'0' || len > 1))
+            std::array<WCHAR, 100U> buffer{};
+            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)buffer.data());
+            int const maxMem = ::_wtoi(buffer.data());
+            std::size_t const len = std::wcslen(buffer.data());
+            if ((maxMem == 0) && (buffer[0U] != L'0' || len > 1))
             {
                 SendDlgItemMessage(m_Dlg, LOWORD(wParam), EM_UNDO, 0, 0);
             }
             else
             {
-                swprintf_s(buffer, L"%d", maxMem);
-                if (wcslen(buffer) != len)
-                    SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_SETTEXT, 0, (LPARAM)buffer);
-                if (maxMem != m_QueueMaxPackets)
+                ::swprintf_s(buffer.data(), buffer.size(),  L"%d", maxMem);
+                if (std::wcslen(buffer.data()) != len) {
+                    SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_SETTEXT, 0, (LPARAM)buffer.data());
+}
+                if (maxMem != m_QueueMaxPackets) {
                     SetDirty();
+}
             }
         }
-        else if (LOWORD(wParam) == IDC_STREAM_ANADUR && HIWORD(wParam) == EN_CHANGE)
+        else if ((LOWORD(wParam) == IDC_STREAM_ANADUR) && (HIWORD(wParam) == EN_CHANGE))
         {
-            WCHAR buffer[100];
-            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)&buffer);
-            int duration = _wtoi(buffer);
-            size_t len = wcslen(buffer);
-            if (duration == 0 && (buffer[0] != L'0' || len > 1))
+            std::array<WCHAR, 100U> buffer{};
+            SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)buffer.data());
+            int const duration = ::_wtoi(buffer.data());
+            std::size_t const len = std::wcslen(buffer.data());
+            if ((duration == 0) && (buffer[0U] != L'0' || len > 1))
             {
                 SendDlgItemMessage(m_Dlg, LOWORD(wParam), EM_UNDO, 0, 0);
             }
             else
             {
-                swprintf_s(buffer, L"%d", duration);
-                if (wcslen(buffer) != len)
-                    SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_SETTEXT, 0, (LPARAM)buffer);
-                if (duration != m_NetworkAnalysisDuration)
+                ::swprintf_s(buffer.data(), buffer.size(),  L"%d", duration);
+                if (std::wcslen(buffer.data()) != len) {
+                    SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_SETTEXT, 0, (LPARAM)buffer.data());
+}
+                if (duration != m_NetworkAnalysisDuration) {
                     SetDirty();
+}
             }
         }
         break;
@@ -555,19 +571,19 @@ HRESULT CLAVSplitterFormatsProp::OnDisconnect()
 
 HRESULT CLAVSplitterFormatsProp::OnApplyChanges()
 {
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
     ASSERT(m_pLAVF != nullptr);
 
     HWND hlv = GetDlgItem(m_Dlg, IDC_FORMATS);
 
-    int nItem = 0;
+    int nItem{ 0 };
     std::set<FormatInfo>::const_iterator it;
     for (it = m_Formats.begin(); it != m_Formats.end(); ++it)
     {
         m_bFormats[nItem] = ListView_GetCheckState(hlv, nItem);
         m_pLAVF->SetFormatEnabled(it->strName, m_bFormats[nItem]);
 
-        nItem++;
+        ++nItem;
     }
 
     return hr;
@@ -575,7 +591,7 @@ HRESULT CLAVSplitterFormatsProp::OnApplyChanges()
 
 HRESULT CLAVSplitterFormatsProp::OnActivate()
 {
-    HRESULT hr = S_OK;
+    HRESULT const hr = S_OK;
     INITCOMMONCONTROLSEX icc;
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icc.dwICC = ICC_BAR_CLASSES | ICC_STANDARD_CLASSES;
@@ -585,14 +601,14 @@ HRESULT CLAVSplitterFormatsProp::OnActivate()
     }
     ASSERT(m_pLAVF != nullptr);
 
-    memset(stringBuffer, 0, sizeof(stringBuffer));
+    std::memset(stringBuffer.data(), 0, sizeof(stringBuffer));
 
     const char *pszInput = m_pLAVF->GetInputFormat();
     if (pszInput)
     {
-        _snwprintf_s(stringBuffer, _TRUNCATE, L"%S", pszInput);
+        _snwprintf_s(stringBuffer.data(), stringBuffer.size(), _TRUNCATE, L"%S", pszInput);
     }
-    SendDlgItemMessage(m_Dlg, IDC_CUR_INPUT, WM_SETTEXT, 0, (LPARAM)stringBuffer);
+    SendDlgItemMessage(m_Dlg, IDC_CUR_INPUT, WM_SETTEXT, 0, (LPARAM)stringBuffer.data());
 
     m_Formats = m_pLAVF->GetInputFormats();
 
@@ -602,8 +618,8 @@ HRESULT CLAVSplitterFormatsProp::OnActivate()
     HWND hlv = GetDlgItem(m_Dlg, IDC_FORMATS);
     ListView_SetExtendedListViewStyle(hlv, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
-    int nCol = 1;
-    LVCOLUMN lvc = {LVCF_WIDTH, 0, 20, 0};
+    int nCol{ 1 };
+    LVCOLUMN lvc = {LVCF_WIDTH, 0, 20, nullptr};
     ListView_InsertColumn(hlv, 0, &lvc);
     ListView_AddCol(hlv, nCol, 75, L"Format", false);
     ListView_AddCol(hlv, nCol, 210, L"Description", false);
@@ -612,17 +628,16 @@ HRESULT CLAVSplitterFormatsProp::OnActivate()
     ListView_SetItemCount(hlv, m_Formats.size());
 
     SAFE_CO_FREE(m_bFormats);
-    m_bFormats = (BOOL *)CoTaskMemAlloc(sizeof(BOOL) * m_Formats.size());
-    if (!m_bFormats)
-        return E_OUTOFMEMORY;
-    memset(m_bFormats, 0, sizeof(BOOL) * m_Formats.size());
+    m_bFormats = reinterpret_cast<BOOL *>(CoTaskMemAlloc(sizeof(BOOL) * m_Formats.size()));
+    if (!m_bFormats) { return E_OUTOFMEMORY; }
+    std::memset(m_bFormats, 0, sizeof(BOOL) * m_Formats.size());
 
     // Create entries for the formats
     LVITEM lvi;
-    memset(&lvi, 0, sizeof(lvi));
+    std::memset(&lvi, 0, sizeof(lvi));
     lvi.mask = LVIF_TEXT | LVIF_PARAM;
 
-    int nItem = 0;
+    int nItem{ 0 };
     std::set<FormatInfo>::const_iterator it;
     for (it = m_Formats.begin(); it != m_Formats.end(); ++it)
     {
@@ -631,16 +646,16 @@ HRESULT CLAVSplitterFormatsProp::OnActivate()
         ListView_InsertItem(hlv, &lvi);
 
         // Set sub item texts
-        _snwprintf_s(stringBuffer, _TRUNCATE, L"%S", it->strName);
-        ListView_SetItemText(hlv, nItem, 1, (LPWSTR)stringBuffer);
+        _snwprintf_s(stringBuffer.data(), stringBuffer.size(), _TRUNCATE, L"%S", it->strName);
+        ListView_SetItemText(hlv, nItem, 1, (LPWSTR)stringBuffer.data());
 
-        _snwprintf_s(stringBuffer, _TRUNCATE, L"%S", it->strDescription);
-        ListView_SetItemText(hlv, nItem, 2, (LPWSTR)stringBuffer);
+        _snwprintf_s(stringBuffer.data(), stringBuffer.size(), _TRUNCATE, L"%S", it->strDescription);
+        ListView_SetItemText(hlv, nItem, 2, (LPWSTR)stringBuffer.data());
 
         m_bFormats[nItem] = m_pLAVF->IsFormatEnabled(it->strName);
         ListView_SetCheckState(hlv, nItem, m_bFormats[nItem]);
 
-        nItem++;
+        ++nItem;
     }
 
     return hr;
@@ -658,7 +673,7 @@ INT_PTR CLAVSplitterFormatsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM w
             {
             case LVN_ITEMCHANGED:
                 LPNMLISTVIEW nmlv = (LPNMLISTVIEW)lParam;
-                BOOL check = ListView_GetCheckState(hdr->hwndFrom, nmlv->iItem);
+                BOOL const check = ListView_GetCheckState(hdr->hwndFrom, nmlv->iItem);
                 if (check != m_bFormats[nmlv->iItem])
                 {
                     SetDirty();

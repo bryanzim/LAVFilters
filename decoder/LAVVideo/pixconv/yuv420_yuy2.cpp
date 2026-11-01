@@ -19,20 +19,28 @@
 
 #include "stdafx.h"
 
-#include <emmintrin.h>
-#include <ppl.h>
-
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
+
+#include <emmintrin.h>
+
+#include <cstddef>
+#include <cstdint>
+
+
+#ifdef _WIN32
+#include <ppl.h>
+#endif
+
 
 #define DITHER_STEPS 2
 
 // This function converts 8x2 pixels from the source into 8x2 YUY2 pixels in the destination
 template <LAVPixelFormat inputFormat, int shift, int uyvy, int dithertype>
-__forceinline static int yuv420yuy2_convert_pixels(const uint8_t *&srcY, const uint8_t *&srcU, const uint8_t *&srcV,
-                                                   uint8_t *&dst, ptrdiff_t srcStrideY, ptrdiff_t srcStrideUV,
-                                                   ptrdiff_t dstStride, ptrdiff_t line, const uint16_t *&dithers,
-                                                   ptrdiff_t pos)
+__forceinline static int yuv420yuy2_convert_pixels(const std::uint8_t *&srcY, const std::uint8_t *&srcU, const std::uint8_t *&srcV,
+                                                   std::uint8_t *&dst, std::ptrdiff_t srcStrideY, std::ptrdiff_t srcStrideUV,
+                                                   std::ptrdiff_t dstStride, std::ptrdiff_t line, const std::uint16_t *&dithers,
+                                                   std::ptrdiff_t pos)
 {
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
     xmm7 = _mm_setzero_si128();
@@ -80,7 +88,7 @@ __forceinline static int yuv420yuy2_convert_pixels(const uint8_t *&srcY, const u
     // bitdepth
 
     // Chroma upsampling
-    if (shift > 0 || inputFormat == LAVPixFmt_NV12)
+    if ((shift > 0) || (inputFormat == LAVPixFmt_NV12))
     {
         srcU += 8;
         srcV += 8;
@@ -127,9 +135,9 @@ __forceinline static int yuv420yuy2_convert_pixels(const uint8_t *&srcY, const u
     if (dithertype == LAVDither_Random)
     {
         /* Load random dithering coeffs from the dithers buffer */
-        int offset = (pos % (DITHER_STEPS * 8 * 2)) * 2;
-        xmm6 = _mm_load_si128((const __m128i *)(dithers + 0 + offset));
-        xmm7 = _mm_load_si128((const __m128i *)(dithers + 8 + offset));
+        int const offset = (pos % (DITHER_STEPS * 8 * 2)) * 2;
+        xmm6 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + 0 + offset)));
+        xmm7 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + 8 + offset)));
     }
     else
     {
@@ -174,8 +182,8 @@ __forceinline static int yuv420yuy2_convert_pixels(const uint8_t *&srcY, const u
     }
 
     // Write back into the target memory
-    _mm_stream_si128((__m128i *)(dst), xmm3);
-    _mm_stream_si128((__m128i *)(dst + dstStride), xmm4);
+    _mm_stream_si128(reinterpret_cast<__m128i *>((dst)), xmm3);
+    _mm_stream_si128(reinterpret_cast<__m128i *>((dst + dstStride)), xmm4);
 
     dst += 16;
 
@@ -183,34 +191,35 @@ __forceinline static int yuv420yuy2_convert_pixels(const uint8_t *&srcY, const u
 }
 
 template <LAVPixelFormat inputFormat, int shift, int uyvy, int dithertype>
-static int __stdcall yuv420yuy2_process_lines(const uint8_t *srcY, const uint8_t *srcU, const uint8_t *srcV,
-                                              uint8_t *dst, int width, int height, ptrdiff_t srcStrideY,
-                                              ptrdiff_t srcStrideUV, ptrdiff_t dstStride, const uint16_t *dithers)
+static int __stdcall yuv420yuy2_process_lines(const std::uint8_t *srcY, const std::uint8_t *srcU, const std::uint8_t *srcV,
+                                              std::uint8_t *dst, int width, int height, std::ptrdiff_t srcStrideY,
+                                              std::ptrdiff_t srcStrideUV, std::ptrdiff_t dstStride, const std::uint16_t *dithers)
 {
-    const uint8_t *y = srcY;
-    const uint8_t *u = srcU;
-    const uint8_t *v = srcV;
-    uint8_t *yuy2 = dst;
+    const std::uint8_t *y = srcY;
+    const std::uint8_t *u = srcU;
+    const std::uint8_t *v = srcV;
+    std::uint8_t *yuy2 = dst;
 
     // Processing starts at line 1, and ends at height - 1. The first and last line have special handling
-    ptrdiff_t line = 1;
-    const ptrdiff_t lastLine = height - 1;
+    std::ptrdiff_t line{ 1 };
+    const std::ptrdiff_t lastLine = height - 1;
 
-    const uint16_t *lineDither = dithers;
+    const std::uint16_t *lineDither = dithers;
 
     _mm_sfence();
 
     // Process first line
     // This needs special handling because of the chroma offset of YUV420
-    for (ptrdiff_t i = 0; i < width; i += 8)
+    for (std::ptrdiff_t i{ 0 }; i < width; i += 8)
     {
         yuv420yuy2_convert_pixels<inputFormat, shift, uyvy, dithertype>(y, u, v, yuy2, 0, 0, 0, 0, lineDither, i);
     }
 
     for (; line < lastLine; line += 2)
     {
-        if (dithertype == LAVDither_Random)
+        if (dithertype == LAVDither_Random) {
             lineDither = dithers + (line * 16 * DITHER_STEPS);
+}
 
         y = srcY + line * srcStrideY;
 
@@ -219,7 +228,7 @@ static int __stdcall yuv420yuy2_process_lines(const uint8_t *srcY, const uint8_t
 
         yuy2 = dst + line * dstStride;
 
-        for (int i = 0; i < width; i += 8)
+        for (int i{ 0 }; i < width; i += 8)
         {
             yuv420yuy2_convert_pixels<inputFormat, shift, uyvy, dithertype>(y, u, v, yuy2, srcStrideY, srcStrideUV,
                                                                             dstStride, line, lineDither, i);
@@ -228,15 +237,16 @@ static int __stdcall yuv420yuy2_process_lines(const uint8_t *srcY, const uint8_t
 
     // Process last line
     // This needs special handling because of the chroma offset of YUV420
-    if (dithertype == LAVDither_Random)
+    if (dithertype == LAVDither_Random) {
         lineDither = dithers + ((height - 2) * 16 * DITHER_STEPS);
+}
 
     y = srcY + (height - 1) * srcStrideY;
     u = srcU + ((height >> 1) - 1) * srcStrideUV;
     v = srcV + ((height >> 1) - 1) * srcStrideUV;
     yuy2 = dst + (height - 1) * dstStride;
 
-    for (ptrdiff_t i = 0; i < width; i += 8)
+    for (std::ptrdiff_t i{ 0 }; i < width; i += 8)
     {
         yuv420yuy2_convert_pixels<inputFormat, shift, uyvy, dithertype>(y, u, v, yuy2, 0, 0, 0, line, lineDither, i);
     }
@@ -244,9 +254,9 @@ static int __stdcall yuv420yuy2_process_lines(const uint8_t *srcY, const uint8_t
 }
 
 template <int uyvy, int dithertype>
-static int __stdcall yuv420yuy2_dispatch(LAVPixelFormat inputFormat, int bpp, const uint8_t *srcY, const uint8_t *srcU,
-                                         const uint8_t *srcV, uint8_t *dst, int width, int height, ptrdiff_t srcStrideY,
-                                         ptrdiff_t srcStrideUV, ptrdiff_t dstStride, const uint16_t *dithers)
+static int __stdcall yuv420yuy2_dispatch(LAVPixelFormat inputFormat, int bpp, const std::uint8_t *srcY, const std::uint8_t *srcU,
+                                         const std::uint8_t *srcV, std::uint8_t *dst, int width, int height, std::ptrdiff_t srcStrideY,
+                                         std::ptrdiff_t srcStrideUV, std::ptrdiff_t dstStride, const std::uint16_t *dithers)
 {
     // Wrap the input format into template args
     switch (inputFormat)
@@ -258,25 +268,23 @@ static int __stdcall yuv420yuy2_dispatch(LAVPixelFormat inputFormat, int bpp, co
         return yuv420yuy2_process_lines<LAVPixFmt_NV12, 0, uyvy, dithertype>(
             srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
     case LAVPixFmt_YUV420bX:
-        if (bpp == 9)
-            return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 1, uyvy, dithertype>(
-                srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
-        else if (bpp == 10)
+        if (bpp == 9) { return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 1, uyvy, dithertype>(
+                srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers); } else if (bpp == 10) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 2, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
         /*else if (bpp == 11)
           return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 3, uyvy, dithertype>(srcY, srcU, srcV, dst, width, height,
           srcStrideY, srcStrideUV, dstStride, dithers);*/
-        else if (bpp == 12)
+        } else if (bpp == 12) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 4, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
         /*else if (bpp == 13)
           return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 5, uyvy, dithertype>(srcY, srcU, srcV, dst, width, height,
           srcStrideY, srcStrideUV, dstStride, dithers);*/
-        else if (bpp == 14)
+        } else if (bpp == 14) {
             return yuv420yuy2_process_lines<LAVPixFmt_YUV420, 6, uyvy, dithertype>(
                 srcY, srcU, srcV, dst, width, height, srcStrideY, srcStrideUV, dstStride, dithers);
-        else
+        } else
             ASSERT(0);
         break;
     default: ASSERT(0);
@@ -286,18 +294,18 @@ static int __stdcall yuv420yuy2_dispatch(LAVPixelFormat inputFormat, int bpp, co
 
 template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv420_yuy2)
 {
-    LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers =
+    LAVDitherMode const ditherMode = m_pSettings->GetDitherMode();
+    const std::uint16_t *dithers =
         (ditherMode == LAVDither_Random) ? GetRandomDitherCoeffs(height, DITHER_STEPS * 2, bpp - 8 + 2, 0) : nullptr;
-    if (ditherMode == LAVDither_Random && dithers != nullptr)
+    if ((ditherMode == LAVDither_Random) && (dithers != nullptr))
     {
-        yuv420yuy2_dispatch<uyvy, 1>(inputFormat, bpp, src[0], src[1], src[2], dst[0], width, height, srcStride[0],
-                                     srcStride[1], dstStride[0], dithers);
+        yuv420yuy2_dispatch<uyvy, 1>(inputFormat, bpp, src[0U], src[1U], src[2U], dst[0U], width, height, srcStride[0U],
+                                     srcStride[1U], dstStride[0U], dithers);
     }
     else
     {
-        yuv420yuy2_dispatch<uyvy, 0>(inputFormat, bpp, src[0], src[1], src[2], dst[0], width, height, srcStride[0],
-                                     srcStride[1], dstStride[0], nullptr);
+        yuv420yuy2_dispatch<uyvy, 0>(inputFormat, bpp, src[0U], src[1U], src[2U], dst[0U], width, height, srcStride[0U],
+                                     srcStride[1U], dstStride[0U], nullptr);
     }
 
     return S_OK;

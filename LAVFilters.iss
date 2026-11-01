@@ -1,6 +1,23 @@
-; LAV Filters Inno Setup script
+; LAV Filters Inno Setup 7 script
+; https://jrsoftware.org/isinfo.php
+;
+; This is the same installer LAV Filters has always shipped: one 32-bit Setup
+; exe that registers both the x86 and x64 DirectShow filters. Inno Setup 7
+; still builds that layout by default (SetupArchitecture is left unset).
+;
+; Payload directories default to the MSVC outputs of the CMake build.
+; The historical MSBuild layout can be selected at compile time:
+;   ISCC /DLAV_BIN32=bin_Win32 /DLAV_BIN64=bin_x64 LAVFilters.iss
 
-#include <idp.iss>
+#ifndef LAV_BIN32
+#define LAV_BIN32 "dist\msvc\Win32"
+#endif
+#ifndef LAV_BIN64
+#define LAV_BIN64 "dist\msvc\x64"
+#endif
+#ifndef LAV_SETUP_SUFFIX
+#define LAV_SETUP_SUFFIX ""
+#endif
 
 ; Include version info
 #define ISPP_INCLUDED
@@ -29,11 +46,11 @@ AppVersion                = {#=LAV_VERSION_STRING}
 VersionInfoVersion        = {#=LAV_VERSION_MAJOR}.{#=LAV_VERSION_MINOR}.{#=LAV_VERSION_REVISION}.{#=LAV_VERSION_BUILD}
 VersionInfoCompany        = 1f0.de
 VersionInfoCopyright      = GPLv2
-OutputBaseFilename        = LAVFilters-{#=LAV_VERSION_STRING}
-OutputDir                 = .
+OutputBaseFilename        = LAVFilters-{#=LAV_VERSION_STRING}{#LAV_SETUP_SUFFIX}
+OutputDir                 = dist
 Compression               = lzma2/ultra64
 SolidCompression          = yes
-MinVersion                = 0,6.0
+MinVersion                = 6.1
 PrivilegesRequired        = admin
 CreateAppDir              = yes
 DefaultDirName            = {pf}\LAV Filters
@@ -51,7 +68,7 @@ SignedUninstaller         = yes
 [Messages]
 WelcomeLabel1=[name/ver]
 WelcomeLabel2=This will install [name] on your computer.%n%nIt is recommended that you close all other applications before continuing.
-WinVersionTooLowError=This software only works on Windows XP SP3 and newer.
+WinVersionTooLowError=This software only works on Windows 7 and newer.
 
 [Types]
 Name: default; Description: Default
@@ -72,37 +89,40 @@ Name: icons;          Description: "Create Start Menu Shortcuts";
 Name: reset_settings; Description: "Reset Settings"; Flags: checkedonce unchecked; Check: SettingsExistCheck()
 
 [Files]
-Source: bin_Win32\avcodec-lav-63.dll;  DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
-Source: bin_Win32\avfilter-lav-12.dll;  DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
-Source: bin_Win32\avformat-lav-63.dll; DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32
-Source: bin_Win32\avutil-lav-61.dll;   DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
-Source: bin_Win32\swresample-lav-7.dll;DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
-Source: bin_Win32\swscale-lav-10.dll;   DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
-Source: bin_Win32\libbluray.dll;       DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32
-Source: bin_Win32\LAVAudio.ax;         DestDir: {app}\x86; Flags: 32bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavaudio32
-Source: bin_Win32\LAVSplitter.ax;      DestDir: {app}\x86; Flags: 32bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32
-Source: bin_Win32\LAVVideo.ax;         DestDir: {app}\x86; Flags: 32bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
-Source: bin_Win32\LAVFilters.Dependencies.manifest; DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
-Source: bin_Win32\IntelQuickSyncDecoder.dll; DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
+Source: {#LAV_BIN32}\avcodec-lav-63.dll;  DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
+Source: {#LAV_BIN32}\avfilter-lav-12.dll;  DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
+Source: {#LAV_BIN32}\avformat-lav-63.dll; DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32
+Source: {#LAV_BIN32}\avutil-lav-61.dll;   DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
+Source: {#LAV_BIN32}\swresample-lav-7.dll;DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
+Source: {#LAV_BIN32}\swscale-lav-10.dll;   DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
+Source: {#LAV_BIN32}\libbluray.dll;       DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32
+Source: {#LAV_BIN32}\LAVAudio.ax;         DestDir: {app}\x86; Flags: 32bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavaudio32
+Source: {#LAV_BIN32}\LAVSplitter.ax;      DestDir: {app}\x86; Flags: 32bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32
+Source: {#LAV_BIN32}\LAVVideo.ax;         DestDir: {app}\x86; Flags: 32bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
+Source: {#LAV_BIN32}\LAVFilters.Dependencies.manifest; DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter32 lavaudio32 lavvideo32
+Source: {#LAV_BIN32}\IntelQuickSyncDecoder.dll; DestDir: {app}\x86; Flags: 32bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo32
 
-Source: bin_x64\avcodec-lav-63.dll;    DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
-Source: bin_x64\avfilter-lav-12.dll;    DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
-Source: bin_x64\avformat-lav-63.dll;   DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64
-Source: bin_x64\avutil-lav-61.dll;     DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
-Source: bin_x64\swresample-lav-7.dll;  DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
-Source: bin_x64\swscale-lav-10.dll;     DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
-Source: bin_x64\libbluray.dll;         DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64
-Source: bin_x64\LAVAudio.ax;           DestDir: {app}\x64; Flags: 64bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavaudio64
-Source: bin_x64\LAVSplitter.ax;        DestDir: {app}\x64; Flags: 64bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64
-Source: bin_x64\LAVVideo.ax;           DestDir: {app}\x64; Flags: 64bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
-Source: bin_x64\LAVFilters.Dependencies.manifest; DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
-Source: bin_x64\IntelQuickSyncDecoder.dll; DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
+Source: {#LAV_BIN64}\avcodec-lav-63.dll;    DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
+Source: {#LAV_BIN64}\avfilter-lav-12.dll;    DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
+Source: {#LAV_BIN64}\avformat-lav-63.dll;   DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64
+Source: {#LAV_BIN64}\avutil-lav-61.dll;     DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
+Source: {#LAV_BIN64}\swresample-lav-7.dll;  DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
+Source: {#LAV_BIN64}\swscale-lav-10.dll;     DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
+Source: {#LAV_BIN64}\libbluray.dll;         DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64
+Source: {#LAV_BIN64}\LAVAudio.ax;           DestDir: {app}\x64; Flags: 64bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavaudio64
+Source: {#LAV_BIN64}\LAVSplitter.ax;        DestDir: {app}\x64; Flags: 64bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64
+Source: {#LAV_BIN64}\LAVVideo.ax;           DestDir: {app}\x64; Flags: 64bit regserver ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
+Source: {#LAV_BIN64}\LAVFilters.Dependencies.manifest; DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavaudio64 lavvideo64
+Source: {#LAV_BIN64}\IntelQuickSyncDecoder.dll; DestDir: {app}\x64; Flags: 64bit ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
 
 Source: COPYING;                       DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
 Source: README.md;                     DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
 Source: CHANGELOG.txt;                 DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
 
-Source: thirdparty\contrib\7za.exe;    DestDir: {tmp};     Flags: dontcopy
+; Optional H.264 MVC 3D software decoder. Inno Setup 7 downloads and extracts the
+; archives itself, so the Inno Download Plugin and 7za.exe are not required.
+Source: "https://files.1f0.de/lavf/plugins/libmfxsw32-v3.7z"; DestDir: "{app}\x86"; DestName: "libmfxsw32-v3.7z"; Flags: external download extractarchive ignoreversion recursesubdirs; Components: mvc3d and lavvideo32; ExternalSize: 20000000
+Source: "https://files.1f0.de/lavf/plugins/libmfxsw64-v3.7z"; DestDir: "{app}\x64"; DestName: "libmfxsw64-v3.7z"; Flags: external download extractarchive ignoreversion recursesubdirs; Components: mvc3d and lavvideo64; ExternalSize: 22000000
 
 [UninstallDelete]
 Type: files; Name: {app}\x86\libmfxsw32.dll
@@ -404,33 +424,9 @@ begin
   RegDeleteKeyIncludingSubkeys(HKCU, 'Software\LAV');
 end;
 
-procedure DoUnzip(source: String; targetdir: String);
-var
-    unzipTool: String;
-    ReturnCode: Integer;
-begin
-    // source contains tmp constant, so resolve it to path name
-    source := ExpandConstant(source);
-
-    unzipTool := ExpandConstant('{tmp}\7za.exe');
-
-    if not FileExists(unzipTool)
-    then MsgBox('UnzipTool not found: ' + unzipTool, mbError, MB_OK)
-    else if not FileExists(source)
-    then MsgBox('File was not found while trying to unzip: ' + source, mbError, MB_OK)
-    else begin
-         if Exec(unzipTool, ' x "' + source + '" -o"' + targetdir + '" -y',
-                 '', SW_HIDE, ewWaitUntilTerminated, ReturnCode) = false
-         then begin
-             MsgBox('Unzip failed:' + source, mbError, MB_OK)
-         end;
-    end;
-end;
-
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   i: Integer;
-  targetPath : String;
 begin
   if (CurStep = ssPostInstall) then begin
     if IsTaskSelected('reset_settings') then
@@ -449,34 +445,6 @@ begin
             end;
             RegWriteDWordValue(HKCU, LavSplitterFormatsReg, SplitterFormats[i].id, Ord(SplitterPage.Values[i]));
           end;
-      end;
-
-      if IsComponentSelected('mvc3d') then
-      begin
-        ExtractTemporaryFile('7za.exe');
-        targetPath := ExpandConstant('{tmp}\');
-        if IsComponentSelected('lavvideo32') then
-          DoUnzip(targetPath + 'libmfxsw32-v3.7z', ExpandConstant('{app}\x86'));
-        if IsComponentSelected('lavvideo64') then
-          DoUnzip(targetPath + 'libmfxsw64-v3.7z', ExpandConstant('{app}\x64'));
-      end;
-  end;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-begin
-    if CurPageID = wpReady then
-    begin
-      // User can navigate to 'Ready to install' page several times, so we
-      // need to clear file list to ensure that only needed files are added.
-      idpClearFiles;
-
-      if IsComponentSelected('mvc3d') then
-      begin
-        if IsComponentSelected('lavvideo32') then
-          idpAddFile('https://files.1f0.de/lavf/plugins/libmfxsw32-v3.7z', ExpandConstant('{tmp}\libmfxsw32-v3.7z'));
-        if IsComponentSelected('lavvideo64') then
-          idpAddFile('https://files.1f0.de/lavf/plugins/libmfxsw64-v3.7z', ExpandConstant('{tmp}\libmfxsw64-v3.7z'));
       end;
   end;
 end;
@@ -541,5 +509,4 @@ begin
   WizardForm.TasksList.Top    := 0;
   WizardForm.TasksList.Height := PageFromID(wpSelectTasks).SurfaceHeight;
 
-  idpDownloadAfter(wpReady);
 end;

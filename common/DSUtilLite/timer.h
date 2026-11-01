@@ -19,17 +19,20 @@
 
 #include <intrin.h>
 
+#include <cstdint>
+
+
 #define START_TIMER \
-    uint64_t tend;  \
-    uint64_t tstart = __rdtsc();
+    std::uint64_t tend;  \
+    std::uint64_t tstart = __rdtsc();
 
 #define STOP_TIMER(id)                                                                                              \
     tend = __rdtsc();                                                                                               \
     {                                                                                                               \
-        static uint64_t tsum = 0;                                                                                   \
+        static std::uint64_t tsum = 0;                                                                                   \
         static int tcount = 0;                                                                                      \
         static int tskip_count = 0;                                                                                 \
-        if (tcount < 2 || tend - tstart < 8 * tsum / tcount || tend - tstart < 2000)                                \
+        if ((tcount < 2) || (tend - tstart < 8 * tsum / tcount) || (tend - tstart < 2000))                                \
         {                                                                                                           \
             tsum += tend - tstart;                                                                                  \
             tcount++;                                                                                               \

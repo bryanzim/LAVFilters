@@ -18,10 +18,14 @@
  */
 
 #include "stdafx.h"
+
 #include "H264SequenceParser.h"
 
 #include "ByteParser.h"
 #include "H264Nalu.h"
+
+#include <cstddef>
+
 
 CH264SequenceParser::CH264SequenceParser(void)
 {
@@ -33,7 +37,7 @@ CH264SequenceParser::~CH264SequenceParser(void)
 {
 }
 
-HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int nal_size)
+HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, std::size_t buflen, int nal_size)
 {
     CH264Nalu nalu;
     nalu.SetBuffer(buffer, buflen, nal_size);
@@ -41,7 +45,7 @@ HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
     while (nalu.ReadNext())
     {
         const BYTE *data = nalu.GetDataBuffer() + 1;
-        const size_t len = nalu.GetDataLength() - 1;
+        const std::size_t len = nalu.GetDataLength() - 1;
         if (nalu.GetType() == NALU_TYPE_SPS)
         {
             ParseSPS(data, len);
@@ -55,13 +59,14 @@ HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
 static void SPSDecodeScalingList(CByteParser &parser, int size)
 {
     int i, last = 8, next = 8;
-    int matrix = parser.BitRead(1);
+    int const matrix = parser.BitRead(1);
     if (matrix)
     {
-        for (i = 0; i < size; i++)
+        for (i = 0; i < size; ++i)
         {
-            if (next)
+            if (next) {
                 next = (last + parser.SExpGolombRead()) & 0xff;
+}
             if (!i && !next)
             { /* matrix not written */
                 break;
@@ -71,7 +76,7 @@ static void SPSDecodeScalingList(CByteParser &parser, int size)
     }
 }
 
-HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
+HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
 {
     CByteParser parser(buffer, buflen);
     int i;
@@ -91,18 +96,19 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     sps.level = parser.BitRead(8);
     parser.UExpGolombRead(); // sps id
 
-    if (sps.profile == 100 || sps.profile == 110 || sps.profile == 122 || sps.profile == 244 || sps.profile == 44 ||
-        sps.profile == 83 || sps.profile == 86 || sps.profile == 118 || sps.profile == 128 || sps.profile == 144)
+    if ((sps.profile == 100) || (sps.profile == 110) || (sps.profile == 122) || (sps.profile == 244) || (sps.profile == 44) ||
+        (sps.profile == 83) || (sps.profile == 86) || (sps.profile == 118) || (sps.profile == 128) || (sps.profile == 144))
     {
-        sps.chroma = (int)parser.UExpGolombRead();
-        if (sps.chroma == 3)
+        sps.chroma = static_cast<int>(parser.UExpGolombRead());
+        if (sps.chroma == 3) {
             parser.BitRead(1);
-        sps.luma_bitdepth = (int)parser.UExpGolombRead() + 8;
-        sps.chroma_bitdepth = (int)parser.UExpGolombRead() + 8;
+}
+        sps.luma_bitdepth = static_cast<int>(parser.UExpGolombRead()) + 8;
+        sps.chroma_bitdepth = static_cast<int>(parser.UExpGolombRead()) + 8;
         parser.BitRead(1); // transform_bypass
 
         // decode scaling matrices
-        int scaling = parser.BitRead(1);
+        int const scaling = parser.BitRead(1);
         if (scaling)
         {
             // Decode scaling lists
@@ -132,17 +138,18 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     }
 
     parser.UExpGolombRead();                     // log2_max_frame_num
-    int poc_type = (int)parser.UExpGolombRead(); // poc_type
-    if (poc_type == 0)
+    int const poc_type = static_cast<int>(parser.UExpGolombRead()); // poc_type
+    if (poc_type == 0) {
         parser.UExpGolombRead(); // log2_max_poc_lsb
-    else if (poc_type == 1)
+    } else if (poc_type == 1)
     {
         parser.BitRead(1);                         // delta_pic_order_always_zero_flag
         parser.SExpGolombRead();                   // offset_for_non_ref_pic
         parser.SExpGolombRead();                   // offset_for_top_to_bottom_field
-        int cyclen = (int)parser.UExpGolombRead(); // poc_cycle_length
-        for (i = 0; i < cyclen; i++)
+        int const cyclen = static_cast<int>(parser.UExpGolombRead()); // poc_cycle_length
+        for (i = 0; i < cyclen; ++i) {
             parser.SExpGolombRead(); // offset_for_ref_frame[i]
+}
     }
 
     sps.ref_frames = parser.UExpGolombRead(); // ref_frame_count
@@ -150,11 +157,12 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     parser.UExpGolombRead();                  // mb_width
     parser.UExpGolombRead();                  // mb_height
     sps.interlaced = !parser.BitRead(1);      // frame_mbs_only_flag
-    if (sps.interlaced)
+    if (sps.interlaced) {
         parser.BitRead(1); // mb_aff
+}
 
     parser.BitRead(1);            // direct_8x8_inference_flag
-    int crop = parser.BitRead(1); // crop
+    int const crop = parser.BitRead(1); // crop
     if (crop)
     {
         parser.UExpGolombRead(); // crop_left
@@ -163,13 +171,13 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
         parser.UExpGolombRead(); // crop_bottom
     }
 
-    int vui_present = parser.BitRead(1); // vui_parameters_present_flag
+    int const vui_present = parser.BitRead(1); // vui_parameters_present_flag
     if (vui_present)
     {
         sps.ar_present = parser.BitRead(1); // aspect_ratio_info_present_flag
         if (sps.ar_present)
         {
-            int ar_idc = parser.BitRead(8); // aspect_ratio_idc
+            int const ar_idc = parser.BitRead(8); // aspect_ratio_idc
             if (ar_idc == 255)
             {
                 parser.BitRead(16); // sar.num
@@ -177,17 +185,18 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
             }
         }
 
-        int overscan = parser.BitRead(1); // overscan_info_present_flag
-        if (overscan)
+        int const overscan = parser.BitRead(1); // overscan_info_present_flag
+        if (overscan) {
             parser.BitRead(1); // overscan_appropriate_flag
+}
 
-        int vid_sig_type = parser.BitRead(1); // video_signal_type_present_flag
+        int const vid_sig_type = parser.BitRead(1); // video_signal_type_present_flag
         if (vid_sig_type)
         {
             parser.BitRead(3);                  // video_format
             sps.full_range = parser.BitRead(1); // video_full_range_flag
 
-            int colorinfo = parser.BitRead(1); // colour_description_present_flag
+            int const colorinfo = parser.BitRead(1); // colour_description_present_flag
             if (colorinfo)
             {
                 sps.primaries = parser.BitRead(8);

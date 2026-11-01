@@ -18,41 +18,46 @@
  */
 
 #include "stdafx.h"
+
 #include "../LAVSubtitleConsumer.h"
+
+#include <cstddef>
+#include <cstdint>
+
 
 #define FAST_DIV255(x) ((((x) + 128) * 257) >> 16)
 
 DECLARE_BLEND_FUNC_IMPL(blend_rgb_c)
 {
-    ASSERT(pixFmt == LAVPixFmt_RGB32 || pixFmt == LAVPixFmt_RGB24);
+    ASSERT((pixFmt == LAVPixFmt_RGB32 || pixFmt == LAVPixFmt_RGB24));
 
-    BYTE *rgbOut = video[0];
-    const BYTE *subIn = subData[0];
+    BYTE *rgbOut = video[0U];
+    const BYTE *subIn = subData[0U];
 
-    const ptrdiff_t outStride = videoStride[0];
-    const ptrdiff_t inStride = subStride[0];
+    const std::ptrdiff_t outStride = videoStride[0U];
+    const std::ptrdiff_t inStride = subStride[0U];
 
-    const ptrdiff_t dstep = (pixFmt == LAVPixFmt_RGB24) ? 3 : 4;
+    const std::ptrdiff_t dstep = (pixFmt == LAVPixFmt_RGB24) ? 3 : 4;
 
-    for (int y = 0; y < size.cy; y++)
+    for (int y{ 0 }; y < size.cy; ++y)
     {
         BYTE *dstLine = rgbOut + ((y + position.y) * outStride) + (position.x * dstep);
         const BYTE *srcLine = subIn + (y * inStride);
-        for (int x = 0; x < size.cx; x++)
+        for (int x{ 0 }; x < size.cx; ++x)
         {
-            const BYTE a = srcLine[3];
+            const BYTE a = srcLine[3U];
             switch (a)
             {
             case 0: break;
             case 255:
-                dstLine[0] = srcLine[0];
-                dstLine[1] = srcLine[1];
-                dstLine[2] = srcLine[2];
+                dstLine[0U] = srcLine[0U];
+                dstLine[1U] = srcLine[1U];
+                dstLine[2U] = srcLine[2U];
                 break;
             default:
-                dstLine[0] = av_clip_uint8(FAST_DIV255(dstLine[0] * (255 - a)) + srcLine[0]);
-                dstLine[1] = av_clip_uint8(FAST_DIV255(dstLine[1] * (255 - a)) + srcLine[1]);
-                dstLine[2] = av_clip_uint8(FAST_DIV255(dstLine[2] * (255 - a)) + srcLine[2]);
+                dstLine[0U] = av_clip_uint8(FAST_DIV255(dstLine[0U] * (255 - a)) + srcLine[0U]);
+                dstLine[1U] = av_clip_uint8(FAST_DIV255(dstLine[1U] * (255 - a)) + srcLine[1U]);
+                dstLine[2U] = av_clip_uint8(FAST_DIV255(dstLine[2U] * (255 - a)) + srcLine[2U]);
                 break;
             }
             dstLine += dstep;
@@ -65,23 +70,23 @@ DECLARE_BLEND_FUNC_IMPL(blend_rgb_c)
 
 template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
 {
-    ASSERT(pixFmt == LAVPixFmt_YUV420 || pixFmt == LAVPixFmt_NV12 || pixFmt == LAVPixFmt_YUV422 ||
+    ASSERT((pixFmt == LAVPixFmt_YUV420 || pixFmt == LAVPixFmt_NV12 || pixFmt == LAVPixFmt_YUV422 ||
            pixFmt == LAVPixFmt_YUV444 || pixFmt == LAVPixFmt_YUV420bX || pixFmt == LAVPixFmt_YUV422bX ||
-           pixFmt == LAVPixFmt_YUV444bX || pixFmt == LAVPixFmt_P016);
+           pixFmt == LAVPixFmt_YUV444bX || pixFmt == LAVPixFmt_P016));
 
-    BYTE *y = video[0];
-    BYTE *u = video[1];
-    BYTE *v = video[2];
+    BYTE *y = video[0U];
+    BYTE *u = video[1U];
+    BYTE *v = video[2U];
 
-    const BYTE *subY = subData[0];
-    const BYTE *subU = subData[1];
-    const BYTE *subV = subData[2];
-    const BYTE *subA = subData[3];
+    const BYTE *subY = subData[0U];
+    const BYTE *subU = subData[1U];
+    const BYTE *subV = subData[2U];
+    const BYTE *subA = subData[3U];
 
-    const ptrdiff_t outStride = videoStride[0];
-    const ptrdiff_t outStrideUV = videoStride[1];
-    const ptrdiff_t inStride = subStride[0];
-    const ptrdiff_t inStrideUV = subStride[1];
+    const std::ptrdiff_t outStride = videoStride[0U];
+    const std::ptrdiff_t outStrideUV = videoStride[1U];
+    const std::ptrdiff_t inStride = subStride[0U];
+    const std::ptrdiff_t inStrideUV = subStride[1U];
 
     int line, col;
     int w = size.cx, h = size.cy;
@@ -92,12 +97,12 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
     const int vsub = nv12 || (pixFmt != LAVPixFmt_YUV444 && pixFmt != LAVPixFmt_YUV444bX);
     const int shift = sizeof(pixT) > 1 ? bpp - 8 : 0;
 
-    for (line = 0; line < h; line++)
+    for (line = 0; line < h; ++line)
     {
-        pixT *dstY = (pixT *)(y + ((line + yPos) * outStride)) + xPos;
+        pixT *dstY = reinterpret_cast<pixT *>((y + ((line + yPos) * outStride))) + xPos;
         const BYTE *srcY = subY + (line * inStride);
         const BYTE *srcA = subA + (line * inStride);
-        for (col = 0; col < w; col++)
+        for (col = 0; col < w; ++col)
         {
             switch (srcA[col])
             {
@@ -119,34 +124,34 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
         yPos >>= 1;
     }
 
-    for (line = 0; line < h; line++)
+    for (line = 0; line < h; ++line)
     {
-        pixT *dstUV = (pixT *)(u + (line + yPos) * outStrideUV) + (xPos << 1);
+        pixT *dstUV = reinterpret_cast<pixT *>((u + (line + yPos) * outStrideUV)) + (xPos << 1);
 
-        pixT *dstU = (pixT *)(u + (line + yPos) * outStrideUV) + xPos;
+        pixT *dstU = reinterpret_cast<pixT *>((u + (line + yPos) * outStrideUV)) + xPos;
         const BYTE *srcU = subU + line * inStrideUV;
 
-        pixT *dstV = (pixT *)(v + (line + yPos) * outStrideUV) + xPos;
+        pixT *dstV = reinterpret_cast<pixT *>((v + (line + yPos) * outStrideUV)) + xPos;
         const BYTE *srcV = subV + line * inStrideUV;
 
-        const BYTE *srcA = subA + (line * inStride * (ptrdiff_t(1) << hsub));
-        for (col = 0; col < w; col++)
+        const BYTE *srcA = subA + (line * inStride * (std::ptrdiff_t(1) << hsub));
+        for (col = 0; col < w; ++col)
         {
             // Average Alpha
             int alpha;
-            if (hsub && vsub && col + 1 < w && line + 1 < h)
+            if (hsub && vsub && (col + 1 < w) && (line + 1 < h))
             {
-                alpha = (srcA[0] + srcA[inStride] + srcA[1] + srcA[inStride + 1]) >> 2;
+                alpha = (srcA[0U] + srcA[inStride] + srcA[1U] + srcA[inStride + 1]) >> 2;
             }
             else if (hsub || vsub)
             {
-                int alpha_h = hsub && col + 1 < w ? (srcA[0] + srcA[1]) >> 1 : srcA[0];
-                int alpha_v = vsub && line + 1 < h ? (srcA[0] + srcA[inStride]) >> 1 : srcA[0];
+                int const alpha_h = hsub && col + 1 < w ? (srcA[0U] + srcA[1U]) >> 1 : srcA[0U];
+                int const alpha_v = vsub && line + 1 < h ? (srcA[0U] + srcA[inStride]) >> 1 : srcA[0U];
                 alpha = (alpha_h + alpha_v) >> 1;
             }
             else
             {
-                alpha = srcA[0];
+                alpha = srcA[0U];
             }
             if (nv12)
             {
@@ -180,14 +185,14 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
                     break;
                 }
             }
-            srcA += ptrdiff_t(1) << vsub;
+            srcA += std::ptrdiff_t(1) << vsub;
         }
     }
 
     return S_OK;
 }
 
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint8_t, 1> BLEND_FUNC_PARAMS;
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint8_t, 0> BLEND_FUNC_PARAMS;
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint16_t, 0> BLEND_FUNC_PARAMS;
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint16_t, 1> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint8_t, 1> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint8_t, 0> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint16_t, 0> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint16_t, 1> BLEND_FUNC_PARAMS;

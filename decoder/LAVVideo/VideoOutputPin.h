@@ -19,6 +19,8 @@
 
 #pragma once
 
+class CLAVVideo;
+
 class CVideoOutputPin : public CTransformOutputPin
 {
   public:

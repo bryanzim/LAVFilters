@@ -20,11 +20,15 @@
  */
 
 #include "stdafx.h"
+
 #include "DShowUtil.h"
+
+#include <array>
+
 
 std::wstring CStringFromGUID(const GUID &guid)
 {
-    WCHAR null[128] = {0}, buff[128];
+    WCHAR null[128U] = {0}, buff[128U];
     StringFromGUID2(GUID_NULL, null, 127);
     return std::wstring(StringFromGUID2(guid, buff, 127) > 0 ? buff : null);
 }
@@ -33,14 +37,15 @@ std::wstring CStringFromGUID(const GUID &guid)
 
 bool DeleteRegKey(std::wstring szKey, std::wstring szSubkey)
 {
-    bool bOK = false;
+    bool bOK{ false };
 
     HKEY hKey;
     LONG ec = ::RegOpenKeyEx(HKEY_CLASSES_ROOT, szKey.c_str(), 0, KEY_ALL_ACCESS, &hKey);
     if (ec == ERROR_SUCCESS)
     {
-        if (szSubkey.length() > 0)
+        if (szSubkey.length() > 0) {
             ec = ::RegDeleteKey(hKey, szSubkey.c_str());
+}
 
         bOK = (ec == ERROR_SUCCESS);
 
@@ -52,21 +57,22 @@ bool DeleteRegKey(std::wstring szKey, std::wstring szSubkey)
 
 bool SetRegKeyValue(std::wstring szKey, std::wstring szSubkey, std::wstring szValueName, std::wstring szValue)
 {
-    bool bOK = false;
+    bool bOK{ false };
 
-    if (szSubkey.length() > 0)
+    if (szSubkey.length() > 0) {
         szKey += _T("\\") + szSubkey;
+}
 
     HKEY hKey;
     LONG ec =
-        ::RegCreateKeyEx(HKEY_CLASSES_ROOT, szKey.c_str(), 0, 0, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, 0);
+        ::RegCreateKeyEx(HKEY_CLASSES_ROOT, szKey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &hKey, nullptr);
     if (ec == ERROR_SUCCESS)
     {
         if (szValue.length() > 0)
         {
             ec = ::RegSetValueEx(hKey, szValueName.c_str(), 0, REG_SZ,
                                  reinterpret_cast<BYTE *>(const_cast<LPTSTR>(szValue.c_str())),
-                                 (DWORD)(_tcslen(szValue.c_str()) + 1) * sizeof(TCHAR));
+                                 static_cast<DWORD>((_tcslen(szValue.c_str()) + 1)) * sizeof(TCHAR));
         }
 
         bOK = (ec == ERROR_SUCCESS);
@@ -84,9 +90,9 @@ bool SetRegKeyValue(std::wstring szKey, std::wstring szSubkey, std::wstring szVa
 
 void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, LPCWSTR chkbytes, ...)
 {
-    std::wstring null = CStringFromGUID(GUID_NULL);
-    std::wstring majortype = CStringFromGUID(MEDIATYPE_Stream);
-    std::wstring subtype = CStringFromGUID(subtype2);
+    std::wstring const null = CStringFromGUID(GUID_NULL);
+    std::wstring const majortype = CStringFromGUID(MEDIATYPE_Stream);
+    std::wstring const subtype = CStringFromGUID(subtype2);
 
     SetRegKeyValue(_T("Media Type\\") + majortype, subtype, _T("0"), chkbytes);
     SetRegKeyValue(_T("Media Type\\") + majortype, subtype, _T("Source Filter"), CStringFromGUID(clsid));
@@ -95,7 +101,7 @@ void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, LPCWSTR chkb
 
     va_list extensions;
     va_start(extensions, chkbytes);
-    LPCWSTR ext = nullptr;
+    LPCWSTR ext{ nullptr };
     while (ext = va_arg(extensions, LPCWSTR))
     {
         DeleteRegKey(_T("Media Type\\Extensions"), ext);
@@ -115,18 +121,18 @@ void UnRegisterProtocolSourceFilter(LPCWSTR protocol)
 
 void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, std::list<LPCWSTR> chkbytes, ...)
 {
-    std::wstring null = CStringFromGUID(GUID_NULL);
-    std::wstring majortype = CStringFromGUID(MEDIATYPE_Stream);
-    std::wstring subtype = CStringFromGUID(subtype2);
+    std::wstring const null = CStringFromGUID(GUID_NULL);
+    std::wstring const majortype = CStringFromGUID(MEDIATYPE_Stream);
+    std::wstring const subtype = CStringFromGUID(subtype2);
 
-    int i = 0;
+    int i{ 0 };
     std::list<LPCWSTR>::iterator it;
     for (it = chkbytes.begin(); it != chkbytes.end(); ++it)
     {
-        WCHAR idx[10] = {0};
-        swprintf_s(idx, _T("%d"), i);
-        SetRegKeyValue(_T("Media Type\\") + majortype, subtype, idx, *it);
-        i++;
+        std::array<WCHAR, 10U> idx{0};
+        ::swprintf_s(idx.data(), idx.size(),  _T("%d"), i);
+        SetRegKeyValue(_T("Media Type\\") + majortype, subtype, idx.data(), *it);
+        ++i;
     }
 
     SetRegKeyValue(_T("Media Type\\") + majortype, subtype, _T("Source Filter"), CStringFromGUID(clsid));
@@ -135,7 +141,7 @@ void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, std::list<LP
 
     va_list extensions;
     va_start(extensions, chkbytes);
-    LPCWSTR ext = nullptr;
+    LPCWSTR ext{ nullptr };
     while (ext = va_arg(extensions, LPCWSTR))
     {
         DeleteRegKey(_T("Media Type\\Extensions"), ext);

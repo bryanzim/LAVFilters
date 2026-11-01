@@ -19,15 +19,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 struct GetBitContext;
 
 class CVC1HeaderParser
 {
   public:
-    CVC1HeaderParser(const BYTE *pData, size_t length, AVCodecID codec = AV_CODEC_ID_VC1);
+    CVC1HeaderParser(const BYTE *pData, std::size_t length, AVCodecID codec = AV_CODEC_ID_VC1);
     ~CVC1HeaderParser(void);
 
-    AVPictureType ParseVC1PictureType(const uint8_t *buf, int buflen);
+    AVPictureType ParseVC1PictureType(const std::uint8_t *buf, int buflen);
 
   public:
     struct
@@ -52,6 +55,6 @@ class CVC1HeaderParser
     } hdr;
 
   private:
-    void ParseVC1Header(const BYTE *pData, size_t length, AVCodecID codec);
+    void ParseVC1Header(const BYTE *pData, std::size_t length, AVCodecID codec);
     void VC1ParseSequenceHeader(GetBitContext *gb);
 };

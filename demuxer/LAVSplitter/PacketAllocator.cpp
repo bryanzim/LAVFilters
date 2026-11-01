@@ -21,7 +21,11 @@
  */
 
 #include "stdafx.h"
+
 #include "PacketAllocator.h"
+
+#include <cstddef>
+
 
 CMediaPacketSample::CMediaPacketSample(LPCTSTR pName, CBaseAllocator *pAllocator, HRESULT *phr)
     : CMediaSample(pName, pAllocator, phr)
@@ -32,11 +36,11 @@ STDMETHODIMP CMediaPacketSample::QueryInterface(REFIID riid, void **ppv)
 {
     if (riid == __uuidof(ILAVMediaSample))
     {
-        return GetInterface((ILAVMediaSample *)this, ppv);
+        return GetInterface(reinterpret_cast<ILAVMediaSample *>(this), ppv);
     }
     else if (riid == __uuidof(IMediaSideData))
     {
-        return GetInterface((IMediaSideData *)this, ppv);
+        return GetInterface(reinterpret_cast<IMediaSideData *>(this), ppv);
     }
     return CMediaSample::QueryInterface(riid, ppv);
 }
@@ -85,14 +89,14 @@ STDMETHODIMP_(ULONG) CMediaPacketSample::Release()
         // Our refcount is reliably 0 thus no-one will mess with us
         m_pAllocator->ReleaseBuffer(this);
     }
-    return (ULONG)lRef;
+    return static_cast<ULONG>(lRef);
 }
 
 STDMETHODIMP CMediaPacketSample::SetPacket(Packet *pPacket)
 {
     SAFE_DELETE(m_pPacket);
     m_pPacket = pPacket;
-    SetPointer(pPacket->GetData(), (LONG)pPacket->GetDataSize());
+    SetPointer(pPacket->GetData(), static_cast<LONG>(pPacket->GetDataSize()));
 
     SAFE_DELETE(m_pSideData);
 
@@ -106,16 +110,16 @@ STDMETHODIMP CMediaPacketSample::SetPacket(Packet *pPacket)
     return S_OK;
 }
 
-STDMETHODIMP CMediaPacketSample::SetSideData(GUID guidType, const BYTE *pData, size_t size)
+STDMETHODIMP CMediaPacketSample::SetSideData(GUID guidType, const BYTE *pData, std::size_t size)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CMediaPacketSample::GetSideData(GUID guidType, const BYTE **pData, size_t *pSize)
+STDMETHODIMP CMediaPacketSample::GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize)
 {
-    if (guidType == IID_MediaSideDataFFMpeg && m_pSideData)
+    if ((guidType == IID_MediaSideDataFFMpeg) && m_pSideData)
     {
-        *pData = (const BYTE *)m_pSideData;
+        *pData = reinterpret_cast<const BYTE *>(m_pSideData);
         *pSize = sizeof(MediaSideDataFFMpeg);
 
         return S_OK;
@@ -139,7 +143,7 @@ STDMETHODIMP CPacketAllocator::NonDelegatingQueryInterface(REFIID riid, __deref_
 {
     if (riid == IID_ILAVDynamicAllocator)
     {
-        return GetInterface((ILAVDynamicAllocator *)this, ppv);
+        return GetInterface(reinterpret_cast<ILAVDynamicAllocator *>(this), ppv);
     }
     else
     {
@@ -151,7 +155,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
 {
     CheckPointer(pActual, E_POINTER);
     ValidateReadWritePtr(pActual, sizeof(ALLOCATOR_PROPERTIES));
-    CAutoLock cObjectLock(this);
+    CAutoLock const cObjectLock(this);
 
     ZeroMemory(pActual, sizeof(ALLOCATOR_PROPERTIES));
 
@@ -166,7 +170,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
         DbgLog((LOG_ERROR, 1, TEXT("Alignment requested 0x%x not a power of 2!"), pRequest->cbAlign));
     }
     /*  Check the alignment requested */
-    if (pRequest->cbAlign == 0 || (SysInfo.dwAllocationGranularity & (pRequest->cbAlign - 1)) != 0)
+    if ((pRequest->cbAlign == 0) || ((SysInfo.dwAllocationGranularity & (pRequest->cbAlign - 1)) != 0))
     {
         DbgLog((LOG_ERROR, 1, TEXT("Invalid alignment 0x%x requested - granularity = 0x%x"), pRequest->cbAlign,
                 SysInfo.dwAllocationGranularity));
@@ -197,7 +201,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
     // round length up to alignment - remember that prefix is included in
     // the alignment
     LONG lSize = pRequest->cbBuffer + pRequest->cbPrefix;
-    LONG lRemainder = lSize % pRequest->cbAlign;
+    LONG const lRemainder = lSize % pRequest->cbAlign;
     if (lRemainder != 0)
     {
         lSize = lSize - lRemainder + pRequest->cbAlign;
@@ -214,7 +218,7 @@ STDMETHODIMP CPacketAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest, ALL
 
 HRESULT CPacketAllocator::Alloc(void)
 {
-    CAutoLock lck(this);
+    CAutoLock const lck(this);
 
     /* Check he has called SetProperties */
     HRESULT hr = CBaseAllocator::Alloc();
@@ -237,7 +241,7 @@ HRESULT CPacketAllocator::Alloc(void)
     }
 
     /* Make sure we've got reasonable values */
-    if (m_lSize < 0 || m_lPrefix < 0 || m_lCount < 0)
+    if ((m_lSize < 0) || (m_lPrefix < 0) || (m_lCount < 0))
     {
         return E_OUTOFMEMORY;
     }
@@ -249,7 +253,7 @@ HRESULT CPacketAllocator::Alloc(void)
     ASSERT(m_lAllocated == 0);
 
     // Create the initial set of samples
-    for (; m_lAllocated < m_lCount; m_lAllocated++)
+    for (; m_lAllocated < m_lCount; ++m_lAllocated)
     {
         pSample = new CMediaPacketSample(NAME("LAV Package media sample"), this, &hr);
 
@@ -280,21 +284,21 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
     UNREFERENCED_PARAMETER(dwFlags);
     CMediaSample *pSample;
 
-    *ppBuffer = NULL;
+    *ppBuffer = nullptr;
     for (;;)
     {
         { // scope for lock
-            CAutoLock cObjectLock(this);
+            CAutoLock const cObjectLock(this);
 
             /* Check we are committed */
             if (!m_bCommitted)
             {
                 return VFW_E_NOT_COMMITTED;
             }
-            pSample = (CMediaSample *)m_lFree.RemoveHead();
+            pSample = reinterpret_cast<CMediaSample *>(m_lFree.RemoveHead());
 
             /* if no sample was available, allocate a new one */
-            if (pSample == NULL)
+            if (pSample == nullptr)
             {
                 HRESULT hr = S_OK;
                 pSample = new CMediaPacketSample(NAME("LAV Package media sample"), this, &hr);
@@ -302,7 +306,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
 
                 if (pSample)
                 {
-                    m_lAllocated++;
+                    ++m_lAllocated;
                     DbgLog((LOG_TRACE, 10, "Allocated new sample, %d total", m_lAllocated));
                 }
             }
@@ -318,7 +322,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
         {
             return VFW_E_TIMEOUT;
         }
-        ASSERT(m_hSem != NULL);
+        ASSERT(m_hSem != nullptr);
         WaitForSingleObject(m_hSem, INFINITE);
     }
 
@@ -332,7 +336,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
     *ppBuffer = pSample;
 
 #ifdef DXMPERF
-    PERFLOG_GETBUFFER((IMemAllocator *)this, pSample);
+    PERFLOG_GETBUFFER(reinterpret_cast<IMemAllocator *>(this), pSample);
 #endif // DXMPERF
 
     return NOERROR;

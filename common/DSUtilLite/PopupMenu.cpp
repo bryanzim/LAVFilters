@@ -18,7 +18,11 @@
  */
 
 #include "stdafx.h"
+
 #include "PopupMenu.h"
+
+#include <cwchar>
+
 
 CPopupMenu::CPopupMenu(void)
 {
@@ -27,14 +31,14 @@ CPopupMenu::CPopupMenu(void)
 
 CPopupMenu::~CPopupMenu(void)
 {
-    if (m_hMenu)
+    if (m_hMenu) {
         DestroyMenu(m_hMenu);
+}
 }
 
 HRESULT CPopupMenu::AddItem(UINT id, LPWSTR caption, BOOL checked, BOOL enabled)
 {
-    if (!m_hMenu)
-        return E_UNEXPECTED;
+    if (!m_hMenu) { return E_UNEXPECTED; }
     MENUITEMINFO mii;
     mii.cbSize = sizeof(mii);
     mii.fMask = MIIM_ID | MIIM_STATE | MIIM_FTYPE | MIIM_STRING;
@@ -42,15 +46,14 @@ HRESULT CPopupMenu::AddItem(UINT id, LPWSTR caption, BOOL checked, BOOL enabled)
     mii.wID = id;
     mii.fState = (checked ? MFS_CHECKED : 0) | (!enabled ? MFS_DISABLED : 0);
     mii.dwTypeData = caption;
-    mii.cch = (UINT)wcslen(mii.dwTypeData);
+    mii.cch = static_cast<UINT>(std::wcslen(mii.dwTypeData));
     InsertMenuItem(m_hMenu, order++, TRUE, &mii);
     return S_OK;
 }
 
 HRESULT CPopupMenu::AddSeparator()
 {
-    if (!m_hMenu)
-        return E_UNEXPECTED;
+    if (!m_hMenu) { return E_UNEXPECTED; }
     MENUITEMINFO mii;
     mii.cbSize = sizeof(mii);
     mii.fMask = MIIM_TYPE;
@@ -61,15 +64,14 @@ HRESULT CPopupMenu::AddSeparator()
 
 HRESULT CPopupMenu::AddSubmenu(HMENU hSubMenu, LPWSTR caption)
 {
-    if (!m_hMenu)
-        return E_UNEXPECTED;
+    if (!m_hMenu) { return E_UNEXPECTED; }
     MENUITEMINFO mii;
     mii.cbSize = sizeof(mii);
     mii.fMask = MIIM_FTYPE | MIIM_STRING | MIIM_SUBMENU;
     mii.fType = MFT_STRING;
     mii.hSubMenu = hSubMenu;
     mii.dwTypeData = caption;
-    mii.cch = (UINT)wcslen(mii.dwTypeData);
+    mii.cch = static_cast<UINT>(std::wcslen(mii.dwTypeData));
     InsertMenuItem(m_hMenu, order++, TRUE, &mii);
     return S_OK;
 }

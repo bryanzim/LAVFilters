@@ -20,15 +20,15 @@
 #pragma once
 
 #include "decoders/ILAVDecoder.h"
-#include "SynchronizedQueue.h"
 #include "IMediaSideDataFFmpeg.h"
+#include "SynchronizedQueue.h"
 
 class CLAVVideo;
 
 class CDecodeManager : protected CCritSec
 {
   public:
-    CDecodeManager(CLAVVideo *pLAVVideo);
+    explicit CDecodeManager(CLAVVideo *pLAVVideo);
     ~CDecodeManager();
 
     static ILAVDecoder *CreateHWAccelDecoder(LAVHWAccel hwAccel);
@@ -66,14 +66,17 @@ class CDecodeManager : protected CCritSec
     }
     STDMETHODIMP GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
     {
-        if (m_pDecoder == NULL)
+        if (m_pDecoder == nullptr)
         {
-            if (pPix)
+            if (pPix) {
                 *pPix = LAVPixFmt_None;
-            if (pBpp)
+}
+            if (pBpp) {
                 *pBpp = 8;
-            if (pPixSoftware)
+}
+            if (pPixSoftware) {
                 *pPixSoftware = LAVPixFmt_None;
+}
 
             return S_FALSE;
         }
@@ -100,10 +103,10 @@ class CDecodeManager : protected CCritSec
 
     MediaSideDataFFMpeg m_SideDataCache{};
 
-    BOOL m_bHWDecoder = FALSE;
-    BOOL m_bHWDecoderFailed = FALSE;
+    BOOL m_bHWDecoder{ FALSE };
+    BOOL m_bHWDecoderFailed{ FALSE };
 
-    BOOL m_bWMV9Failed = FALSE;
+    BOOL m_bWMV9Failed{ FALSE };
 
     std::wstring m_processName;
 };

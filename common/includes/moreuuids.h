@@ -23,12 +23,17 @@
 
 #pragma once
 
-#include <dvdmedia.h>
+#ifdef _WIN32
 #include <dmodshow.h>
+#include <dvdmedia.h>
 #include <ks.h>
 #include <ksmedia.h>
 #include <MMReg.h>
 #include <wmcodecdsp.h>
+#endif
+
+#include <array>
+#include <cstring>
 
 #define WAVE_FORMAT_DOLBY_AC3 0x2000
 // {00002000-0000-0010-8000-00aa00389b71}
@@ -128,7 +133,7 @@ struct DIRACINFOHEADER
 {
     VIDEOINFOHEADER2 hdr;
     DWORD cbSequenceHeader;
-    DWORD dwSequenceHeader[1];
+    std::array<DWORD, 1U> dwSequenceHeader{};
 };
 
 // MP4
@@ -223,6 +228,10 @@ DEFINE_GUID(MEDIASUBTYPE_RV40, 0x30345652, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xA
 // 31345652-0000-0010-8000-00AA00389B71
 DEFINE_GUID(MEDIASUBTYPE_RV41, 0x31345652, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71);
 
+// RealVideo 6 ("RV60")
+DEFINE_GUID(MEDIASUBTYPE_RV60, MAKEFOURCC('R', 'V', '6', '0'), 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B,
+            0x71);
+
 // 345f3431-0000-0010-8000-00AA00389B71
 DEFINE_GUID(MEDIASUBTYPE_14_4, 0x345f3431, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71);
 
@@ -303,9 +312,9 @@ struct WAVEFORMATEXPS2 : public WAVEFORMATEX
 {
     DWORD dwInterleave;
 
-    struct WAVEFORMATEXPS2()
+    explicit WAVEFORMATEXPS2()
     {
-        memset(this, 0, sizeof(*this));
+        std::memset(this, 0, sizeof(*this));
         cbSize = sizeof(WAVEFORMATEXPS2) - sizeof(WAVEFORMATEX);
     }
 };
@@ -398,7 +407,7 @@ typedef struct tagVORBISFORMAT2
     DWORD Channels;
     DWORD SamplesPerSec;
     DWORD BitsPerSample;
-    DWORD HeaderSize[3]; // 0: Identification, 1: Comment, 2: Setup
+    std::array<DWORD, 3U> HeaderSize{}; // 0: Identification, 1: Comment, 2: Setup
 } VORBISFORMAT2, *PVORBISFORMAT2, FAR *LPVORBISFORMAT2;
 
 //
@@ -445,8 +454,8 @@ DEFINE_GUID(MEDIASUBTYPE_WEBVTT, 0xc886d215, 0xf485, 0x40bb, 0x8d, 0xb6, 0xfa, 0
 typedef struct
 {
     DWORD dwOffset;
-    CHAR IsoLang[4];      // three letter lang code + terminating zero
-    WCHAR TrackName[256]; // 256 chars ought to be enough for everyone :)
+    std::array<CHAR, 4U> IsoLang{}; // three letter lang code + terminating zero
+    std::array<WCHAR, 256U> TrackName{}; // 256 chars ought to be enough for everyone :)
 } SUBTITLEINFO;
 #pragma pack(pop)
 
@@ -1013,6 +1022,12 @@ DEFINE_GUID(MEDIASUBTYPE_ap4h, 0x68347061, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xA
 
 DEFINE_GUID(MEDIASUBTYPE_ap4x, 0x78347061, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71);
 
+// Apple ProRes RAW ("aprn", "aprh")
+DEFINE_GUID(MEDIASUBTYPE_aprn, MAKEFOURCC('a', 'p', 'r', 'n'), 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B,
+            0x71);
+DEFINE_GUID(MEDIASUBTYPE_aprh, MAKEFOURCC('a', 'p', 'r', 'h'), 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B,
+            0x71);
+
 // Apple ICOD
 DEFINE_GUID(MEDIASUBTYPE_icod, 0x646F6369, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71);
 
@@ -1377,9 +1392,9 @@ struct WAVEFORMATEX_HDMV_LPCM : public WAVEFORMATEX
 {
     BYTE channel_conf;
 
-    struct WAVEFORMATEX_HDMV_LPCM()
+    explicit WAVEFORMATEX_HDMV_LPCM()
     {
-        memset(this, 0, sizeof(*this));
+        std::memset(this, 0, sizeof(*this));
         cbSize = sizeof(WAVEFORMATEX_HDMV_LPCM) - sizeof(WAVEFORMATEX);
     }
 };
@@ -1395,7 +1410,7 @@ struct WAVEFORMATEXFFMPEG
     int nCodecId;
     WAVEFORMATEX wfex;
 
-    struct WAVEFORMATEXFFMPEG()
+    explicit WAVEFORMATEXFFMPEG()
     {
         nCodecId = 0;
     }

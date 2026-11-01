@@ -18,14 +18,21 @@
  */
 
 #include "stdafx.h"
+
 #include "LAVSubtitleProvider.h"
 
+#include "LAVVideo.h"
 #include "moreuuids.h"
+#include "version.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+
 #include "libavutil/colorspace.h"
 
-#include "LAVVideo.h"
-
-#include "version.h"
 
 #define FAST_DIV255(x) ((((x) + 128) * 257) >> 16)
 #define SUBTITLE_PTS_TIMEOUT (AV_NOPTS_VALUE + 1)
@@ -41,7 +48,7 @@ static const SubRenderOption options[] = {
   { "isBitmap",       OFFSET(isBitmap),        SROPT_TYPE_BOOL,   SROPT_FLAG_READONLY },
   { "isMovable",      OFFSET(isMovable),       SROPT_TYPE_BOOL,   SROPT_FLAG_READONLY },
   { "combineBitmaps", OFFSET(combineBitmaps),  SROPT_TYPE_BOOL,   0                   },
-  { 0 }
+  { nullptr }
 };
 // clang-format on
 
@@ -51,7 +58,7 @@ static const SubRenderOption options[] = {
 CLAVSubtitleProvider::CLAVSubtitleProvider(CLAVVideo *pLAVVideo, ISubRenderConsumer *pConsumer)
   : CSubRenderOptionsImpl(::options, &context)
   , CUnknown(L"CLAVSubtitleProvider", nullptr)
-  , m_pLAVVideo(pLAVVideo)
+  , m_pLAVVideo{pLAVVideo}
 {
   m_ControlThread = new CLAVSubtitleProviderControlThread();
 
@@ -79,11 +86,12 @@ CLAVSubtitleProvider::~CLAVSubtitleProvider(void)
 
 void CLAVSubtitleProvider::CloseDecoder()
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   m_pAVCodec = nullptr;
   if (m_pAVCtx) {
-    if (m_pAVCtx->extradata)
+    if (m_pAVCtx->extradata) {
       av_freep(&m_pAVCtx->extradata);
+}
     avcodec_free_context(&m_pAVCtx);
   }
   if (m_pParser) {
@@ -96,9 +104,10 @@ void CLAVSubtitleProvider::CloseDecoder()
 
 STDMETHODIMP CLAVSubtitleProvider::SetConsumer(ISubRenderConsumer *pConsumer)
 {
-  CAutoLock lock(this);
-  if (m_pConsumer)
+  CAutoLock const lock(this);
+  if (m_pConsumer) {
     DisconnectConsumer();
+}
 
   CheckPointer(pConsumer, E_FAIL);
 
@@ -106,8 +115,9 @@ STDMETHODIMP CLAVSubtitleProvider::SetConsumer(ISubRenderConsumer *pConsumer)
   m_pConsumer->AddRef();
   m_pConsumer->Connect(this);
 
-  if (FAILED(m_pConsumer->QueryInterface(&m_pConsumer2)))
+  if (FAILED(m_pConsumer->QueryInterface(&m_pConsumer2))) {
     m_pConsumer2 = nullptr;
+}
 
   m_ControlThread->SetConsumer2(m_pConsumer2);
 
@@ -116,7 +126,7 @@ STDMETHODIMP CLAVSubtitleProvider::SetConsumer(ISubRenderConsumer *pConsumer)
 
 STDMETHODIMP CLAVSubtitleProvider::DisconnectConsumer(void)
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   CheckPointer(m_pConsumer, S_FALSE);
   m_ControlThread->SetConsumer2(nullptr);
   m_pConsumer->Disconnect();
@@ -136,7 +146,7 @@ STDMETHODIMP CLAVSubtitleProvider::RequestFrame(REFERENCE_TIME start, REFERENCE_
   CLAVSubtitleFrame *subtitleFrame = new CLAVSubtitleFrame();
   subtitleFrame->AddRef();
 
-  if (m_pAVCtx->width == 720 && m_pAVCtx->height == 480) {
+  if ((m_pAVCtx->width == 720) && (m_pAVCtx->height == 480)) {
     SIZE videoSize;
     m_pConsumer->GetSize("originalVideoSize", &videoSize);
     if (videoSize.cx == 720) {
@@ -145,27 +155,28 @@ STDMETHODIMP CLAVSubtitleProvider::RequestFrame(REFERENCE_TIME start, REFERENCE_
   }
 
   // update primaries based on the video dimensions
-  if (m_pAVCtx->height == 480)
+  if (m_pAVCtx->height == 480) {
       this->context.primaries = COLOR_PRIM_NTSC;
-  else if (m_pAVCtx->height == 576)
+  } else if (m_pAVCtx->height == 576) {
       this->context.primaries = COLOR_PRIM_PAL;
+}
 
   RECT outputRect;
   ::SetRect(&outputRect, 0, 0, m_pAVCtx->width, m_pAVCtx->height);
   subtitleFrame->SetOutputRect(outputRect);
 
-  REFERENCE_TIME mid = start + ((stop-start) >> 1);
+  REFERENCE_TIME const mid = start + ((stop-start) >> 1);
 
   // Scope this so we limit the provider-lock to the part where its needed
   {
-    CAutoLock lock(this);
-    for (auto it = m_SubFrames.begin(); it != m_SubFrames.end(); it++) {
+    CAutoLock const lock(this);
+    for (auto it = m_SubFrames.begin(); it != m_SubFrames.end(); ++it) {
       CLAVSubRect *pRect = *it;
       if ((pRect->rtStart == AV_NOPTS_VALUE || pRect->rtStart <= mid)
         && (pRect->rtStop == AV_NOPTS_VALUE || pRect->rtStop > mid)
         && (m_bComposit || pRect->forced)) {
 
-        if (m_pHLI && PTS2RT(m_pHLI->StartPTM) <= mid && PTS2RT(m_pHLI->EndPTM) >= mid) {
+        if (m_pHLI && (PTS2RT(m_pHLI->StartPTM) <= mid) && (PTS2RT(m_pHLI->EndPTM) >= mid)) {
           pRect = ProcessDVDHLI(pRect);
         }
         subtitleFrame->AddBitmap(pRect);
@@ -196,7 +207,7 @@ STDMETHODIMP CLAVSubtitleProvider::Disconnect(void)
 
 STDMETHODIMP CLAVSubtitleProvider::InitDecoder(const CMediaType *pmt, AVCodecID codecId)
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   m_pAVCodec = avcodec_find_decoder(codecId);
   CheckPointer(m_pAVCodec, VFW_E_TYPE_NOT_ACCEPTED);
 
@@ -205,16 +216,16 @@ STDMETHODIMP CLAVSubtitleProvider::InitDecoder(const CMediaType *pmt, AVCodecID 
 
   m_pParser = av_parser_init(codecId);
 
-  size_t extralen = 0;
-  getExtraData((const BYTE *)pmt->Format(), pmt->FormatType(), pmt->FormatLength(), nullptr, &extralen);
+  std::size_t extralen{ 0U };
+  getExtraData(reinterpret_cast<const BYTE *>(pmt->Format()), pmt->FormatType(), pmt->FormatLength(), nullptr, &extralen);
 
   if (extralen > 0) {
     // Just copy extradata
-    BYTE *extra = (uint8_t *)av_mallocz(extralen + AV_INPUT_BUFFER_PADDING_SIZE);
-    getExtraData((const BYTE *)pmt->Format(), pmt->FormatType(), pmt->FormatLength(), extra, nullptr);
+    BYTE *extra = reinterpret_cast<std::uint8_t *>(av_mallocz(extralen + AV_INPUT_BUFFER_PADDING_SIZE));
+    getExtraData(reinterpret_cast<const BYTE *>(pmt->Format()), pmt->FormatType(), pmt->FormatLength(), extra, nullptr);
 
     m_pAVCtx->extradata = extra;
-    m_pAVCtx->extradata_size = (int)extralen;
+    m_pAVCtx->extradata_size = static_cast<int>(extralen);
   }
 
   if (pmt->formattype == FORMAT_SubtitleInfo) {
@@ -227,7 +238,7 @@ STDMETHODIMP CLAVSubtitleProvider::InitDecoder(const CMediaType *pmt, AVCodecID 
     m_pAVCtx->height = bmi->biHeight;
   }
 
-  int ret = avcodec_open2(m_pAVCtx, m_pAVCodec, nullptr);
+  int const ret = avcodec_open2(m_pAVCtx, m_pAVCodec, nullptr);
   if (ret < 0) {
     DbgLog((LOG_TRACE, 10, L"CLAVSubtitleProvider::InitDecoder(): avocdec_open2 failed with %d", ret));
     CloseDecoder();
@@ -239,7 +250,7 @@ STDMETHODIMP CLAVSubtitleProvider::InitDecoder(const CMediaType *pmt, AVCodecID 
 
 STDMETHODIMP CLAVSubtitleProvider::Flush()
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   ClearSubtitleRects();
   SAFE_DELETE(m_pHLI);
 
@@ -254,8 +265,8 @@ STDMETHODIMP CLAVSubtitleProvider::Flush()
 
 void CLAVSubtitleProvider::ClearSubtitleRects()
 {
-  CAutoLock lock(this);
-  for (auto it = m_SubFrames.begin(); it != m_SubFrames.end(); it++) {
+  CAutoLock const lock(this);
+  for (auto it = m_SubFrames.begin(); it != m_SubFrames.end(); ++it) {
     (*it)->Release();
   }
   m_SubFrames.clear();
@@ -263,16 +274,16 @@ void CLAVSubtitleProvider::ClearSubtitleRects()
 
 void CLAVSubtitleProvider::TimeoutSubtitleRects(REFERENCE_TIME rt)
 {
-  CAutoLock lock(this);
-  REFERENCE_TIME timestamp = rt - 10 * 10000000; // Timeout all subs 10 seconds in the past
+  CAutoLock const lock(this);
+  REFERENCE_TIME const timestamp = rt - 10 * 10000000; // Timeout all subs 10 seconds in the past
   auto it = m_SubFrames.begin();
   while (it != m_SubFrames.end()) {
-    if ((*it)->rtStop != AV_NOPTS_VALUE && (*it)->rtStop < timestamp) {
+    if (((*it)->rtStop != AV_NOPTS_VALUE) && ((*it)->rtStop < timestamp)) {
       DbgLog((LOG_TRACE, 10, L"Timed out subtitle at %I64d", (*it)->rtStart));
       (*it)->Release();
       it = m_SubFrames.erase(it);
     } else {
-      it++;
+      ++it;
     }
   }
 }
@@ -281,32 +292,32 @@ STDMETHODIMP CLAVSubtitleProvider::Decode(BYTE *buf, int buflen, REFERENCE_TIME 
 {
   ASSERT(m_pAVCtx);
 
-  if (m_pSubtitlePacket == nullptr)
+  if (m_pSubtitlePacket == nullptr) {
       m_pSubtitlePacket = av_packet_alloc();
+}
 
   AVSubtitle sub;
-  memset(&sub, 0, sizeof(sub));
+  std::memset(&sub, 0, sizeof(sub));
 
-  if (!buflen || !buf) {
-    return S_OK;
-  }
+  if (!buflen || !buf) { return S_OK; }
 
   while (buflen > 0) {
-    REFERENCE_TIME rtStart = rtStartIn, rtStop = rtStopIn;
-    int used_bytes = 0;
-    int got_sub = 0;
+    REFERENCE_TIME rtStart = rtStartIn;
+    int used_bytes{ 0 };
+    int got_sub{ 0 };
     if (m_pParser) {
-      uint8_t *pOut = nullptr;
-      int pOut_size = 0;
+      std::uint8_t *pOut = nullptr;
+      int pOut_size{ 0 };
       used_bytes = av_parser_parse2(m_pParser, m_pAVCtx, &pOut, &pOut_size, buf, buflen, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-      if (used_bytes == 0 && pOut_size == 0) {
+      if ((used_bytes == 0) && (pOut_size == 0)) {
         DbgLog((LOG_TRACE, 50, L"CLAVSubtitleProvider::Decode - could not process buffer"));
         break;
       }
 
       if (used_bytes > pOut_size) {
-        if (rtStartIn != AV_NOPTS_VALUE)
+        if (rtStartIn != AV_NOPTS_VALUE) {
           m_rtStartCache = rtStartIn;
+}
       } else if (used_bytes == pOut_size) {
         m_rtStartCache = rtStartIn = AV_NOPTS_VALUE;
       } else if (pOut_size > used_bytes) {
@@ -322,7 +333,7 @@ STDMETHODIMP CLAVSubtitleProvider::Decode(BYTE *buf, int buflen, REFERENCE_TIME 
         m_pSubtitlePacket->pts = rtStart;
         m_pSubtitlePacket->duration = 0;
 
-        int ret = avcodec_decode_subtitle2(m_pAVCtx, &sub, &got_sub, m_pSubtitlePacket);
+        int const ret = avcodec_decode_subtitle2(m_pAVCtx, &sub, &got_sub, m_pSubtitlePacket);
         if (ret < 0) {
           DbgLog((LOG_TRACE, 50, L"CLAVSubtitleProvider::Decode - decoding failed despite successful parsing"));
           got_sub = 0;
@@ -332,9 +343,7 @@ STDMETHODIMP CLAVSubtitleProvider::Decode(BYTE *buf, int buflen, REFERENCE_TIME 
       }
     }
 
-    if (used_bytes < 0) {
-      return S_OK;
-    }
+    if (used_bytes < 0) { return S_OK; }
 
     if (!m_pParser && (!got_sub && used_bytes == 0)) {
       buflen = 0;
@@ -358,20 +367,20 @@ void CLAVSubtitleProvider::ProcessSubtitleFrame(AVSubtitle *sub, REFERENCE_TIME 
   DbgLog((LOG_TRACE, 10, L"Decoded Sub: rtStart: %I64d, start_display_time: %d, end_display_time: %d, num_rects: %u, num_dvd_palette: %d", rtStart, sub->start_display_time, sub->end_display_time, sub->num_rects, sub->num_dvd_palette));
   if (sub->num_rects > 0) {
     if (m_pAVCtx->codec_id == AV_CODEC_ID_DVD_SUBTITLE) {
-      CAutoLock lock(this);
+      CAutoLock const lock(this);
 
       // DVD subs have the limitation that only one subtitle can be shown at a given time,
       // so we need to timeout unlimited subs when a new one appears, as well as limit the duration of timed subs
       // to prevent overlapping subtitles
-      REFERENCE_TIME rtSubTimeout = (rtStart != AV_NOPTS_VALUE) ? rtStart - 1 : SUBTITLE_PTS_TIMEOUT;
-      for (auto it = m_SubFrames.begin(); it != m_SubFrames.end(); it++) {
-        if ((*it)->rtStop == AV_NOPTS_VALUE || rtStart == AV_NOPTS_VALUE || (*it)->rtStop > rtStart) {
+      REFERENCE_TIME const rtSubTimeout = (rtStart != AV_NOPTS_VALUE) ? rtStart - 1 : SUBTITLE_PTS_TIMEOUT;
+      for (auto it = m_SubFrames.begin(); it != m_SubFrames.end(); ++it) {
+        if (((*it)->rtStop == AV_NOPTS_VALUE) || (rtStart == AV_NOPTS_VALUE) || ((*it)->rtStop > rtStart)) {
           (*it)->rtStop = rtSubTimeout;
         }
       }
 
       // Override subtitle timestamps if we have a timeout, and are not in a menu
-      if (rtStart == AV_NOPTS_VALUE && sub->end_display_time > 0 && !(sub->rects[0]->flags & AV_SUBTITLE_FLAG_FORCED)) {
+      if ((rtStart == AV_NOPTS_VALUE) && (sub->end_display_time > 0) && (!(sub->rects[0U]->flags & AV_SUBTITLE_FLAG_FORCED))) {
         DbgLog((LOG_TRACE, 10, L" -> Overriding subtitle timestamp to %I64d", m_rtLastFrame));
         rtStart = m_rtLastFrame;
       }
@@ -385,23 +394,25 @@ void CLAVSubtitleProvider::ProcessSubtitleFrame(AVSubtitle *sub, REFERENCE_TIME 
       rtStart += sub->start_display_time * 10000i64;
     }
 
-    for (unsigned i = 0; i < sub->num_rects; i++) {
-      if (sub->num_dvd_palette > 1 && rtStart != AV_NOPTS_VALUE) {
+    for (unsigned i{ 0U }; i < sub->num_rects; ++i) {
+      if ((sub->num_dvd_palette > 1) && (rtStart != AV_NOPTS_VALUE)) {
         REFERENCE_TIME rtStartRect = rtStart - (sub->start_display_time * 10000i64);
         REFERENCE_TIME rtStopRect = rtStart;
-        for (unsigned k = 0; k < sub->num_dvd_palette; k++) {
+        for (unsigned k{ 0U }; k < sub->num_dvd_palette; ++k) {
           // Start is the stop of the previous part
           rtStartRect = rtStopRect;
 
           // Stop is either the start of the next part, or the final stop
-          if (k < (sub->num_dvd_palette-1))
+          if (k < (sub->num_dvd_palette-1)) {
             rtStopRect = rtStart + (sub->dvd_palette[k+1]->start_display_time * 10000i64);
-          else
+          } else {
             rtStopRect = rtStop;
+}
 
           // Update palette with new alpha values
-          for (unsigned j = 0; j < 4; j++)
-            sub->rects[i]->data[1][(j << 2) + 3] = sub->dvd_palette[k]->alpha[j] * 17;
+          for (unsigned j{ 0U }; j < 4; ++j) {
+            sub->rects[i]->data[1U][(j << 2) + 3] = sub->dvd_palette[k]->alpha[j] * 17;
+}
 
           ProcessSubtitleRect(sub->rects[i], rtStartRect, rtStopRect);
         }
@@ -416,58 +427,73 @@ void CLAVSubtitleProvider::ProcessSubtitleRect(AVSubtitleRect *rect, REFERENCE_T
 {
   DbgLog((LOG_TRACE, 10, L"Subtitle Rect, start: %I64d, stop: %I64d", rtStart, rtStop));
   // Skip zero-length subs
-  if (rtStart != AV_NOPTS_VALUE && rtStart == rtStop) return;
+  if ((rtStart != AV_NOPTS_VALUE) && (rtStart == rtStop)) { return;
+}
 
-  int hpad = rect->x & 1;
-  int vpad = rect->y & 1;
+  if ((rect->w <= 0) || (rect->h <= 0) || (rect->w > 16384) || (rect->h > 16384)) {
+    return;
+  }
+
+  int const hpad = rect->x & 1;
+  int const vpad = rect->y & 1;
 
   int width = rect->w + hpad;
-  if (width & 1) width++;
+  if (width & 1) { width++;
+  }
 
   int height = rect->h + vpad;
-  if (height & 1) height++;
+  if (height & 1) { height++;
+  }
 
-  int rgbStride = FFALIGN(width, 16);
+  int const rgbStride = FFALIGN(width, 16);
+  if ((rgbStride <= 0) || (height <= 0) ||
+      (static_cast<std::size_t>(rgbStride) > (SIZE_MAX / 4) / static_cast<std::size_t>(height))) {
+    return;
+  }
+  std::size_t const bytes = static_cast<std::size_t>(rgbStride) * static_cast<std::size_t>(height) * 4;
 
-  BYTE *rgbSub = (BYTE *)CoTaskMemAlloc(rgbStride * height * 4);
-  if (!rgbSub) return;
+  BYTE *rgbSub = reinterpret_cast<BYTE *>(CoTaskMemAlloc(bytes));
+  if (!rgbSub) { return;
+  }
   BYTE *rgbSubStart = rgbSub;
-  const BYTE *palSub = rect->data[0];
-  const BYTE *palette = rect->data[1];
+  const BYTE *palSub = rect->data[0U];
+  const BYTE *palette = rect->data[1U];
 
-  memset(rgbSub, 0, rgbStride * height * 4);
+  std::memset(rgbSub, 0, bytes);
 
   rgbSub += (rgbStride * vpad + hpad) * 4;
 
-  for (int y = 0; y < rect->h; y++) {
-    for (int x = 0; x < rect->w; x++) {
+  for (int y{ 0 }; y < rect->h; ++y) {
+    for (int x{ 0 }; x < rect->w; ++x) {
       // Read paletted value
-      int idx = palSub[x];
+      int const idx = palSub[x];
 
       // Skip invalid values
-      if (idx >= rect->nb_colors)
+      if (idx >= rect->nb_colors) {
         continue;
+}
 
       // Read RGB values from palette
-      BYTE b = palette[(idx << 2) + 0];
-      BYTE g = palette[(idx << 2) + 1];
-      BYTE r = palette[(idx << 2) + 2];
-      BYTE a = palette[(idx << 2) + 3];
+      BYTE const b = palette[(idx << 2) + 0];
+      BYTE const g = palette[(idx << 2) + 1];
+      BYTE const r = palette[(idx << 2) + 2];
+      BYTE const a = palette[(idx << 2) + 3];
       // Store as RGBA pixel, pre-multiplied
       rgbSub[(x << 2) + 0] = FAST_DIV255(b * a);
       rgbSub[(x << 2) + 1] = FAST_DIV255(g * a);
       rgbSub[(x << 2) + 2] = FAST_DIV255(r * a);
       rgbSub[(x << 2) + 3] = a;
     }
-    palSub += rect->linesize[0];
+    palSub += rect->linesize[0U];
     rgbSub += rgbStride * 4;
   }
 
   // Store the rect
-  POINT position = { rect->x - hpad, rect->y - vpad };
-  SIZE size = { width, height };
+  POINT const position = { rect->x - hpad, rect->y - vpad };
+  SIZE const size = { width, height };
   CLAVSubRect *lavRect = new CLAVSubRect();
-  if (!lavRect) return;
+  if (!lavRect) { return;
+}
   lavRect->id       = m_SubPicId++;
   lavRect->pitch    = rgbStride;
   lavRect->pixels   = rgbSubStart;
@@ -479,24 +505,25 @@ void CLAVSubtitleProvider::ProcessSubtitleRect(AVSubtitleRect *rect, REFERENCE_T
 
   if (m_pAVCtx->codec_id == AV_CODEC_ID_DVD_SUBTITLE) {
     lavRect->pixelsPal = CoTaskMemAlloc(lavRect->pitch * lavRect->size.cy);
-    if (!lavRect->pixelsPal) return;
+    if (!lavRect->pixelsPal) { return;
+}
 
-    int paletteTransparent = 0;
-    for (int i = 0; i < rect->nb_colors; i++) {
+    int paletteTransparent{ 0 };
+    for (int i{ 0 }; i < rect->nb_colors; ++i) {
       if (palette[(i << 2) + 3] == 0) {
         paletteTransparent = i;
         break;
       }
     }
-    memset(lavRect->pixelsPal, paletteTransparent, lavRect->pitch * lavRect->size.cy);
-    BYTE *palPixels = (BYTE *)lavRect->pixelsPal;
-    palSub = rect->data[0];
+    std::memset(lavRect->pixelsPal, paletteTransparent, lavRect->pitch * lavRect->size.cy);
+    BYTE *palPixels = reinterpret_cast<BYTE *>(lavRect->pixelsPal);
+    palSub = rect->data[0U];
 
     palPixels += lavRect->pitch * vpad + hpad;
-    for (int y = 0; y < rect->h; y++) {
-      memcpy(palPixels, palSub, rect->w);
+    for (int y{ 0 }; y < rect->h; ++y) {
+      std::memcpy(palPixels, palSub, rect->w);
       palPixels += lavRect->pitch;
-      palSub += rect->linesize[0];
+      palSub += rect->linesize[0U];
     }
   }
 
@@ -505,15 +532,16 @@ void CLAVSubtitleProvider::ProcessSubtitleRect(AVSubtitleRect *rect, REFERENCE_T
   m_pAVCtx->height = FFMAX(m_pAVCtx->height, position.y + size.cy);
 
   // HACK: Since we're only dealing with DVDs so far, do some trickery here
-  if (m_pAVCtx->height > 480 && m_pAVCtx->height < 576)
+  if ((m_pAVCtx->height > 480) && (m_pAVCtx->height < 576)) {
     m_pAVCtx->height = 576;
+}
 
   AddSubtitleRect(lavRect);
 }
 
 void CLAVSubtitleProvider::AddSubtitleRect(CLAVSubRect *rect)
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   rect->AddRef();
   m_SubFrames.push_back(rect);
 }
@@ -521,36 +549,34 @@ void CLAVSubtitleProvider::AddSubtitleRect(CLAVSubRect *rect)
 typedef struct DVDSubContext
 {
   AVClass *avclass;
-  uint32_t palette[16];
+  std::array<std::uint32_t, 16U> palette{};
   char    *palette_str;
   char    *ifo_str;
   int      has_palette;
-  uint8_t  colormap[4];
-  uint8_t  alpha[256];
-  uint8_t  buf[0x10000];
+  std::array<std::uint8_t, 4U> colormap{};
+  std::array<std::uint8_t, 256U> alpha{};
+  std::uint8_t  buf[0x10000];
   int      buf_size;
   int      forced_subs_only;
 } DVDSubContext;
 
 #define MAX_NEG_CROP 1024
-extern "C" __declspec(dllimport) uint8_t ff_crop_tab[256 + 2 * MAX_NEG_CROP];
+extern "C" __declspec(dllimport) std::uint8_t ff_crop_tab[256 + 2 * MAX_NEG_CROP];
 
 STDMETHODIMP CLAVSubtitleProvider::SetDVDPalette(AM_PROPERTY_SPPAL *pPal)
 {
   DbgLog((LOG_TRACE, 10, L"CLAVSubtitleProvider(): Setting new DVD Palette"));
-  CAutoLock lock(this);
-  if (!m_pAVCtx || m_pAVCtx->codec_id != AV_CODEC_ID_DVD_SUBTITLE || !pPal) {
-    return E_FAIL;
-  }
+  CAutoLock const lock(this);
+  if (!m_pAVCtx || (m_pAVCtx->codec_id != AV_CODEC_ID_DVD_SUBTITLE) || !pPal) { return E_FAIL; }
 
-  DVDSubContext *ctx = (DVDSubContext *)m_pAVCtx->priv_data;
+  DVDSubContext *ctx = reinterpret_cast<DVDSubContext *>(m_pAVCtx->priv_data);
   ctx->has_palette = 1;
 
-  uint8_t r,g,b;
+  std::uint8_t r,g,b;
   int i, y, cb, cr;
   int r_add, g_add, b_add;
-  uint8_t *cm = ff_crop_tab + MAX_NEG_CROP;
-  for (i = 0; i < 16; i++) {
+  std::uint8_t *cm = ff_crop_tab + MAX_NEG_CROP;
+  for (i = 0; i < 16; ++i) {
     y  = pPal->sppal[i].Y;
     cb = pPal->sppal[i].V;
     cr = pPal->sppal[i].U;
@@ -564,15 +590,15 @@ STDMETHODIMP CLAVSubtitleProvider::SetDVDPalette(AM_PROPERTY_SPPAL *pPal)
 
 STDMETHODIMP CLAVSubtitleProvider::SetDVDHLI(struct _AM_PROPERTY_SPHLI *pHLI)
 {
-  bool redraw = false;
+  bool redraw{ false };
 
   // Scoped lock so the lock is lifted when the redraw is issued
   // Otherwise we can deadlock in the decoder - this one holding the provider lock, the decoder holding the decoder lock...
   {
-    CAutoLock lock(this);
+    CAutoLock const lock(this);
     if (pHLI) {
   #define DHLI(var) (pHLI->var != m_pHLI->var)
-      if (!m_pHLI || DHLI(StartX) || DHLI(StopX) || DHLI(StartY) || DHLI(StopY) || memcmp(&pHLI->ColCon, &m_pHLI->ColCon, sizeof(pHLI->ColCon)) != 0) {
+      if (!m_pHLI || DHLI(StartX) || DHLI(StopX) || DHLI(StartY) || DHLI(StopY) || (std::memcmp(&pHLI->ColCon, &m_pHLI->ColCon, sizeof(pHLI->ColCon)) != 0)) {
         DbgLog((LOG_TRACE, 10, L"CLAVSubtitleProvider(): DVD HLI event. HLISS: %u, x: %u->%u, y: %u->%u, StartPTM: %u, EndPTM: %u", pHLI->HLISS, pHLI->StartX, pHLI->StopX, pHLI->StartY, pHLI->StopY, pHLI->StartPTM, pHLI->EndPTM));
         SAFE_DELETE(m_pHLI);
         m_pHLI = new AM_PROPERTY_SPHLI(*pHLI);
@@ -585,25 +611,25 @@ STDMETHODIMP CLAVSubtitleProvider::SetDVDHLI(struct _AM_PROPERTY_SPHLI *pHLI)
     }
   }
 
-  if (redraw)
+  if (redraw) {
     ControlCmd(CNTRL_FLUSH);
+}
 
   return S_OK;
 }
 
 CLAVSubRect* CLAVSubtitleProvider::ProcessDVDHLI(CLAVSubRect *rect)
 {
-  DVDSubContext *ctx = (DVDSubContext *)m_pAVCtx->priv_data;
-  if (!m_pHLI || !rect->pixelsPal || !ctx->has_palette)
-    return rect;
+  DVDSubContext *ctx = reinterpret_cast<DVDSubContext *>(m_pAVCtx->priv_data);
+  if (!m_pHLI || (!rect->pixelsPal) || (!ctx->has_palette)) { return rect; }
 
   LPVOID newPixels = CoTaskMemAlloc(rect->pitch * rect->size.cy * 4);
-  if (!newPixels) return rect;
+  if (!newPixels) { return rect; }
 
   // copy pixels before modification
-  memcpy(newPixels, rect->pixels, rect->pitch * rect->size.cy * 4);
+  std::memcpy(newPixels, rect->pixels, rect->pitch * rect->size.cy * 4);
 
-  uint8_t *originalPalPixels = (uint8_t *)rect->pixelsPal;
+  std::uint8_t *originalPalPixels = reinterpret_cast<std::uint8_t *>(rect->pixelsPal);
 
   // create new object
   rect = new CLAVSubRect(*rect);
@@ -614,17 +640,19 @@ CLAVSubRect* CLAVSubtitleProvider::ProcessDVDHLI(CLAVSubRect *rect)
   // Need to assign a new Id since we're modifying it here..
   rect->id = m_SubPicId++;
 
-  uint8_t *palette   = (uint8_t *)ctx->palette;
-  for (int y = 0; y < rect->size.cy; y++) {
-    if (y+rect->position.y < m_pHLI->StartY || y+rect->position.y > m_pHLI->StopY)
+  std::uint8_t *palette = reinterpret_cast<std::uint8_t *>(ctx->palette.data());
+  for (int y{ 0 }; y < rect->size.cy; ++y) {
+    if ((y+rect->position.y < m_pHLI->StartY) || (y+rect->position.y > m_pHLI->StopY)) {
       continue;
-    uint8_t *pixelsPal = originalPalPixels + rect->pitch * y;
-    uint8_t *pixels = ((uint8_t *)rect->pixels) + rect->pitch * y * 4;
-    for (int x = 0; x < rect->size.cx; x++) {
-      if (x+rect->position.x < m_pHLI->StartX || x+rect->position.x > m_pHLI->StopX)
+}
+    std::uint8_t *pixelsPal = originalPalPixels + rect->pitch * y;
+    std::uint8_t *pixels = (reinterpret_cast<std::uint8_t *>(rect->pixels)) + rect->pitch * y * 4;
+    for (int x{ 0 }; x < rect->size.cx; ++x) {
+      if ((x+rect->position.x < m_pHLI->StartX) || (x+rect->position.x > m_pHLI->StopX)) {
         continue;
-      uint8_t idx = pixelsPal[x];
-      uint8_t alpha = 0;
+}
+      std::uint8_t idx = pixelsPal[x];
+      std::uint8_t alpha{ 0U };
       switch (idx) {
       case 0:
         idx = m_pHLI->ColCon.backcol;
@@ -644,10 +672,10 @@ CLAVSubRect* CLAVSubtitleProvider::ProcessDVDHLI(CLAVSubRect *rect)
         break;
       }
       // Read RGB values from palette
-      BYTE b = palette[(idx << 2) + 0];
-      BYTE g = palette[(idx << 2) + 1];
-      BYTE r = palette[(idx << 2) + 2];
-      BYTE a = alpha << 4;
+      BYTE const b = palette[(idx << 2) + 0];
+      BYTE const g = palette[(idx << 2) + 1];
+      BYTE const r = palette[(idx << 2) + 2];
+      BYTE const a = alpha << 4;
       // Store as RGBA pixel, pre-multiplied
       pixels[(x << 2) + 0] = FAST_DIV255(b * a);
       pixels[(x << 2) + 1] = FAST_DIV255(g * a);
@@ -660,13 +688,13 @@ CLAVSubRect* CLAVSubtitleProvider::ProcessDVDHLI(CLAVSubRect *rect)
 
 STDMETHODIMP CLAVSubtitleProvider::SetDVDComposit(BOOL bComposit)
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   m_bComposit = bComposit;
   return S_OK;
 }
 
 CLAVSubtitleProviderControlThread::CLAVSubtitleProviderControlThread()
-  : CAMThread()
+  : CAMThread{}
 {
   Create();
 }
@@ -679,7 +707,7 @@ CLAVSubtitleProviderControlThread::~CLAVSubtitleProviderControlThread()
 
 void CLAVSubtitleProviderControlThread::SetConsumer2(ISubRenderConsumer2 * pConsumer2)
 {
-  CAutoLock lock(this);
+  CAutoLock const lock(this);
   m_pConsumer2 = pConsumer2;
 }
 
@@ -696,9 +724,10 @@ DWORD CLAVSubtitleProviderControlThread::ThreadProc()
     case CLAVSubtitleProvider::CNTRL_FLUSH:
       Reply(S_OK);
       {
-        CAutoLock lock(this);
-        if (m_pConsumer2)
+        CAutoLock const lock(this);
+        if (m_pConsumer2) {
           m_pConsumer2->Clear();
+}
       }
       break;
     }

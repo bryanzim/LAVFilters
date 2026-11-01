@@ -18,16 +18,22 @@
  */
 
 #include "stdafx.h"
+
 #include "PacketQueue.h"
+
 #include "BaseDemuxer.h"
+
+#include <cstddef>
+
 
 // Queue a new packet at the end of the list
 void CPacketQueue::Queue(Packet *pPacket)
 {
-    CAutoLock cAutoLock(this);
+    CAutoLock const cAutoLock(this);
 
-    if (pPacket)
-        m_dataSize += (size_t)pPacket->GetDataSize();
+    if (pPacket) {
+        m_dataSize += static_cast<std::size_t>(pPacket->GetDataSize());
+}
 
     m_queue.push_back(pPacket);
 }
@@ -35,7 +41,7 @@ void CPacketQueue::Queue(Packet *pPacket)
 // Get a packet from the beginning of the list
 Packet *CPacketQueue::Get()
 {
-    CAutoLock cAutoLock(this);
+    CAutoLock const cAutoLock(this);
 
     if (m_queue.size() == 0)
     {
@@ -44,24 +50,25 @@ Packet *CPacketQueue::Get()
     Packet *pPacket = m_queue.front();
     m_queue.pop_front();
 
-    if (pPacket)
-        m_dataSize -= (size_t)pPacket->GetDataSize();
+    if (pPacket) {
+        m_dataSize -= static_cast<std::size_t>(pPacket->GetDataSize());
+}
 
     return pPacket;
 }
 
 // Get the size of the queue
-size_t CPacketQueue::Size()
+std::size_t CPacketQueue::Size()
 {
-    CAutoLock cAutoLock(this);
+    CAutoLock const cAutoLock(this);
 
     return m_queue.size();
 }
 
 // Get the size of the queue
-size_t CPacketQueue::DataSize()
+std::size_t CPacketQueue::DataSize()
 {
-    CAutoLock cAutoLock(this);
+    CAutoLock const cAutoLock(this);
 
     return m_dataSize;
 }
@@ -69,7 +76,7 @@ size_t CPacketQueue::DataSize()
 // Clear the List (all elements are free'ed)
 void CPacketQueue::Clear()
 {
-    CAutoLock cAutoLock(this);
+    CAutoLock const cAutoLock(this);
 
     DbgLog((LOG_TRACE, 10, L"CPacketQueue::Clear() - clearing queue with %d entries", m_queue.size()));
 

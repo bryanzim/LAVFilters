@@ -18,28 +18,30 @@
  */
 
 #pragma once
+
+#define CUDA_INIT_D3D9
+
+#include "cuvid/dynlink_cuda.h"
+#include "cuvid/dynlink_cuda_d3d.h"
+#include "cuvid/dynlink_nvcuvid.h"
 #include "DecBase.h"
+#include "parsers/AnnexBConverter.h"
+
+#include <array>
+#include <queue>
+
 
 #define MAX_DECODE_FRAMES 20
 #define DISPLAY_DELAY 4
 #define MAX_PIC_INDEX 64
 
-#include "cuvid/dynlink_cuda.h"
-#include "cuvid/dynlink_nvcuvid.h"
 
-#define CUDA_INIT_D3D9
-#include "cuvid/dynlink_cuda_d3d.h"
-
-#include "parsers/AnnexBConverter.h"
-
-#include <queue>
-
-#define CUMETHOD(name) t##name *##name
+#define CUMETHOD(name) t##name *name
 
 class CDecCuvid : public CDecBase
 {
   public:
-    CDecCuvid(void);
+    explicit CDecCuvid();
     virtual ~CDecCuvid(void);
 
     // ILAVDecoder
@@ -125,51 +127,51 @@ class CDecCuvid : public CDecBase
     IDirect3D9 *m_pD3D9 = nullptr;
     IDirect3DDevice9 *m_pD3DDevice9 = nullptr;
 
-    CUcontext m_cudaContext = 0;
-    CUvideoctxlock m_cudaCtxLock = 0;
+    CUcontext m_cudaContext{ nullptr };
+    CUvideoctxlock m_cudaCtxLock{ nullptr };
 
-    CUvideoparser m_hParser = 0;
+    CUvideoparser m_hParser{ nullptr };
     CUVIDEOFORMATEX m_VideoParserExInfo;
 
-    CUvideodecoder m_hDecoder = 0;
+    CUvideodecoder m_hDecoder{ nullptr };
     CUVIDDECODECREATEINFO m_VideoDecoderInfo;
 
     CUVIDEOFORMAT m_VideoFormat;
 
-    CUVIDPARSERDISPINFO m_DisplayQueue[DISPLAY_DELAY];
-    int m_DisplayPos = 0;
+    std::array<CUVIDPARSERDISPINFO, DISPLAY_DELAY> m_DisplayQueue{};
+    int m_DisplayPos{ 0 };
 
-    CUVIDPICPARAMS m_PicParams[MAX_PIC_INDEX];
+    std::array<CUVIDPICPARAMS, MAX_PIC_INDEX> m_PicParams{};
 
-    BOOL m_bVDPAULevelC = FALSE;
-    char m_cudaDeviceName[256] = {0};
+    BOOL m_bVDPAULevelC{ FALSE };
+    std::array<char, 256U> m_cudaDeviceName{0};
 
-    BOOL m_bForceSequenceUpdate = FALSE;
-    BOOL m_bInterlaced = FALSE;
-    BOOL m_bDoubleRateDeint = FALSE;
-    BOOL m_bFlushing = FALSE;
+    BOOL m_bForceSequenceUpdate{ FALSE };
+    BOOL m_bInterlaced{ FALSE };
+    BOOL m_bDoubleRateDeint{ FALSE };
+    BOOL m_bFlushing{ FALSE };
     REFERENCE_TIME m_rtAvgTimePerFrame = AV_NOPTS_VALUE;
     REFERENCE_TIME m_rtPrevDiff = AV_NOPTS_VALUE;
-    BOOL m_bWaitForKeyframe = FALSE;
-    int m_iFullRange = -1;
+    BOOL m_bWaitForKeyframe{ FALSE };
+    int m_iFullRange{ -1 };
 
     DXVA2_ExtendedFormat m_DXVAExtendedFormat;
 
     BYTE *m_pbRawNV12 = nullptr;
-    int m_cRawNV12 = 0;
+    int m_cRawNV12{ 0 };
 
     CAnnexBConverter *m_AnnexBConverter = nullptr;
 
-    BOOL m_bFormatIncompatible = FALSE;
-    BOOL m_bNeedSequenceCheck = FALSE;
+    BOOL m_bFormatIncompatible{ FALSE };
+    BOOL m_bNeedSequenceCheck{ FALSE };
 
-    BOOL m_bUseTimestampQueue = FALSE;
+    BOOL m_bUseTimestampQueue{ FALSE };
     std::queue<REFERENCE_TIME> m_timestampQueue;
 
-    int m_nSoftTelecine = 0;
-    BOOL m_bTFF = TRUE;
-    BOOL m_bARPresent = TRUE;
-    BOOL m_bEndOfSequence = FALSE;
+    int m_nSoftTelecine{ 0 };
+    BOOL m_bTFF{ TRUE };
+    BOOL m_bARPresent{ TRUE };
+    BOOL m_bEndOfSequence{ FALSE };
 
     int m_DisplayDelay = DISPLAY_DELAY;
 };

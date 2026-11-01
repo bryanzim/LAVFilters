@@ -21,13 +21,16 @@
 
 #include "byteparser.h"
 
+#include <cstddef>
+
+
 class CExtradataParser : protected CByteParser
 {
   public:
-    CExtradataParser(BYTE *pExtradata, size_t extra_len);
+    CExtradataParser(BYTE *pExtradata, std::size_t extra_len);
     ~CExtradataParser();
 
-    size_t ParseMPEGSequenceHeader(BYTE *pTarget);
+    std::size_t ParseMPEGSequenceHeader(BYTE *pTarget);
 
   private:
     bool NextMPEGStartCode(BYTE &code);

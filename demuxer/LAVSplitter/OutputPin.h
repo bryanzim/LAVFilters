@@ -22,17 +22,18 @@
 
 #pragma once
 
-#include <vector>
-#include <string>
+#include "IBitRateInfo.h"
+#include "ILAVPinInfo.h"
+#include "IMediaSideData.h"
+#include "LAVSplitter.h"
+#include "moreuuids.h"
 #include "PacketQueue.h"
 #include "StreamParser.h"
 
-#include "moreuuids.h"
+#include <cstddef>
+#include <string>
+#include <vector>
 
-#include "LAVSplitter.h"
-#include "ILAVPinInfo.h"
-#include "IBitRateInfo.h"
-#include "IMediaSideData.h"
 
 class CLAVOutputPin
     : public CBaseOutputPin
@@ -95,41 +96,41 @@ class CLAVOutputPin
     STDMETHODIMP_(DWORD) GetAverageBitRate() { return m_BitRate.nAverageBitRate; }
 
     // IMediaSideData
-    STDMETHODIMP SetSideData(GUID guidType, const BYTE *pData, size_t size) { return E_NOTIMPL; }
-    STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, size_t *pSize);
+    STDMETHODIMP SetSideData(GUID guidType, const BYTE *pData, std::size_t size) { return E_NOTIMPL; }
+    STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize);
 
-    size_t QueueCount();
+    std::size_t QueueCount();
     HRESULT QueuePacket(Packet *pPacket);
     HRESULT QueueEndOfStream();
     bool IsDiscontinuous();
-    size_t GetQueueLowLimit() const { return m_nQueueLow; }
+    [[nodiscard]] constexpr std::size_t GetQueueLowLimit() const noexcept { return m_nQueueLow; }
 
-    DWORD GetStreamId() { return m_streamId; };
+    [[nodiscard]] constexpr DWORD GetStreamId() noexcept { return m_streamId; };
     void SetStreamId(DWORD newStreamId) { m_streamId = newStreamId; };
 
     void SetNewMediaTypes(std::deque<CMediaType> pmts)
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         m_mts = pmts;
         SetQueueSizes();
     }
     void SendMediaType(CMediaType *mt)
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         m_newMT = mt;
     }
     void SetStreamMediaType(CMediaType *mt)
     {
-        CAutoLock lock(&m_csMT);
+        CAutoLock const lock(&m_csMT);
         m_StreamMT = *mt;
     }
 
-    CMediaType &GetActiveMediaType() { return m_mt; }
+    [[nodiscard]] constexpr CMediaType &GetActiveMediaType() noexcept { return m_mt; }
 
-    BOOL IsVideoPin() { return m_pinType == CBaseDemuxer::video || m_pinType == CBaseDemuxer::video_el; }
-    BOOL IsAudioPin() { return m_pinType == CBaseDemuxer::audio; }
-    BOOL IsSubtitlePin() { return m_pinType == CBaseDemuxer::subpic; }
-    CBaseDemuxer::StreamType GetPinType() { return m_pinType; }
+    [[nodiscard]] constexpr BOOL IsVideoPin() noexcept { return m_pinType == CBaseDemuxer::video || m_pinType == CBaseDemuxer::video_el; }
+    [[nodiscard]] constexpr BOOL IsAudioPin() noexcept { return m_pinType == CBaseDemuxer::audio; }
+    [[nodiscard]] constexpr BOOL IsSubtitlePin() noexcept { return m_pinType == CBaseDemuxer::subpic; }
+    [[nodiscard]] constexpr CBaseDemuxer::StreamType GetPinType() noexcept { return m_pinType; }
 
     HRESULT QueueFromParser(Packet *pPacket)
     {
@@ -171,33 +172,33 @@ class CLAVOutputPin
     std::string m_containerFormat;
 
     // Flush control
-    bool m_fFlushing = false;
-    bool m_fFlushed = false;
+    bool m_fFlushing{ false };
+    bool m_fFlushed{ false };
     CAMEvent m_eEndFlush{TRUE};
 
     HRESULT m_hrDeliver = S_OK;
 
-    int m_nBuffers = 1;
-    size_t m_nQueueLow = MIN_PACKETS_IN_QUEUE;
-    size_t m_nQueueHigh = 350;
-    size_t m_nQueueMaxMem = 256 * 1024 * 1024;
+    int m_nBuffers{ 1 };
+    std::size_t m_nQueueLow = MIN_PACKETS_IN_QUEUE;
+    std::size_t m_nQueueHigh{ 350U };
+    std::size_t m_nQueueMaxMem = 256 * 1024 * 1024;
 
-    DWORD m_streamId = 0;
+    DWORD m_streamId{ 0U };
     CMediaType *m_newMT = nullptr;
 
     CBaseDemuxer::StreamType m_pinType;
 
     CStreamParser m_Parser;
-    BOOL m_bPacketAllocator = FALSE;
+    BOOL m_bPacketAllocator{ FALSE };
 
     // IBitRateInfo
     struct BitRateInfo
     {
-        UINT64 nTotalBytesDelivered = 0;
-        REFERENCE_TIME rtTotalTimeDelivered = 0;
-        UINT64 nBytesSinceLastDeliverTime = 0;
+        UINT64 nTotalBytesDelivered{ 0 };
+        REFERENCE_TIME rtTotalTimeDelivered{ 0 };
+        UINT64 nBytesSinceLastDeliverTime{ 0 };
         REFERENCE_TIME rtLastDeliverTime = Packet::INVALID_TIME;
-        DWORD nCurrentBitRate = 0;
-        DWORD nAverageBitRate = 0;
+        DWORD nCurrentBitRate{ 0U };
+        DWORD nAverageBitRate{ 0U };
     } m_BitRate;
 };

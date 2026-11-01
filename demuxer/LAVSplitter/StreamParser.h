@@ -21,8 +21,8 @@
 
 #pragma once
 
-#include "PacketQueue.h"
 #include "growarray.h"
+#include "PacketQueue.h"
 
 class CLAVOutputPin;
 
@@ -37,6 +37,7 @@ class CStreamParser
 
   private:
     HRESULT ParseH264AnnexB(Packet *pPacket);
+    HRESULT DeliverQueuedH264();
     HRESULT ParsePGS(Packet *pPacket);
     HRESULT ParseMOVText(Packet *pPacket);
     HRESULT ParseAAC(Packet *pPacket);
@@ -53,10 +54,10 @@ class CStreamParser
 
     Packet *m_pPacketBuffer = nullptr;
 
-    BOOL m_bPGSDropState = FALSE;
+    BOOL m_bPGSDropState{ FALSE };
     GrowableArray<BYTE> m_pgsBuffer;
 
     CPacketQueue m_queue;
 
-    bool m_bHasAccessUnitDelimiters = false;
+    bool m_bHasAccessUnitDelimiters{ false };
 };

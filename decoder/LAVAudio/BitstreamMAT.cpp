@@ -20,16 +20,22 @@
  */
 
 #include "stdafx.h"
+
 #include "LAVAudio.h"
+
+#include <array>
+#include <cstdint>
+#include <cstring>
+
 
 #pragma warning(push)
 #pragma warning(disable : 4101)
 #pragma warning(disable : 5033)
 extern "C"
 {
-#include "libavformat/spdif.h"
 #define AVCODEC_X86_MATHOPS_H
 #include "libavcodec/get_bits.h"
+#include "libavformat/spdif.h"
 }
 #pragma warning(pop)
 
@@ -37,17 +43,17 @@ extern "C"
 #define MAT_BUFFER_LIMIT (MAT_BUFFER_SIZE - 24 /* MAT end code size */)
 #define MAT_POS_MIDDLE (30708 /* middle point*/ + 8 /* IEC header in front */)
 
-static const BYTE mat_start_code[20] = {0x07, 0x9E, 0x00, 0x03, 0x84, 0x01, 0x01, 0x01, 0x80, 0x00,
+static std::array<const BYTE, 20U> mat_start_code{0x07, 0x9E, 0x00, 0x03, 0x84, 0x01, 0x01, 0x01, 0x80, 0x00,
                                         0x56, 0xA5, 0x3B, 0xF4, 0x81, 0x83, 0x49, 0x80, 0x77, 0xE0};
-static const BYTE mat_middle_code[12] = {0xC3, 0xC1, 0x42, 0x49, 0x3B, 0xFA, 0x82, 0x83, 0x49, 0x80, 0x77, 0xE0};
-static const BYTE mat_end_code[24] = {0xC3, 0xC2, 0xC0, 0xC4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+static std::array<const BYTE, 12U> mat_middle_code{0xC3, 0xC1, 0x42, 0x49, 0x3B, 0xFA, 0x82, 0x83, 0x49, 0x80, 0x77, 0xE0};
+static std::array<const BYTE, 24U> mat_end_code{0xC3, 0xC2, 0xC0, 0xC4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                       0x00, 0x00, 0x97, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 void CLAVAudio::MATWriteHeader()
 {
     ASSERT(m_bsOutput.GetCount() == 0);
 
-    DWORD dwSize = BURST_HEADER_SIZE + sizeof(mat_start_code);
+    DWORD const dwSize = BURST_HEADER_SIZE + sizeof(mat_start_code);
 
     // reserve size for the IEC header and the MAT start code
     m_bsOutput.SetSize(dwSize);
@@ -61,7 +67,7 @@ void CLAVAudio::MATWriteHeader()
     AV_WB16(p + 6, 61424);
 
     // MAT start code
-    memcpy(p + BURST_HEADER_SIZE, mat_start_code, sizeof(mat_start_code));
+    std::memcpy(p + BURST_HEADER_SIZE, mat_start_code.data(), sizeof(mat_start_code));
 
     // unless the start code falls into the padding,  its considered part of the current MAT frame
     // Note that audio frames are not always aligned with MAT frames, so we might already have a partial frame at this
@@ -90,7 +96,7 @@ void CLAVAudio::MATWritePadding()
 {
     if (m_TrueHDMATState.padding > 0)
     {
-        int remaining = MATFillDataBuffer(nullptr, m_TrueHDMATState.padding, true);
+        int const remaining = MATFillDataBuffer(nullptr, m_TrueHDMATState.padding, true);
 
         // not all padding could be written to the buffer, write it later
         if (remaining >= 0)
@@ -108,20 +114,22 @@ void CLAVAudio::MATWritePadding()
 
 void CLAVAudio::MATAppendData(const BYTE * const p, int size)
 {
-    if (p)
+    if (p) {
         m_bsOutput.Append(p, size);
-    else
+    } else {
         m_bsOutput.AppendZero(size);
+}
 
     m_TrueHDMATState.mat_framesize += size;
 }
 
 int CLAVAudio::MATFillDataBuffer(const BYTE *const p, int size, bool padding)
 {
-    ASSERT(p || padding);
+    ASSERT((p || padding));
 
-    if (m_bsOutput.GetCount() >= MAT_BUFFER_LIMIT)
+    if (m_bsOutput.GetCount() >= MAT_BUFFER_LIMIT) {
         return size;
+}
 
     int remaining = size;
 
@@ -129,19 +137,20 @@ int CLAVAudio::MATFillDataBuffer(const BYTE *const p, int size, bool padding)
     // The MAT middle marker always needs to be in the exact same spot, any audio data will be split.
     // If we're currently writing padding, then the marker will be considered as padding data and reduce the amount of
     // padding still required.
-    if (m_bsOutput.GetCount() <= MAT_POS_MIDDLE && m_bsOutput.GetCount() + size > MAT_POS_MIDDLE)
+    if ((m_bsOutput.GetCount() <= MAT_POS_MIDDLE) && (m_bsOutput.GetCount() + size > MAT_POS_MIDDLE))
     {
         // write as much data before the middle code as we can
-        int nBytesBefore = MAT_POS_MIDDLE - m_bsOutput.GetCount();
+        int const nBytesBefore = MAT_POS_MIDDLE - m_bsOutput.GetCount();
         MATAppendData(p, nBytesBefore);
         remaining -= nBytesBefore;
 
         // write the MAT middle code
-        MATAppendData(mat_middle_code, sizeof(mat_middle_code));
+        MATAppendData(mat_middle_code.data(), sizeof(mat_middle_code));
 
         // if we're writing padding, deduct the size of the code from it
-        if (padding)
+        if (padding) {
             remaining -= sizeof(mat_middle_code);
+}
 
         // write remaining data after the MAT marker
         if (remaining > 0)
@@ -156,18 +165,19 @@ int CLAVAudio::MATFillDataBuffer(const BYTE *const p, int size, bool padding)
     if (m_bsOutput.GetCount() + size >= MAT_BUFFER_LIMIT)
     {
         // write as much data before the middle code as we can
-        int nBytesBefore = MAT_BUFFER_LIMIT - m_bsOutput.GetCount();
+        int const nBytesBefore = MAT_BUFFER_LIMIT - m_bsOutput.GetCount();
         MATAppendData(p, nBytesBefore);
         remaining -= nBytesBefore;
 
         // write the MAT end code
-        MATAppendData(mat_end_code, sizeof(mat_end_code));
+        MATAppendData(mat_end_code.data(), sizeof(mat_end_code));
 
         ASSERT(m_bsOutput.GetCount() == MAT_BUFFER_SIZE);
 
         // MAT markers don't displace padding, so reduce the amount of padding
-        if (padding)
+        if (padding) {
             remaining -= sizeof(mat_end_code);
+}
 
         // any remaining data will be written in future calls
         return remaining;
@@ -185,8 +195,8 @@ void CLAVAudio::MATFlushPacket(HRESULT *hrDeliver)
         ASSERT(m_bsOutput.GetCount() == 61440);
 
         // normal number of samples per frame
-        uint16_t frame_samples = 40 << (m_TrueHDMATState.ratebits & 7);
-        int nMATSamples = (frame_samples * 24);
+        std::uint16_t const frame_samples = 40 << (m_TrueHDMATState.ratebits & 7);
+        int const nMATSamples = (frame_samples * 24);
 
         // Deliver MAT packet to the audio renderer
         *hrDeliver = DeliverBitstream(m_nCodecId, m_bsOutput.Ptr(), m_bsOutput.GetCount(), m_rtStartInputCache,
@@ -194,28 +204,28 @@ void CLAVAudio::MATFlushPacket(HRESULT *hrDeliver)
 
         // we expect 24 frames per MAT frame, so calculate an offset from that
         // this is done after delivery, because it modifies the duration of the frame, eg. the start of the next frame
-        if (nMATSamples != m_TrueHDMATState.nSamples)
+        if (nMATSamples != m_TrueHDMATState.nSamples) {
             m_TrueHDMATState.nSamplesOffset += m_TrueHDMATState.nSamples - nMATSamples;
+}
 
         m_bsOutput.SetSize(0);
         m_TrueHDMATState.nSamples = 0;
     }
 }
 
-static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebits, uint16_t &output_timing,
+static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebits, std::uint16_t &output_timing,
                                         bool &output_timing_present)
 {
     ASSERT(AV_RB32(p + 4) == 0xf8726fba);
 
-    int length = (AV_RB16(p) & 0xfff) * 2;
-    if (buffsize < 32)
-        return false;
+    int const length = (AV_RB16(p) & 0xfff) * 2;
+    if (buffsize < 32) { return false; }
 
     // parse major sync and look for a restart header
-    int major_sync_size = 28;
-    if (p[29] & 1)
+    int major_sync_size{ 28 };
+    if (p[29U] & 1)
     {
-        int extension_size = p[30] >> 4;
+        int const extension_size = p[30U] >> 4;
         major_sync_size += 2 + extension_size * 2;
     }
 
@@ -242,23 +252,24 @@ static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebi
     skip_bits1(&gb);    // variable_rate
     skip_bits(&gb, 15); // peak_data_rate
 
-    int num_substreams = get_bits(&gb, 4);
+    int const num_substreams = get_bits(&gb, 4);
     skip_bits_long(&gb, 4 + (major_sync_size - 17) * 8);
 
     // substream directory
-    for (int i = 0; i < num_substreams; i++)
+    for (int i{ 0 }; i < num_substreams; ++i)
     {
-        int extra_substream_word = get_bits1(&gb);
+        int const extra_substream_word = get_bits1(&gb);
         skip_bits1(&gb);    // restart_nonexistent
         skip_bits1(&gb);    // crc_present
         skip_bits1(&gb);    // reserved
         skip_bits(&gb, 12); // substream_end_ptr
-        if (extra_substream_word)
+        if (extra_substream_word) {
             skip_bits(&gb, 16); // drc_gain_update, drc_time_update, reserved
+}
     }
 
     // substream segments
-    for (int i = 0; i < num_substreams; i++)
+    for (int i{ 0 }; i < num_substreams; ++i)
     {
         if (get_bits1(&gb))
         { // block_header_exists
@@ -289,15 +300,16 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     // A constant padding to 2560 bytes can work (this is how the ffmpeg spdifenc module works), however
     // high-bitrate streams can overshoot this size and therefor require proper handling of dynamic padding.
 
-    uint16_t output_timing = 0;
-    bool bOutputTimingPresent = false;
+    std::uint16_t output_timing{ 0U };
+    bool bOutputTimingPresent{ false };
 
     // get the ratebits and output timing from the sync frame
     if (AV_RB32(p + 4) == 0xf8726fba)
     {
         if (ParseTrueHDMajorSyncHeaders(p, buffsize, m_TrueHDMATState.ratebits, output_timing, bOutputTimingPresent) ==
-            false)
+            false) {
             return E_FAIL;
+}
     }
     else if (m_TrueHDMATState.prev_frametime_valid == false)
     {
@@ -307,10 +319,10 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
         return S_FALSE;
     }
 
-    uint16_t frame_time = AV_RB16(p + 2);
-    uint32_t space_size = 0;
+    std::uint16_t const frame_time = AV_RB16(p + 2);
+    std::uint32_t space_size{ 0U };
 
-    uint16_t frame_samples = 40 << (m_TrueHDMATState.ratebits & 7);
+    std::uint16_t const frame_samples = 40 << (m_TrueHDMATState.ratebits & 7);
     m_TrueHDMATState.output_timing += frame_samples;
     if (bOutputTimingPresent)
     {
@@ -321,17 +333,19 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
             space_size = frame_samples * (64 >> (m_TrueHDMATState.ratebits & 7));
 
             // the output timing is always one frame ahead for buffering reasons, so deduct one frame worth
-            uint32_t prev_output = (uint16_t)(output_timing - frame_samples);
-            if (prev_output < frame_time) // wrap around, output is always in front of frame time
+            std::uint32_t prev_output = static_cast<std::uint16_t>((output_timing - frame_samples));
+            if (prev_output < frame_time) { // wrap around, output is always in front of frame time
                 prev_output += 0x10000;   // unwrap 16-bit value
+}
 
             // get the offset of this frame, so we can compare to the previous frame, and determine the amount of padding that needs to be inserted
-            int currentFrameOutputOffset = (prev_output - frame_time);
+            int const currentFrameOutputOffset = (prev_output - frame_time);
 
             // the previous offset should never be smaller then the incoming offset, or we will lack the reserved space
             ASSERT(m_TrueHDMATState.nOutputTimeOffset >= currentFrameOutputOffset);
-            if (m_TrueHDMATState.nOutputTimeOffset >= currentFrameOutputOffset)
+            if (m_TrueHDMATState.nOutputTimeOffset >= currentFrameOutputOffset) {
                 m_TrueHDMATState.padding += (m_TrueHDMATState.nOutputTimeOffset - currentFrameOutputOffset) * (64 >> (m_TrueHDMATState.ratebits & 7));
+}
 
             DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Carrying forward %d padding (offset %d - %d)"),
                     m_TrueHDMATState.padding, m_TrueHDMATState.nOutputTimeOffset, currentFrameOutputOffset));
@@ -341,24 +355,27 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     }
 
     // compute final padded size for the previous frame, if any
-    if (m_TrueHDMATState.prev_frametime_valid)
-        space_size = uint16_t(frame_time - m_TrueHDMATState.prev_frametime) * (64 >> (m_TrueHDMATState.ratebits & 7));
+    if (m_TrueHDMATState.prev_frametime_valid) {
+        space_size = std::uint16_t(frame_time - m_TrueHDMATState.prev_frametime) * (64 >> (m_TrueHDMATState.ratebits & 7));
+}
 
     // compute padding (ie. difference to the size of the previous frame)
-    ASSERT(!m_TrueHDMATState.prev_frametime_valid || space_size >= m_TrueHDMATState.prev_mat_framesize);
+    ASSERT((!m_TrueHDMATState.prev_frametime_valid || space_size >= m_TrueHDMATState.prev_mat_framesize));
 
     // if for some reason the space_size fails, align the actual frame size
-    if (space_size < m_TrueHDMATState.prev_mat_framesize)
+    if (space_size < m_TrueHDMATState.prev_mat_framesize) {
         space_size = FFALIGN(m_TrueHDMATState.prev_mat_framesize, (64 >> (m_TrueHDMATState.ratebits & 7)));
+}
 
     m_TrueHDMATState.padding += (space_size - m_TrueHDMATState.prev_mat_framesize);
 
     // record the offset of frame time to output time, which is used to verify the size of the padding on discontinuities
     if (m_TrueHDMATState.output_timing_valid)
     {
-        uint32_t prev_output = (uint16_t)(m_TrueHDMATState.output_timing - frame_samples);
-        if (prev_output < frame_time) // wrap around, output is always in front of frame time
+        std::uint32_t prev_output = static_cast<std::uint16_t>((m_TrueHDMATState.output_timing - frame_samples));
+        if (prev_output < frame_time) { // wrap around, output is always in front of frame time
             prev_output += 0x10000;   // unwrap 16-bit value
+}
 
         m_TrueHDMATState.nOutputTimeOffset = (prev_output - frame_time);
     }
@@ -385,7 +402,7 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     {
         MATWritePadding();
 
-        ASSERT(m_TrueHDMATState.padding == 0 || m_bsOutput.GetCount() == MAT_BUFFER_SIZE);
+        ASSERT((m_TrueHDMATState.padding == 0 || m_bsOutput.GetCount() == MAT_BUFFER_SIZE));
 
         // Buffer is full, submit it
         if (m_bsOutput.GetCount() == MAT_BUFFER_SIZE)
@@ -404,7 +421,7 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     int remaining = MATFillDataBuffer(p, buffsize);
 
     // not all data could be written, or the buffer is full
-    if (remaining || m_bsOutput.GetCount() == MAT_BUFFER_SIZE)
+    if (remaining || (m_bsOutput.GetCount() == MAT_BUFFER_SIZE))
     {
         // flush out old data
         MATFlushPacket(hrDeliver);

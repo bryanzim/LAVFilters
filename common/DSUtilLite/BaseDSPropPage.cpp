@@ -18,7 +18,9 @@
  */
 
 #include "stdafx.h"
+
 #include "BaseDSPropPage.h"
+
 
 CBaseDSPropPage::CBaseDSPropPage(LPCTSTR pName, __inout_opt LPUNKNOWN pUnk, int DialogId, int TitleId)
     : CBasePropertyPage(pName, pUnk, DialogId, TitleId)
@@ -40,8 +42,9 @@ HWND CBaseDSPropPage::createHintWindow(HWND parent, int timePop, int timeInit, i
 
 TOOLINFO CBaseDSPropPage::addHint(int id, const LPWSTR text)
 {
-    if (!m_hHint)
+    if (!m_hHint) {
         m_hHint = createHintWindow(m_Dlg, 15000);
+}
     TOOLINFO ti;
     ti.cbSize = sizeof(TOOLINFO);
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
@@ -61,7 +64,7 @@ void CBaseDSPropPage::ListView_AddCol(HWND hlv, int &ncol, int w, const wchar_t 
     lvc.cx = w;
     lvc.fmt = right ? LVCFMT_RIGHT : LVCFMT_LEFT;
     ListView_InsertColumn(hlv, ncol, &lvc);
-    ncol++;
+    ++ncol;
 }
 
 HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter, HWND hwndOwner)
@@ -78,8 +81,9 @@ HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter, HWND hwndOwner
         FILTER_INFO FilterInfo;
         hr = pFilter->QueryFilterInfo(&FilterInfo);
         // We don't need the graph, so don't sit on a ref to it
-        if (FilterInfo.pGraph)
+        if (FilterInfo.pGraph) {
             FilterInfo.pGraph->Release();
+}
 
         IUnknown *pFilterUnk = nullptr;
         pFilter->QueryInterface<IUnknown>(&pFilterUnk);

@@ -21,6 +21,9 @@
 
 #include "IStreamSourceControl.h"
 
+#include <cstdint>
+
+
 class CLAVSplitter;
 
 class CLAVInputPin
@@ -45,7 +48,12 @@ class CLAVInputPin
     STDMETHODIMP BeginFlush();
     STDMETHODIMP EndFlush();
 
-    CMediaType &CurrentMediaType() { return m_mt; }
+    // Unblock a SyncRead on the upstream source. Safe to call from Stop
+    // while Read() is blocked: it does not take the pin lock.
+    void CancelPendingRead();
+    void ResumePendingRead();
+
+    [[nodiscard]] constexpr CMediaType &CurrentMediaType() noexcept { return m_mt; }
 
     // IStreamSourceControl
     STDMETHODIMP GetStreamDuration(REFERENCE_TIME *prtDuration)
@@ -56,10 +64,10 @@ class CLAVInputPin
     STDMETHODIMP SeekStream(REFERENCE_TIME rtPosition);
 
   protected:
-    static int Read(void *opaque, uint8_t *buf, int buf_size);
-    static int64_t Seek(void *opaque, int64_t offset, int whence);
+    static int Read(void *opaque, std::uint8_t *buf, int buf_size);
+    static std::int64_t Seek(void *opaque, std::int64_t offset, int whence);
 
-    LONGLONG m_llPos = 0;
+    LONGLONG m_llPos{ 0 };
 
   private:
     IAsyncReader *m_pAsyncReader = nullptr;
@@ -67,5 +75,10 @@ class CLAVInputPin
 
     IStreamSourceControl *m_pStreamControl = nullptr;
 
-    BOOL m_bURLSource = false;
+    BOOL m_bURLSource{ false };
+
+    static bool ReadWasCanceled(const CLAVInputPin *pin);
+
+    LONG m_lReadCanceled{ 0 };
+    LONG m_lSourceFlushing{ 0 };
 };

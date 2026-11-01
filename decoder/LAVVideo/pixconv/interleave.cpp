@@ -19,22 +19,26 @@
 
 #include "stdafx.h"
 
-#include <emmintrin.h>
-
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
 
+#include <emmintrin.h>
+
+#include <cstddef>
+#include <cstdint>
+
+
 DECLARE_CONV_FUNC_IMPL(convert_yuv444_y410)
 {
-    const uint16_t *y = (const uint16_t *)src[0];
-    const uint16_t *u = (const uint16_t *)src[1];
-    const uint16_t *v = (const uint16_t *)src[2];
+    const std::uint16_t *y = reinterpret_cast<const std::uint16_t *>(src[0U]);
+    const std::uint16_t *u = reinterpret_cast<const std::uint16_t *>(src[1U]);
+    const std::uint16_t *v = reinterpret_cast<const std::uint16_t *>(src[2U]);
 
-    const ptrdiff_t inStride = srcStride[0] >> 1;
-    const ptrdiff_t outStride = dstStride[0];
-    int shift = 10 - bpp;
+    const std::ptrdiff_t inStride = srcStride[0U] >> 1;
+    const std::ptrdiff_t outStride = dstStride[0U];
+    int const shift = 10 - bpp;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 
@@ -45,7 +49,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_y410)
 
     for (line = 0; line < height; ++line)
     {
-        __m128i *dst128 = (__m128i *)(dst[0] + line * outStride);
+        __m128i *dst128 = reinterpret_cast<__m128i *>((dst[0U] + line * outStride));
 
         for (i = 0; i < width; i += 8)
         {

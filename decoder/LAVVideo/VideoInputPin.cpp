@@ -18,12 +18,15 @@
  */
 
 #include "stdafx.h"
+
 #include "VideoInputPin.h"
+
 #include "ILAVDynamicAllocator.h"
+
 
 CVideoInputPin::CVideoInputPin(TCHAR *pObjectName, CLAVVideo *pFilter, HRESULT *phr, LPWSTR pName)
     : CDeCSSTransformInputPin(pObjectName, pFilter, phr, pName)
-    , m_pLAVVideo(pFilter)
+    , m_pLAVVideo{pFilter}
 {
 }
 
@@ -36,7 +39,7 @@ STDMETHODIMP CVideoInputPin::NonDelegatingQueryInterface(REFIID riid, void **ppv
 
 STDMETHODIMP CVideoInputPin::NotifyAllocator(IMemAllocator *pAllocator, BOOL bReadOnly)
 {
-    HRESULT hr = __super::NotifyAllocator(pAllocator, bReadOnly);
+    HRESULT const hr = __super::NotifyAllocator(pAllocator, bReadOnly);
 
     m_bDynamicAllocator = FALSE;
     if (SUCCEEDED(hr) && pAllocator)
@@ -54,7 +57,7 @@ STDMETHODIMP CVideoInputPin::NotifyAllocator(IMemAllocator *pAllocator, BOOL bRe
 
 STDMETHODIMP CVideoInputPin::EndOfSegment()
 {
-    CAutoLock lck(&m_pLAVVideo->m_csReceive);
+    CAutoLock const lck(&m_pLAVVideo->m_csReceive);
     HRESULT hr = CheckStreaming();
     if (S_OK == hr)
     {
@@ -77,17 +80,17 @@ STDMETHODIMP CVideoInputPin::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceData
     switch (Id)
     {
     case AM_RATE_SimpleRateChange: {
-        AM_SimpleRateChange *p = (AM_SimpleRateChange *)pPropertyData;
+        AM_SimpleRateChange *p = reinterpret_cast<AM_SimpleRateChange *>(pPropertyData);
         if (!m_CorrectTS)
         {
             return E_PROP_ID_UNSUPPORTED;
         }
-        CAutoLock cAutoLock(&m_csRateLock);
+        CAutoLock const cAutoLock(&m_csRateLock);
         m_ratechange = *p;
     }
     break;
     case AM_RATE_UseRateVersion: {
-        WORD *p = (WORD *)pPropertyData;
+        WORD *p = reinterpret_cast<WORD *>(pPropertyData);
         if (*p > 0x0101)
         {
             return E_PROP_ID_UNSUPPORTED;
@@ -95,7 +98,7 @@ STDMETHODIMP CVideoInputPin::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceData
     }
     break;
     case AM_RATE_CorrectTS: {
-        LONG *p = (LONG *)pPropertyData;
+        LONG *p = reinterpret_cast<LONG *>(pPropertyData);
         m_CorrectTS = *p;
     }
     break;
@@ -116,20 +119,20 @@ STDMETHODIMP CVideoInputPin::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceData
     switch (Id)
     {
     case AM_RATE_SimpleRateChange: {
-        AM_SimpleRateChange *p = (AM_SimpleRateChange *)pPropertyData;
-        CAutoLock cAutoLock(&m_csRateLock);
+        AM_SimpleRateChange *p = reinterpret_cast<AM_SimpleRateChange *>(pPropertyData);
+        CAutoLock const cAutoLock(&m_csRateLock);
         *p = m_ratechange;
         *pBytesReturned = sizeof(AM_SimpleRateChange);
     }
     break;
     case AM_RATE_MaxFullDataRate: {
-        AM_MaxFullDataRate *p = (AM_MaxFullDataRate *)pPropertyData;
+        AM_MaxFullDataRate *p = reinterpret_cast<AM_MaxFullDataRate *>(pPropertyData);
         *p = 2 * 10000;
         *pBytesReturned = sizeof(AM_MaxFullDataRate);
     }
     break;
     case AM_RATE_QueryFullFrameRate: {
-        AM_QueryRate *p = (AM_QueryRate *)pPropertyData;
+        AM_QueryRate *p = reinterpret_cast<AM_QueryRate *>(pPropertyData);
         p->lMaxForwardFullFrame = 2 * 10000;
         p->lMaxReverseFullFrame = 0;
         *pBytesReturned = sizeof(AM_QueryRate);

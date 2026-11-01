@@ -27,16 +27,23 @@
 
 #include "stdafx.h"
 
-// Initialize the GUIDs
+#ifdef _WIN32
 #include <InitGuid.h>
-
-#include <qnetwork.h>
-#include "LAVAudio.h"
-#include "AudioSettingsProp.h"
+#endif
 #include "moreuuids.h"
-#include "IMediaSideDataFFmpeg.h"
 
+#include "AudioSettingsProp.h"
+#include "IMediaSideDataFFmpeg.h"
+#include "LAVAudio.h"
 #include "registry.h"
+
+
+#ifdef _WIN32
+#include <qnetwork.h>
+#endif
+
+// Initialize the GUIDs
+
 
 // --- COM factory table and registration code --------------
 
@@ -62,7 +69,7 @@ CFactoryTemplate g_Templates[] = {
     {L"LAV Audio Mixer", &CLSID_LAVAudioMixingProp, CreateInstance<CLAVAudioMixingProp>, nullptr, nullptr},
     {L"LAV Audio Format Settings", &CLSID_LAVAudioFormatsProp, CreateInstance<CLAVAudioFormatsProp>, nullptr, nullptr},
     {L"LAV Audio Status", &CLSID_LAVAudioStatusProp, CreateInstance<CLAVAudioStatusProp>, nullptr, nullptr}};
-int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0]);
+int g_cTemplates = sizeof(g_Templates) / sizeof(g_Templates[0U]);
 
 // self-registration entrypoint
 STDAPI DllRegisterServer()
@@ -91,7 +98,7 @@ void CALLBACK OpenConfiguration(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, i
     HRESULT hr = S_OK;
     CUnknown *pInstance = CreateInstance<CLAVAudio>(nullptr, &hr);
     IBaseFilter *pFilter = nullptr;
-    pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, (void **)&pFilter);
+    pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, reinterpret_cast<void **>(&pFilter));
     if (pFilter)
     {
         pFilter->AddRef();

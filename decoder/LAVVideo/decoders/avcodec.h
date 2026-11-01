@@ -21,7 +21,9 @@
 
 #include "DecBase.h"
 
+#include <array>
 #include <map>
+
 
 #define AVCODEC_MAX_THREADS 32
 
@@ -34,7 +36,7 @@ typedef struct
 class CDecAvcodec : public CDecBase
 {
   public:
-    CDecAvcodec(void);
+    explicit CDecAvcodec();
     virtual ~CDecAvcodec(void);
 
     // ILAVDecoder
@@ -72,35 +74,35 @@ class CDecAvcodec : public CDecBase
     AVCodecContext *m_pAVCtx = nullptr;
     AVFrame *m_pFrame = nullptr;
     AVCodecID m_nCodecId = AV_CODEC_ID_NONE;
-    BOOL m_bInInit = FALSE;
+    BOOL m_bInInit{ FALSE };
 
   private:
     const AVCodec *m_pAVCodec = nullptr;
     AVCodecParserContext *m_pParser = nullptr;
 
     BYTE *m_pFFBuffer = nullptr;
-    unsigned int m_nFFBufferSize = 0;
+    unsigned int m_nFFBufferSize{ 0U };
 
     SwsContext *m_pSwsContext = nullptr;
 
-    BOOL m_bHasPalette = FALSE;
+    BOOL m_bHasPalette{ FALSE };
 
     // Timing settings
-    BOOL m_bFFReordering = FALSE;
-    BOOL m_bCalculateStopTime = FALSE;
-    BOOL m_bRVDropBFrameTimings = FALSE;
-    BOOL m_bInputPadded = FALSE;
+    BOOL m_bFFReordering{ FALSE };
+    BOOL m_bCalculateStopTime{ FALSE };
+    BOOL m_bRVDropBFrameTimings{ FALSE };
+    BOOL m_bInputPadded{ FALSE };
 
-    BOOL m_bBFrameDelay = TRUE;
-    TimingCache m_tcBFrameDelay[2];
-    int m_nBFramePos = 0;
+    BOOL m_bBFrameDelay{ TRUE };
+    std::array<TimingCache, 2U> m_tcBFrameDelay{};
+    int m_nBFramePos{ 0 };
 
-    TimingCache m_tcThreadBuffer[AVCODEC_MAX_THREADS];
-    int m_CurrentThread = 0;
+    std::array<TimingCache, AVCODEC_MAX_THREADS> m_tcThreadBuffer{};
+    int m_CurrentThread{ 0 };
 
     REFERENCE_TIME m_rtStartCache = AV_NOPTS_VALUE;
-    BOOL m_bResumeAtKeyFrame = FALSE;
-    BOOL m_bWaitingForKeyFrame = FALSE;
-    int m_iInterlaced = -1;
-    int m_nSoftTelecine = 0;
+    BOOL m_bResumeAtKeyFrame{ FALSE };
+    BOOL m_bWaitingForKeyFrame{ FALSE };
+    int m_iInterlaced{ -1 };
+    int m_nSoftTelecine{ 0 };
 };

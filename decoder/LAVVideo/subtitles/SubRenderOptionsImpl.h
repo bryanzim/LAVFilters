@@ -60,7 +60,7 @@ class CSubRenderOptionsImpl : public ISubRenderOptions
 {
   public:
     CSubRenderOptionsImpl(const struct SubRenderOption *options, void *context)
-        : options(options)
+        : options{options}
         , context(context){};
     virtual ~CSubRenderOptionsImpl(void){};
 

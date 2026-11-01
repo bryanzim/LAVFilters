@@ -20,14 +20,18 @@
  */
 
 #include "stdafx.h"
-#include "moreuuids.h"
-#include "BaseDemuxer.h"
+
 #include "LAVFAudioHelper.h"
-#include "LAVFUtils.h"
 
+#include "BaseDemuxer.h"
 #include "ExtradataParser.h"
+#include "LAVFUtils.h"
+#include "moreuuids.h"
 
+#include <cstddef>
+#include <cstring>
 #include <vector>
+
 
 CLAVFAudioHelper g_AudioHelper;
 
@@ -100,16 +104,19 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
     mediaType.SetSampleSize(256000);
 
     // Check against values from the map above
-    for (unsigned i = 0; i < countof(audio_map); ++i)
+    for (unsigned i{ 0U }; i < countof(audio_map); ++i)
     {
         if (audio_map[i].codec == codecpar->codec_id)
         {
-            if (audio_map[i].subtype)
+            if (audio_map[i].subtype) {
                 mediaType.subtype = *audio_map[i].subtype;
-            if (audio_map[i].codecTag)
+}
+            if (audio_map[i].codecTag) {
                 codecTag = audio_map[i].codecTag;
-            if (audio_map[i].format)
+}
+            if (audio_map[i].format) {
                 mediaType.formattype = *audio_map[i].format;
+}
             break;
         }
     }
@@ -119,8 +126,9 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
     {
     case AV_CODEC_ID_PCM_F64LE:
         // Qt PCM
-        if (codecTag == MKTAG('f', 'l', '6', '4'))
+        if (codecTag == MKTAG('f', 'l', '6', '4')) {
             mediaType.subtype = MEDIASUBTYPE_PCM_FL64_le;
+}
         break;
     }
     return mediaType;
@@ -128,18 +136,17 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
 
 WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *size)
 {
-    WAVEFORMATEX *wvfmt = (WAVEFORMATEX *)CoTaskMemAlloc(sizeof(WAVEFORMATEX) + avstream->codecpar->extradata_size);
-    if (!wvfmt)
-        return nullptr;
-    memset(wvfmt, 0, sizeof(WAVEFORMATEX));
+    WAVEFORMATEX *wvfmt = reinterpret_cast<WAVEFORMATEX *>(CoTaskMemAlloc(sizeof(WAVEFORMATEX) + avstream->codecpar->extradata_size));
+    if (!wvfmt) { return nullptr; }
+    std::memset(wvfmt, 0, sizeof(WAVEFORMATEX));
 
     wvfmt->wFormatTag = avstream->codecpar->codec_tag;
 
     wvfmt->nChannels = avstream->codecpar->ch_layout.nb_channels ? avstream->codecpar->ch_layout.nb_channels : 2;
     wvfmt->nSamplesPerSec = avstream->codecpar->sample_rate ? avstream->codecpar->sample_rate : 48000;
-    wvfmt->nAvgBytesPerSec = (DWORD)(avstream->codecpar->bit_rate / 8);
+    wvfmt->nAvgBytesPerSec = static_cast<DWORD>((avstream->codecpar->bit_rate / 8));
 
-    if (avstream->codecpar->codec_id == AV_CODEC_ID_AAC || avstream->codecpar->codec_id == AV_CODEC_ID_AAC_LATM)
+    if ((avstream->codecpar->codec_id == AV_CODEC_ID_AAC) || (avstream->codecpar->codec_id == AV_CODEC_ID_AAC_LATM))
     {
         wvfmt->wBitsPerSample = 0;
         wvfmt->nBlockAlign = 1;
@@ -159,16 +166,17 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
                 DbgOutString(L"BitsPerSample is 0, no good!");
             }
             wvfmt->nBlockAlign =
-                (WORD)(wvfmt->nChannels * av_get_bytes_per_sample((AVSampleFormat)avstream->codecpar->format));
+                static_cast<WORD>((wvfmt->nChannels * av_get_bytes_per_sample((AVSampleFormat)avstream->codecpar->format)));
         }
     }
-    if (!wvfmt->nAvgBytesPerSec)
+    if (!wvfmt->nAvgBytesPerSec) {
         wvfmt->nAvgBytesPerSec = (wvfmt->nSamplesPerSec * wvfmt->nChannels * wvfmt->wBitsPerSample) >> 3;
+}
 
     if (avstream->codecpar->extradata_size > 0)
     {
         wvfmt->cbSize = avstream->codecpar->extradata_size;
-        memcpy((BYTE *)wvfmt + sizeof(WAVEFORMATEX), avstream->codecpar->extradata, avstream->codecpar->extradata_size);
+        std::memcpy(reinterpret_cast<BYTE *>(wvfmt) + sizeof(WAVEFORMATEX), avstream->codecpar->extradata, avstream->codecpar->extradata_size);
     }
 
     *size = sizeof(WAVEFORMATEX) + avstream->codecpar->extradata_size;
@@ -178,15 +186,13 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
 WAVEFORMATEXFFMPEG *CLAVFAudioHelper::CreateWVFMTEX_FF(const AVStream *avstream, ULONG *size)
 {
     WAVEFORMATEX *wvfmt = CreateWVFMTEX(avstream, size);
-    if (!wvfmt)
-        return nullptr;
+    if (!wvfmt) { return nullptr; }
 
-    const size_t diff_size = sizeof(WAVEFORMATEXFFMPEG) - sizeof(WAVEFORMATEX);
-    WAVEFORMATEXFFMPEG *wfex_ff = (WAVEFORMATEXFFMPEG *)CoTaskMemAlloc(diff_size + *size);
-    if (!wfex_ff)
-        return nullptr;
-    memset(wfex_ff, 0, sizeof(WAVEFORMATEXFFMPEG));
-    memcpy(&wfex_ff->wfex, wvfmt, *size);
+    const std::size_t diff_size = sizeof(WAVEFORMATEXFFMPEG) - sizeof(WAVEFORMATEX);
+    WAVEFORMATEXFFMPEG *wfex_ff = reinterpret_cast<WAVEFORMATEXFFMPEG *>(CoTaskMemAlloc(diff_size + *size));
+    if (!wfex_ff) { return nullptr; }
+    std::memset(wfex_ff, 0, sizeof(WAVEFORMATEXFFMPEG));
+    std::memcpy(&wfex_ff->wfex, wvfmt, *size);
 
     wfex_ff->nCodecId = avstream->codecpar->codec_id;
     CoTaskMemFree(wvfmt);
@@ -198,15 +204,13 @@ WAVEFORMATEXFFMPEG *CLAVFAudioHelper::CreateWVFMTEX_FF(const AVStream *avstream,
 WAVEFORMATEXFFMPEG *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM_FF(const AVStream *avstream, ULONG *size, const GUID subtype, ULONG *samplesize)
 {
     WAVEFORMATEXTENSIBLE *wvfmt = CreateWFMTEX_RAW_PCM(avstream, size, subtype, samplesize);
-    if (!wvfmt)
-        return nullptr;
+    if (!wvfmt) { return nullptr; }
 
-    const size_t diff_size = sizeof(WAVEFORMATEXFFMPEG) - sizeof(WAVEFORMATEX);
-    WAVEFORMATEXFFMPEG *wfex_ff = (WAVEFORMATEXFFMPEG *)CoTaskMemAlloc(diff_size + *size);
-    if (!wfex_ff)
-        return nullptr;
-    memset(wfex_ff, 0, sizeof(WAVEFORMATEXFFMPEG));
-    memcpy(&wfex_ff->wfex, wvfmt, *size);
+    const std::size_t diff_size = sizeof(WAVEFORMATEXFFMPEG) - sizeof(WAVEFORMATEX);
+    WAVEFORMATEXFFMPEG *wfex_ff = reinterpret_cast<WAVEFORMATEXFFMPEG *>(CoTaskMemAlloc(diff_size + *size));
+    if (!wfex_ff) { return nullptr; }
+    std::memset(wfex_ff, 0, sizeof(WAVEFORMATEXFFMPEG));
+    std::memcpy(&wfex_ff->wfex, wvfmt, *size);
 
     wfex_ff->nCodecId = avstream->codecpar->codec_id;
     CoTaskMemFree(wvfmt);
@@ -219,12 +223,12 @@ WAVEFORMATEX_HDMV_LPCM *CLAVFAudioHelper::CreateWVFMTEX_LPCM(const AVStream *avs
 {
     WAVEFORMATEX *wvfmt = CreateWVFMTEX(avstream, size);
 
-    WAVEFORMATEX_HDMV_LPCM *lpcm = (WAVEFORMATEX_HDMV_LPCM *)CoTaskMemAlloc(sizeof(WAVEFORMATEX_HDMV_LPCM));
-    memset(lpcm, 0, sizeof(WAVEFORMATEX_HDMV_LPCM));
-    memcpy(lpcm, wvfmt, sizeof(WAVEFORMATEX));
+    WAVEFORMATEX_HDMV_LPCM *lpcm = reinterpret_cast<WAVEFORMATEX_HDMV_LPCM *>(CoTaskMemAlloc(sizeof(WAVEFORMATEX_HDMV_LPCM)));
+    std::memset(lpcm, 0, sizeof(WAVEFORMATEX_HDMV_LPCM));
+    std::memcpy(lpcm, wvfmt, sizeof(WAVEFORMATEX));
 
     lpcm->cbSize = sizeof(WAVEFORMATEX_HDMV_LPCM) - sizeof(WAVEFORMATEX);
-    BYTE channel_conf = 0;
+    BYTE channel_conf{ 0U };
     if (avstream->codecpar->ch_layout.order == AV_CHANNEL_ORDER_NATIVE)
     {
 
@@ -254,16 +258,15 @@ WAVEFORMATEX_HDMV_LPCM *CLAVFAudioHelper::CreateWVFMTEX_LPCM(const AVStream *avs
 WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avstream, ULONG *size, const GUID subtype,
                                                              ULONG *samplesize)
 {
-    WAVEFORMATEXTENSIBLE *wfex = (WAVEFORMATEXTENSIBLE *)CoTaskMemAlloc(sizeof(WAVEFORMATEXTENSIBLE));
-    if (!wfex)
-        return nullptr;
-    memset(wfex, 0, sizeof(*wfex));
+    WAVEFORMATEXTENSIBLE *wfex = reinterpret_cast<WAVEFORMATEXTENSIBLE *>(CoTaskMemAlloc(sizeof(WAVEFORMATEXTENSIBLE)));
+    if (!wfex) { return nullptr; }
+    std::memset(wfex, 0, sizeof(*wfex));
 
     WAVEFORMATEX *wfe = &wfex->Format;
-    wfe->wFormatTag = (WORD)subtype.Data1;
+    wfe->wFormatTag = static_cast<WORD>(subtype.Data1);
     wfe->nChannels = avstream->codecpar->ch_layout.nb_channels;
     wfe->nSamplesPerSec = avstream->codecpar->sample_rate;
-    if (avstream->codecpar->format == AV_SAMPLE_FMT_S32 && avstream->codecpar->bits_per_raw_sample > 0)
+    if ((avstream->codecpar->format == AV_SAMPLE_FMT_S32) && (avstream->codecpar->bits_per_raw_sample > 0))
     {
         wfe->wBitsPerSample = avstream->codecpar->bits_per_raw_sample > 24
                                   ? 32
@@ -276,27 +279,29 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
     wfe->nBlockAlign = wfe->nChannels * wfe->wBitsPerSample / 8;
     wfe->nAvgBytesPerSec = wfe->nSamplesPerSec * wfe->nBlockAlign;
 
-    bool bUseExtensible = false;
+    bool bUseExtensible{ false };
 
-    DWORD dwChannelMask = 0;
+    DWORD dwChannelMask{ 0U };
     if (wfe->nChannels > 2)
     {
         bUseExtensible = true;
 
-        if (avstream->codecpar->ch_layout.order == AV_CHANNEL_ORDER_NATIVE)
-            dwChannelMask = (DWORD)avstream->codecpar->ch_layout.u.mask;
+        if (avstream->codecpar->ch_layout.order == AV_CHANNEL_ORDER_NATIVE) {
+            dwChannelMask = static_cast<DWORD>(avstream->codecpar->ch_layout.u.mask);
+}
 
         if (!dwChannelMask)
         {
             AVChannelLayout Layout{};
             av_channel_layout_default(&Layout, wfe->nChannels);
-            dwChannelMask = (DWORD)Layout.u.mask;
+            dwChannelMask = static_cast<DWORD>(Layout.u.mask);
         }
 
-        if (dwChannelMask && av_popcount(dwChannelMask) != wfe->nChannels)
+        if (dwChannelMask && (av_popcount(dwChannelMask) != wfe->nChannels)) {
             dwChannelMask = 0;
+}
     }
-    else if ((wfe->wBitsPerSample > 16 || wfe->nSamplesPerSec > 48000) && wfe->nChannels <= 2)
+    else if ((wfe->wBitsPerSample > 16 || wfe->nSamplesPerSec > 48000) && (wfe->nChannels <= 2))
     {
         bUseExtensible = true;
         dwChannelMask = wfe->nChannels == 2 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT) : SPEAKER_FRONT_CENTER;
@@ -307,7 +312,7 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
         wfex->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
         wfex->Format.cbSize = sizeof(*wfex) - sizeof(wfex->Format);
         wfex->dwChannelMask = dwChannelMask;
-        if (avstream->codecpar->format == AV_SAMPLE_FMT_S32 && avstream->codecpar->bits_per_raw_sample > 0)
+        if ((avstream->codecpar->format == AV_SAMPLE_FMT_S32) && (avstream->codecpar->bits_per_raw_sample > 0))
         {
             wfex->Samples.wValidBitsPerSample = avstream->codecpar->bits_per_raw_sample;
         }
@@ -331,16 +336,14 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
 MPEG1WAVEFORMAT *CLAVFAudioHelper::CreateMP1WVFMT(const AVStream *avstream, ULONG *size)
 {
     WAVEFORMATEX *wvfmt = CreateWVFMTEX(avstream, size);
-    if (!wvfmt)
-        return nullptr;
+    if (!wvfmt) { return nullptr; }
 
-    MPEG1WAVEFORMAT *mpwvfmt = (MPEG1WAVEFORMAT *)CoTaskMemAlloc(sizeof(MPEG1WAVEFORMAT));
-    if (!mpwvfmt)
-        return nullptr;
-    memset(mpwvfmt, 0, sizeof(MPEG1WAVEFORMAT));
-    memcpy(&mpwvfmt->wfx, wvfmt, sizeof(WAVEFORMATEX));
+    MPEG1WAVEFORMAT *mpwvfmt = reinterpret_cast<MPEG1WAVEFORMAT *>(CoTaskMemAlloc(sizeof(MPEG1WAVEFORMAT)));
+    if (!mpwvfmt) { return nullptr; }
+    std::memset(mpwvfmt, 0, sizeof(MPEG1WAVEFORMAT));
+    std::memcpy(&mpwvfmt->wfx, wvfmt, sizeof(WAVEFORMATEX));
 
-    mpwvfmt->dwHeadBitrate = (DWORD)avstream->codecpar->bit_rate;
+    mpwvfmt->dwHeadBitrate = static_cast<DWORD>(avstream->codecpar->bit_rate);
     mpwvfmt->fwHeadMode = avstream->codecpar->ch_layout.nb_channels == 1 ? ACM_MPEG_SINGLECHANNEL : ACM_MPEG_DUALCHANNEL;
     mpwvfmt->fwHeadLayer = (avstream->codecpar->codec_id == AV_CODEC_ID_MP1) ? ACM_MPEG_LAYER1 : ACM_MPEG_LAYER2;
 
@@ -363,15 +366,14 @@ MPEG1WAVEFORMAT *CLAVFAudioHelper::CreateMP1WVFMT(const AVStream *avstream, ULON
 
 VORBISFORMAT *CLAVFAudioHelper::CreateVorbis(const AVStream *avstream, ULONG *size)
 {
-    VORBISFORMAT *vfmt = (VORBISFORMAT *)CoTaskMemAlloc(sizeof(VORBISFORMAT));
-    if (!vfmt)
-        return nullptr;
-    memset(vfmt, 0, sizeof(VORBISFORMAT));
+    VORBISFORMAT *vfmt = reinterpret_cast<VORBISFORMAT *>(CoTaskMemAlloc(sizeof(VORBISFORMAT)));
+    if (!vfmt) { return nullptr; }
+    std::memset(vfmt, 0, sizeof(VORBISFORMAT));
 
     vfmt->nChannels = avstream->codecpar->ch_layout.nb_channels;
     vfmt->nSamplesPerSec = avstream->codecpar->sample_rate;
-    vfmt->nAvgBitsPerSec = (DWORD)avstream->codecpar->bit_rate;
-    vfmt->nMinBitsPerSec = vfmt->nMaxBitsPerSec = (DWORD)-1;
+    vfmt->nAvgBitsPerSec = static_cast<DWORD>(avstream->codecpar->bit_rate);
+    vfmt->nMinBitsPerSec = vfmt->nMaxBitsPerSec = static_cast<DWORD>(-1);
 
     *size = sizeof(VORBISFORMAT);
     return vfmt;
@@ -382,9 +384,9 @@ VORBISFORMAT2 *CLAVFAudioHelper::CreateVorbis2(const AVStream *avstream, ULONG *
     BYTE *p = avstream->codecpar->extradata;
     std::vector<int> sizes;
     // read the number of blocks, and then the sizes of the individual blocks
-    for (BYTE n = *p++; n > 0; n--)
+    for (BYTE n = *p++; n > 0; --n)
     {
-        int size = 0;
+        int size{ 0 };
         // Xiph Lacing
         do
         {
@@ -393,30 +395,30 @@ VORBISFORMAT2 *CLAVFAudioHelper::CreateVorbis2(const AVStream *avstream, ULONG *
         sizes.push_back(size);
     }
 
-    int totalsize = 0;
-    for (unsigned int i = 0; i < sizes.size(); i++)
+    int totalsize{ 0 };
+    for (unsigned int i{ 0U }; i < sizes.size(); ++i) {
         totalsize += sizes[i];
+}
 
     // Get the size of the last block
-    sizes.push_back(avstream->codecpar->extradata_size - (int)(p - avstream->codecpar->extradata) - totalsize);
+    sizes.push_back(avstream->codecpar->extradata_size - static_cast<int>((p - avstream->codecpar->extradata)) - totalsize);
     totalsize += sizes[sizes.size() - 1];
 
     // 3 blocks is the currently valid Vorbis format
     if (sizes.size() == 3)
     {
-        VORBISFORMAT2 *pvf2 = (VORBISFORMAT2 *)CoTaskMemAlloc(sizeof(VORBISFORMAT2) + totalsize);
-        if (!pvf2)
-            return nullptr;
-        memset(pvf2, 0, sizeof(VORBISFORMAT2));
+        VORBISFORMAT2 *pvf2 = reinterpret_cast<VORBISFORMAT2 *>(CoTaskMemAlloc(sizeof(VORBISFORMAT2) + totalsize));
+        if (!pvf2) { return nullptr; }
+        std::memset(pvf2, 0, sizeof(VORBISFORMAT2));
 
         pvf2->Channels = avstream->codecpar->ch_layout.nb_channels;
         pvf2->SamplesPerSec = avstream->codecpar->sample_rate;
         pvf2->BitsPerSample = get_bits_per_sample(avstream->codecpar);
 
-        BYTE *p2 = (BYTE *)pvf2 + sizeof(VORBISFORMAT2);
-        for (unsigned int i = 0; i < sizes.size(); p += sizes[i], p2 += sizes[i], i++)
+        BYTE *p2 = reinterpret_cast<BYTE *>(pvf2) + sizeof(VORBISFORMAT2);
+        for (unsigned int i{ 0U }; i < sizes.size(); p += sizes[i], p2 += sizes[i], i++)
         {
-            memcpy(p2, p, pvf2->HeaderSize[i] = sizes[i]);
+            std::memcpy(p2, p, pvf2->HeaderSize[i] = sizes[i]);
         }
 
         *size = sizeof(VORBISFORMAT2) + totalsize;

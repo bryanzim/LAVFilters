@@ -18,23 +18,27 @@
  */
 
 #include "stdafx.h"
+
 #include "SubRenderOptionsImpl.h"
+
+#include <cstdint>
+#include <cstring>
+#include <cwchar>
+
 
 static const SubRenderOption *sropt_next(const SubRenderOption *options, const SubRenderOption *last)
 {
-    if (!last && options[0].name)
-        return options;
-    if (last && last[1].name)
-        return ++last;
+    if (!last && options[0U].name) { return options; }
+    if (last && last[1U].name) { return ++last; }
     return nullptr;
 }
 
 static const SubRenderOption *sropt_find_option(const SubRenderOption *options, LPCSTR name, int flags)
 {
     const SubRenderOption *o = nullptr;
-    while (o = sropt_next(options, o))
+    while ((o = sropt_next(options, o)))
     {
-        if (!_stricmp(o->name, name) && !(o->flags & flags))
+        if ((!::_stricmp(o->name, name)) && (!(o->flags & flags)))
         {
             return o;
         }
@@ -58,7 +62,7 @@ static const SubRenderOption *sropt_find_option(const SubRenderOption *options, 
         return E_INVALIDARG;
 
 #define SET_VALUE                                                    \
-    memcpy(((uint8_t *)context) + o->offset, &value, sizeof(value)); \
+    std::memcpy((reinterpret_cast<std::uint8_t *>(context)) + o->offset, &value, sizeof(value)); \
     OnSubOptionSet(field);
 
 STDMETHODIMP CSubRenderOptionsImpl::GetBool(LPCSTR field, bool *value)
@@ -108,7 +112,7 @@ STDMETHODIMP CSubRenderOptionsImpl::GetString(LPCSTR field, LPWSTR *value, int *
     GET_OPT_AND_VALIDATE(SROPT_TYPE_STRING)
     CheckPointer(chars, E_POINTER);
 
-    const LPWSTR string = *(LPWSTR *)(((uint8_t *)context) + o->offset);
+    const LPWSTR string = *reinterpret_cast<LPWSTR *>((((std::uint8_t *)context) + o->offset));
     if (!string)
     {
         *value = nullptr;
@@ -116,10 +120,10 @@ STDMETHODIMP CSubRenderOptionsImpl::GetString(LPCSTR field, LPWSTR *value, int *
         return S_OK;
     }
 
-    *chars = (int)wcslen(string);
+    *chars = static_cast<int>(std::wcslen(string));
     *value = (LPWSTR)LocalAlloc(0, sizeof(WCHAR) * (*chars + 1));
     CheckPointer(*value, E_OUTOFMEMORY);
-    wcscpy_s(*value, *chars + 1, string);
+    ::wcscpy_s(*value, *chars + 1, string);
 
     return S_OK;
 }

@@ -21,8 +21,10 @@
 
 #pragma once
 
-#include <string>
 #include "StreamInfo.h"
+
+#include <string>
+
 
 class CLAVFStreamInfo : public CStreamInfo
 {

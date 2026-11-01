@@ -20,10 +20,14 @@
 #pragma once
 #include "DecBase.h"
 
-#include <mfidl.h>
-
-#include <vector>
 #include <queue>
+#include <vector>
+
+
+#ifdef _WIN32
+#include <mfidl.h>
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Dynlink types
@@ -39,7 +43,7 @@ typedef HRESULT STDAPICALLTYPE tMFCreateAlignedMemoryBuffer(DWORD cbMaxLength, D
 typedef HRESULT STDAPICALLTYPE tMFAverageTimePerFrameToFrameRate(UINT64 unAverageTimePerFrame, UINT32 *punNumerator,
                                                                  UINT32 *punDenominator);
 
-#define MFMETHOD(name) tMF##name *##name
+#define MFMETHOD(name) tMF##name *name
 
 ////////////////////////////////////////////////////////////////////////////////
 // Class
@@ -52,12 +56,12 @@ class CDecWMV9MFT : public CDecBase
     typedef struct _Buffer
     {
         IMFMediaBuffer *pBuffer = nullptr;
-        DWORD size = 0;
-        bool used = false;
+        DWORD size{ 0U };
+        bool used{ false };
     } Buffer;
 
   public:
-    CDecWMV9MFT(void);
+    explicit CDecWMV9MFT();
     virtual ~CDecWMV9MFT(void);
 
     // ILAVDecoder
@@ -89,7 +93,7 @@ class CDecWMV9MFT : public CDecBase
   private:
     IMFTransform *m_pMFT = nullptr;
 
-    BOOL m_bInterlaced = TRUE;
+    BOOL m_bInterlaced{ TRUE };
 
     LAVPixelFormat m_OutPixFmt = LAVPixFmt_None;
     AVCodecID m_nCodecId = AV_CODEC_ID_NONE;
@@ -97,9 +101,9 @@ class CDecWMV9MFT : public CDecBase
     CCritSec m_BufferCritSec;
     std::vector<Buffer *> m_BufferQueue;
 
-    BOOL m_bNeedKeyFrame = TRUE;
-    BOOL m_bManualReorder = FALSE;
-    BOOL m_bReorderBufferValid = FALSE;
+    BOOL m_bNeedKeyFrame{ TRUE };
+    BOOL m_bManualReorder{ FALSE };
+    BOOL m_bReorderBufferValid{ FALSE };
     REFERENCE_TIME m_rtReorderBuffer = AV_NOPTS_VALUE;
     std::queue<REFERENCE_TIME> m_timestampQueue;
 
@@ -107,7 +111,7 @@ class CDecWMV9MFT : public CDecBase
 
     struct
     {
-        HMODULE mfplat = NULL;
+        HMODULE mfplat{ nullptr };
         MFMETHOD(Startup);
         MFMETHOD(Shutdown);
         MFMETHOD(CreateAlignedMemoryBuffer);

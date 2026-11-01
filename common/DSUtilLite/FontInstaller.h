@@ -32,7 +32,7 @@ class CFontInstaller
     bool InstallFontMemory(const void *pData, UINT len);
 
   public:
-    CFontInstaller();
+    explicit CFontInstaller();
     virtual ~CFontInstaller();
 
     bool InstallFont(const void *pData, UINT len);

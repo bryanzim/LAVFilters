@@ -18,7 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "ExtradataParser.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 
 #define MARKER           \
     if (BitRead(1) != 1) \
@@ -27,7 +33,7 @@
         return 0;        \
     }
 
-CExtradataParser::CExtradataParser(BYTE *pExtradata, size_t extra_len)
+CExtradataParser::CExtradataParser(BYTE *pExtradata, std::size_t extra_len)
     : CByteParser(pExtradata, extra_len)
 {
 }
@@ -39,21 +45,22 @@ CExtradataParser::~CExtradataParser()
 bool CExtradataParser::NextMPEGStartCode(BYTE &code)
 {
     BitByteAlign();
-    DWORD dw = (DWORD)-1;
+    DWORD dw = static_cast<DWORD>(-1);
     do
     {
-        if (!Remaining())
+        if (!Remaining()) {
             return false;
-        dw = (dw << 8) | (BYTE)BitRead(8);
+}
+        dw = (dw << 8) | static_cast<BYTE>(BitRead(8));
     } while ((dw & 0xffffff00) != 0x00000100);
-    code = (BYTE)(dw & 0xff);
+    code = static_cast<BYTE>((dw & 0xff));
     return true;
 }
 
-size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
+std::size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
 {
-    BYTE id = 0;
-    while (Remaining() && id != 0xb3)
+    BYTE id{ 0U };
+    while (Remaining() && (id != 0xb3))
     {
         if (!NextMPEGStartCode(id))
         {
@@ -66,7 +73,7 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
         return 0;
     }
 
-    size_t shpos = Pos() - 4;
+    std::size_t const shpos = Pos() - 4;
     BitRead(12); // Width
     BitRead(12); // Height
     BitRead(4);  // AR
@@ -78,7 +85,7 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
     // intra quantisizer matrix
     if (BitRead(1))
     {
-        for (uint8_t i = 0; i < 64; i++)
+        for (std::uint8_t i{ 0U }; i < 64; ++i)
         {
             BitRead(8);
         }
@@ -86,22 +93,22 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
     // non-intra quantisizer matrix
     if (BitRead(1))
     {
-        for (uint8_t i = 0; i < 64; i++)
+        for (std::uint8_t i{ 0U }; i < 64; ++i)
         {
             BitRead(8);
         }
     }
 
-    size_t shlen = Pos() - shpos;
+    std::size_t const shlen = Pos() - shpos;
 
-    size_t shextpos = 0;
-    size_t shextlen = 0;
+    std::size_t shextpos{ 0U };
+    std::size_t shextlen{ 0U };
 
-    if (NextMPEGStartCode(id) && id == 0xb5)
+    if (NextMPEGStartCode(id) && (id == 0xb5))
     { // sequence header ext
         shextpos = Pos() - 4;
 
-        int startcode = BitRead(4); // Start Code Id; TODO: DIfferent start code ids mean different length of da2a
+        int const startcode = BitRead(4); // Start Code Id; TODO: DIfferent start code ids mean different length of da2a
         ASSERT(startcode == 1);
 
         BitRead(1);  // Profile Level Escape
@@ -121,10 +128,10 @@ size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
         shextlen = Pos() - shextpos;
     }
 
-    memcpy(pTarget, Start() + shpos, shlen);
+    std::memcpy(pTarget, Start() + shpos, shlen);
     if (shextpos)
     {
-        memcpy(pTarget + shlen, Start() + shextpos, shextlen);
+        std::memcpy(pTarget + shlen, Start() + shextpos, shextlen);
     }
     return shlen + shextlen;
 }

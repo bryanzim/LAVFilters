@@ -26,7 +26,7 @@ struct GetBitContext;
 class CBitstreamParser
 {
   public:
-    CBitstreamParser();
+    explicit CBitstreamParser();
     ~CBitstreamParser();
 
     HRESULT Parse(AVCodecID codec, BYTE *pBuffer, DWORD dwSize);
@@ -38,12 +38,12 @@ class CBitstreamParser
     HRESULT ParseTrueHD(BYTE *pBuffer, DWORD dwSize);
 
   public:
-    DWORD m_dwSampleRate = 0;
-    DWORD m_dwBlocks = 0;
-    DWORD m_dwFrameSize = 0;
-    DWORD m_dwSamples = 0;
+    DWORD m_dwSampleRate{ 0U };
+    DWORD m_dwBlocks{ 0U };
+    DWORD m_dwFrameSize{ 0U };
+    DWORD m_dwSamples{ 0U };
 
-    BOOL m_bDTSHD = FALSE;
+    BOOL m_bDTSHD{ FALSE };
     DTSHeader m_DTSHeader;
 
   private:

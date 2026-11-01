@@ -21,11 +21,13 @@
 #include "DecBase.h"
 #include "IMediaSideData.h"
 
-#include "mfxvideo.h"
-#include "mfxmvc.h"
+#include <mfxvideo.h>
+#include <mfxmvc.h>
 
+#include <cstddef>
 #include <deque>
 #include <vector>
+
 
 #define ASYNC_DEPTH 8
 #define ASYNC_QUEUE_SIZE (ASYNC_DEPTH + 2)
@@ -37,9 +39,9 @@
 
 typedef struct _MVCBuffer
 {
-    mfxFrameSurface1 surface = {0};
-    bool queued = false;
-    mfxSyncPoint sync = nullptr;
+    mfxFrameSurface1 surface = {};
+    bool queued{ false };
+    mfxSyncPoint sync{ nullptr };
 } MVCBuffer;
 
 typedef struct _MVCGOP
@@ -51,7 +53,7 @@ typedef struct _MVCGOP
 class CDecMSDKMVC : public CDecBase
 {
   public:
-    CDecMSDKMVC();
+    explicit CDecMSDKMVC();
     virtual ~CDecMSDKMVC();
 
     // ILAVDecoder
@@ -62,12 +64,15 @@ class CDecMSDKMVC : public CDecBase
     STDMETHODIMP EndOfStream();
     STDMETHODIMP GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
     {
-        if (pPix)
+        if (pPix) {
             *pPix = LAVPixFmt_NV12;
-        if (pBpp)
+}
+        if (pBpp) {
             *pBpp = 8;
-        if (pPixSoftware)
+}
+        if (pPixSoftware) {
             *pPixSoftware = LAVPixFmt_NV12;
+}
         return S_OK;
     }
     STDMETHODIMP_(BOOL) IsInterlaced(BOOL bAllowGuess) { return FALSE; }
@@ -91,10 +96,10 @@ class CDecMSDKMVC : public CDecBase
     HRESULT HandleOutput(MVCBuffer *pOutputBuffer);
     HRESULT DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView);
 
-    HRESULT ParseSEI(const BYTE *buffer, size_t size, mfxU64 timestamp);
-    HRESULT ParseMVCNestedSEI(const BYTE *buffer, size_t size, mfxU64 timestamp);
-    HRESULT ParseUnregUserDataSEI(const BYTE *buffer, size_t size, mfxU64 timestamp);
-    HRESULT ParseOffsetMetadata(const BYTE *buffer, size_t size, mfxU64 timestamp);
+    HRESULT ParseSEI(const BYTE *buffer, std::size_t size, mfxU64 timestamp);
+    HRESULT ParseMVCNestedSEI(const BYTE *buffer, std::size_t size, mfxU64 timestamp);
+    HRESULT ParseUnregUserDataSEI(const BYTE *buffer, std::size_t size, mfxU64 timestamp);
+    HRESULT ParseOffsetMetadata(const BYTE *buffer, std::size_t size, mfxU64 timestamp);
 
     void AddFrameToGOP(mfxU64 timestamp);
     BOOL RemoveFrameFromGOP(MVCGOP *pGOP, mfxU64 timestamp);
@@ -103,24 +108,24 @@ class CDecMSDKMVC : public CDecBase
     static void msdk_buffer_destruct(LAVFrame *pFrame);
 
   private:
-    mfxSession m_mfxSession = nullptr;
-    mfxVersion m_mfxVersion = {0};
-    mfxIMPL m_mfxImpl = 0;
+    mfxSession m_mfxSession{ nullptr };
+    mfxVersion m_mfxVersion = {};
+    mfxIMPL m_mfxImpl{ 0 };
 
-    BOOL m_bDecodeReady = FALSE;
+    BOOL m_bDecodeReady{ FALSE };
     mfxVideoParam m_mfxVideoParams = {0};
 
-    mfxExtBuffer *m_mfxExtParam[1] = {0};
-    mfxExtMVCSeqDesc m_mfxExtMVCSeq = {0};
+    mfxExtBuffer *m_mfxExtParam[1U] = {nullptr};
+    mfxExtMVCSeqDesc m_mfxExtMVCSeq = {};
 
     CCritSec m_BufferCritSec;
     std::vector<MVCBuffer *> m_BufferQueue;
 
     GrowableArray<BYTE> m_buff;
-    int m_nMP4NALUSize = 0;
+    int m_nMP4NALUSize{ 0 };
 
-    MVCBuffer *m_pOutputQueue[ASYNC_QUEUE_SIZE] = {0};
-    int m_nOutputQueuePosition = 0;
+    MVCBuffer *m_pOutputQueue[ASYNC_QUEUE_SIZE] = {nullptr};
+    int m_nOutputQueuePosition{ 0 };
 
     std::deque<MVCGOP> m_GOPs;
     MediaSideData3DOffset m_PrevOffset;

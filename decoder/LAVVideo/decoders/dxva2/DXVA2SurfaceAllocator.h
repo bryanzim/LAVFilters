@@ -21,8 +21,11 @@
 
 #pragma once
 
-#include <Mfidl.h>
 #include "MediaSampleSideData.h"
+
+#ifdef _WIN32
+#include <Mfidl.h>
+#endif
 
 class CDecDXVA2;
 
@@ -61,7 +64,7 @@ class CDXVA2Sample
     void SetSurface(DWORD surfaceId, IDirect3DSurface9 *pSurf);
 
     IDirect3DSurface9 *m_pSurface = nullptr;
-    DWORD m_dwSurfaceId = 0;
+    DWORD m_dwSurfaceId{ 0U };
 };
 
 interface __declspec(uuid("23F80BD8-2654-4F74-B7CC-621868D0A850")) ILAVDXVA2SurfaceAllocator : public IUnknown
@@ -84,12 +87,12 @@ class CDXVA2SurfaceAllocator
     void Free();
     STDMETHODIMP_(BOOL) DecommitInProgress()
     {
-        CAutoLock cal(this);
+        CAutoLock const cal(this);
         return m_bDecommitInProgress;
     }
     STDMETHODIMP_(BOOL) IsCommited()
     {
-        CAutoLock cal(this);
+        CAutoLock const cal(this);
         return m_bCommitted;
     }
 
@@ -99,5 +102,5 @@ class CDXVA2SurfaceAllocator
     CDecDXVA2 *m_pDec = nullptr;
 
     IDirect3DSurface9 **m_ppRTSurfaceArray = nullptr;
-    UINT m_nSurfaceArrayCount = 0;
+    UINT m_nSurfaceArrayCount{ 0U };
 };

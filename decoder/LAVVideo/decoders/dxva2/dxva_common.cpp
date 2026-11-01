@@ -18,8 +18,11 @@
 */
 
 #include "stdafx.h"
+
 #include "dxva_common.h"
+
 #include "moreuuids.h"
+
 
 extern "C"
 {
@@ -33,10 +36,11 @@ DWORD dxva_align_dimensions(AVCodecID codec, DWORD dim)
   int align = DXVA_SURFACE_BASE_ALIGN;
 
   // MPEG-2 needs higher alignment on Intel cards, and it doesn't seem to harm anything to do it for all cards.
-  if (codec == AV_CODEC_ID_MPEG2VIDEO)
+  if (codec == AV_CODEC_ID_MPEG2VIDEO) {
     align <<= 1;
-  else if (codec == AV_CODEC_ID_HEVC || codec == AV_CODEC_ID_AV1)
+  } else if ((codec == AV_CODEC_ID_HEVC) || (codec == AV_CODEC_ID_AV1)) {
     align = 128;
+}
 
   return FFALIGN(dim, align);
 }
@@ -158,29 +162,29 @@ const dxva_mode_t dxva_modes[] = {
 
 const dxva_mode_t *get_dxva_mode_from_guid(const GUID *guid)
 {
-  for (unsigned i = 0; dxva_modes[i].name; i++) {
-    if (IsEqualGUID(*dxva_modes[i].guid, *guid))
+  for (unsigned i{ 0U }; dxva_modes[i].name; ++i) {
+    if (IsEqualGUID(*dxva_modes[i].guid, *guid)) {
       return &dxva_modes[i];
+}
   }
   return nullptr;
 }
 
 int check_dxva_mode_compatibility(const dxva_mode_t *mode, int codec, int profile, int level, bool b8Bit)
 {
-  if (mode->codec != codec)
-    return 0;
+  if (mode->codec != codec) { return 0; }
 
-  if (mode->profiles && profile != AV_PROFILE_UNKNOWN)
+  if ((mode->profiles) && (profile != AV_PROFILE_UNKNOWN))
   {
-    for (int i = 0; mode->profiles[i] != AV_PROFILE_UNKNOWN; i++)
+    for (int i{ 0 }; mode->profiles[i] != AV_PROFILE_UNKNOWN; ++i)
     {
-        if (mode->profiles[i] == profile && (mode->level == 0 || mode->level == level))
+        if ((mode->profiles[i] == profile) && (mode->level == 0 || mode->level == level)) {
             return 1;
+}
     }
 
     /* hevc main and main10 are very similar, and in some cases streams can be flagged as main10, but actually contain 8-bit content */
-    if (codec == AV_CODEC_ID_HEVC && mode->profiles[0] == AV_PROFILE_HEVC_MAIN && profile == AV_PROFILE_HEVC_MAIN_10 && b8Bit)
-        return 1;
+    if ((codec == AV_CODEC_ID_HEVC) && (mode->profiles[0U] == AV_PROFILE_HEVC_MAIN) && (profile == AV_PROFILE_HEVC_MAIN_10) && b8Bit) { return 1; }
 
     return 0;
   }
@@ -192,39 +196,42 @@ int check_dxva_mode_compatibility(const dxva_mode_t *mode, int codec, int profil
 
 int check_dxva_codec_profile(const AVCodecContext *ctx, int hwpixfmt)
 {
-    AVCodecID codec = ctx->codec_id;
-    AVPixelFormat pix_fmt = ctx->pix_fmt;
-    int profile = ctx->profile;
-    int level = ctx->level;
+    AVCodecID const codec = ctx->codec_id;
+    AVPixelFormat const pix_fmt = ctx->pix_fmt;
+    int const profile = ctx->profile;
+    int const level = ctx->level;
 
     // check mpeg2 pixfmt
-    if (codec == AV_CODEC_ID_MPEG2VIDEO && pix_fmt != AV_PIX_FMT_YUV420P && pix_fmt != AV_PIX_FMT_YUVJ420P && pix_fmt != hwpixfmt && pix_fmt != AV_PIX_FMT_NONE)
-        return 1;
+    if ((codec == AV_CODEC_ID_MPEG2VIDEO) && (pix_fmt != AV_PIX_FMT_YUV420P) && (pix_fmt != AV_PIX_FMT_YUVJ420P) && (pix_fmt != hwpixfmt) && (pix_fmt != AV_PIX_FMT_NONE)) { return 1; }
 
     // check h264 pixfmt
-    if (codec == AV_CODEC_ID_H264 && pix_fmt != AV_PIX_FMT_YUV420P && pix_fmt != AV_PIX_FMT_YUVJ420P && pix_fmt != hwpixfmt && pix_fmt != AV_PIX_FMT_NONE)
-        return 1;
+    if ((codec == AV_CODEC_ID_H264) && (pix_fmt != AV_PIX_FMT_YUV420P) && (pix_fmt != AV_PIX_FMT_YUVJ420P) && (pix_fmt != hwpixfmt) && (pix_fmt != AV_PIX_FMT_NONE)) { return 1; }
 
     // check h264 profile
-    if (codec == AV_CODEC_ID_H264 && profile != AV_PROFILE_UNKNOWN && !H264_CHECK_PROFILE(profile))
+    if ((codec == AV_CODEC_ID_H264) && (profile != AV_PROFILE_UNKNOWN) && !H264_CHECK_PROFILE(profile)) {
         return 1;
+}
 
     // H.264 Level 5.1 ref frame limits
     const int h264mb_count = (ctx->coded_width / 16) * (ctx->coded_height / 16);
-    if (codec == AV_CODEC_ID_H264 && h264mb_count > 0 && ctx->refs > H264_MAX_REF_DPB(ctx, 184320, 16, h264mb_count))
+    if ((codec == AV_CODEC_ID_H264) && (h264mb_count > 0) && (ctx->refs > H264_MAX_REF_DPB(ctx, 184320, 16, h264mb_count))) {
         return 1;
+}
 
     // check wmv/vc1 profile
-    if ((codec == AV_CODEC_ID_WMV3 || codec == AV_CODEC_ID_VC1) && profile == AV_PROFILE_VC1_COMPLEX)
+    if ((codec == AV_CODEC_ID_WMV3 || codec == AV_CODEC_ID_VC1) && (profile == AV_PROFILE_VC1_COMPLEX)) {
         return 1;
+}
 
     // check vp9 profile/pixfmt
-    if (codec == AV_CODEC_ID_VP9 && (!VP9_CHECK_PROFILE(profile) || (pix_fmt != AV_PIX_FMT_YUV420P && pix_fmt != AV_PIX_FMT_YUV420P10 && pix_fmt != hwpixfmt && pix_fmt != AV_PIX_FMT_NONE)))
+    if ((codec == AV_CODEC_ID_VP9) && (!VP9_CHECK_PROFILE(profile) || (pix_fmt != AV_PIX_FMT_YUV420P && pix_fmt != AV_PIX_FMT_YUV420P10 && pix_fmt != hwpixfmt && pix_fmt != AV_PIX_FMT_NONE))) {
         return 1;
+}
 
     // check av1 profile/pixfmt
-    if (codec == AV_CODEC_ID_AV1 && (profile != AV_PROFILE_AV1_MAIN || (pix_fmt != AV_PIX_FMT_YUV420P  && pix_fmt != AV_PIX_FMT_YUV420P10 && pix_fmt != hwpixfmt && pix_fmt != AV_PIX_FMT_NONE)))
+    if ((codec == AV_CODEC_ID_AV1) && (profile != AV_PROFILE_AV1_MAIN || (pix_fmt != AV_PIX_FMT_YUV420P  && pix_fmt != AV_PIX_FMT_YUV420P10 && pix_fmt != hwpixfmt && pix_fmt != AV_PIX_FMT_NONE))) {
         return 1;
+}
 
     return 0;
 }

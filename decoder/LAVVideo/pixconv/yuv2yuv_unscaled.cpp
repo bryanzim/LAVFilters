@@ -19,33 +19,41 @@
 
 #include "stdafx.h"
 
-#include <emmintrin.h>
-
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
 
+#include <emmintrin.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+
 template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
 {
-    const ptrdiff_t inYStride = srcStride[0];
-    const ptrdiff_t inUVStride = srcStride[1];
+    const std::ptrdiff_t inYStride = srcStride[0U];
+    const std::ptrdiff_t inUVStride = srcStride[1U];
 
-    const ptrdiff_t outYStride = dstStride[0];
-    const ptrdiff_t outUVStride = dstStride[1];
+    const std::ptrdiff_t outYStride = dstStride[0U];
+    const std::ptrdiff_t outUVStride = dstStride[1U];
 
-    ptrdiff_t chromaWidth = width;
-    ptrdiff_t chromaHeight = height;
+    std::ptrdiff_t chromaWidth = width;
+    std::ptrdiff_t chromaHeight = height;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
-    if (dithers == nullptr)
+    const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
-    if (inputFormat == LAVPixFmt_YUV420bX)
+    if (inputFormat == LAVPixFmt_YUV420bX) {
         chromaHeight = chromaHeight >> 1;
-    if (inputFormat == LAVPixFmt_YUV420bX || inputFormat == LAVPixFmt_YUV422bX)
+}
+    if ((inputFormat == LAVPixFmt_YUV420bX) || (inputFormat == LAVPixFmt_YUV422bX)) {
         chromaWidth = (chromaWidth + 1) >> 1;
+}
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 
@@ -57,10 +65,10 @@ template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm4 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 0));
-            xmm5 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 8));
-            xmm6 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 16));
-            xmm7 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 24));
+            xmm4 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 0)));
+            xmm5 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 8)));
+            xmm6 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 16)));
+            xmm7 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 24)));
         }
         else
         {
@@ -68,8 +76,8 @@ template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
-        const uint16_t *const y = (const uint16_t *)(src[0] + line * inYStride);
-        uint16_t *const dy = (uint16_t *)(dst[0] + line * outYStride);
+        const std::uint16_t *const y = reinterpret_cast<const std::uint16_t *>((src[0U] + line * inYStride));
+        std::uint16_t *const dy = reinterpret_cast<std::uint16_t *>((dst[0U] + line * outYStride));
 
         for (i = 0; i < width; i += 32)
         {
@@ -89,12 +97,12 @@ template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
         // Process U/V for chromaHeight lines
         if (line < chromaHeight)
         {
-            const uint16_t *const u = (const uint16_t *)(src[1] + line * inUVStride);
-            const uint16_t *const v = (const uint16_t *)(src[2] + line * inUVStride);
+            const std::uint16_t *const u = reinterpret_cast<const std::uint16_t *>((src[1U] + line * inUVStride));
+            const std::uint16_t *const v = reinterpret_cast<const std::uint16_t *>((src[2U] + line * inUVStride));
 
-            uint8_t *const duv = (uint8_t *)(dst[1] + line * outUVStride);
-            uint8_t *const du = (uint8_t *)(dst[2] + line * outUVStride);
-            uint8_t *const dv = (uint8_t *)(dst[1] + line * outUVStride);
+            std::uint8_t *const duv = reinterpret_cast<std::uint8_t *>((dst[1U] + line * outUVStride));
+            std::uint8_t *const du = reinterpret_cast<std::uint8_t *>((dst[2U] + line * outUVStride));
+            std::uint8_t *const dv = reinterpret_cast<std::uint8_t *>((dst[1U] + line * outUVStride));
 
             for (i = 0; i < chromaWidth; i += 16)
             {
@@ -132,15 +140,15 @@ template HRESULT CLAVPixFmtConverter::convert_yuv_yv_nv12_dither_le<1> CONV_FUNC
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv420_px1x_le)
 {
-    const ptrdiff_t inYStride = srcStride[0];
-    const ptrdiff_t inUVStride = srcStride[1];
-    const ptrdiff_t outYStride = dstStride[0];
-    const ptrdiff_t outUVStride = dstStride[1];
-    const ptrdiff_t uvHeight =
+    const std::ptrdiff_t inYStride = srcStride[0U];
+    const std::ptrdiff_t inUVStride = srcStride[1U];
+    const std::ptrdiff_t outYStride = dstStride[0U];
+    const std::ptrdiff_t outUVStride = dstStride[1U];
+    const std::ptrdiff_t uvHeight =
         (outputFormat == LAVOutPixFmt_P010 || outputFormat == LAVOutPixFmt_P016) ? (height >> 1) : height;
-    const ptrdiff_t uvWidth = (width + 1) >> 1;
+    const std::ptrdiff_t uvWidth = (width + 1) >> 1;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2;
 
     _mm_sfence();
@@ -148,8 +156,8 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv420_px1x_le)
     // Process Y
     for (line = 0; line < height; ++line)
     {
-        const uint16_t *const y = (const uint16_t *)(src[0] + line * inYStride);
-        uint16_t *const d = (uint16_t *)(dst[0] + line * outYStride);
+        const std::uint16_t *const y = reinterpret_cast<const std::uint16_t *>((src[0U] + line * inYStride));
+        std::uint16_t *const d = reinterpret_cast<std::uint16_t *>((dst[0U] + line * outYStride));
 
         for (i = 0; i < width; i += 16)
         {
@@ -164,9 +172,9 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv420_px1x_le)
     // Process UV
     for (line = 0; line < uvHeight; ++line)
     {
-        const uint16_t *const u = (const uint16_t *)(src[1] + line * inUVStride);
-        const uint16_t *const v = (const uint16_t *)(src[2] + line * inUVStride);
-        uint16_t *const d = (uint16_t *)(dst[1] + line * outUVStride);
+        const std::uint16_t *const u = reinterpret_cast<const std::uint16_t *>((src[1U] + line * inUVStride));
+        const std::uint16_t *const v = reinterpret_cast<const std::uint16_t *>((src[2U] + line * inUVStride));
+        std::uint16_t *const d = reinterpret_cast<std::uint16_t *>((dst[1U] + line * outUVStride));
 
         for (i = 0; i < uvWidth; i += 8)
         {
@@ -187,60 +195,62 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv420_px1x_le)
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv_yv)
 {
-    const uint8_t *y = src[0];
-    const uint8_t *u = src[1];
-    const uint8_t *v = src[2];
+    const std::uint8_t *y = src[0U];
+    const std::uint8_t *u = src[1U];
+    const std::uint8_t *v = src[2U];
 
-    const ptrdiff_t inLumaStride = srcStride[0];
-    const ptrdiff_t inChromaStride = srcStride[1];
+    const std::ptrdiff_t inLumaStride = srcStride[0U];
+    const std::ptrdiff_t inChromaStride = srcStride[1U];
 
-    const ptrdiff_t outLumaStride = dstStride[0];
-    const ptrdiff_t outChromaStride = dstStride[1];
+    const std::ptrdiff_t outLumaStride = dstStride[0U];
+    const std::ptrdiff_t outChromaStride = dstStride[1U];
 
-    ptrdiff_t line;
-    ptrdiff_t chromaWidth = width;
-    ptrdiff_t chromaHeight = height;
+    std::ptrdiff_t line;
+    std::ptrdiff_t chromaWidth = width;
+    std::ptrdiff_t chromaHeight = height;
 
-    if (inputFormat == LAVPixFmt_YUV420)
+    if (inputFormat == LAVPixFmt_YUV420) {
         chromaHeight = chromaHeight >> 1;
-    if (inputFormat == LAVPixFmt_YUV420 || inputFormat == LAVPixFmt_YUV422)
+}
+    if ((inputFormat == LAVPixFmt_YUV420) || (inputFormat == LAVPixFmt_YUV422)) {
         chromaWidth = (chromaWidth + 1) >> 1;
+}
 
     // Copy planes
 
     _mm_sfence();
 
     // Y
-    if ((outLumaStride % 16) == 0 && ((intptr_t)dst[0] % 16u) == 0)
+    if (((outLumaStride % 16) == 0) && ((reinterpret_cast<std::intptr_t>(dst[0U]) % 16u) == 0))
     {
         for (line = 0; line < height; ++line)
         {
-            PIXCONV_MEMCPY_ALIGNED(dst[0] + outLumaStride * line, y + inLumaStride * line, width);
+            PIXCONV_MEMCPY_ALIGNED(dst[0U] + outLumaStride * line, y + inLumaStride * line, width);
         }
     }
     else
     {
         for (line = 0; line < height; ++line)
         {
-            memcpy(dst[0] + outLumaStride * line, y + inLumaStride * line, width);
+            std::memcpy(dst[0U] + outLumaStride * line, y + inLumaStride * line, width);
         }
     }
 
     // U/V
-    if ((outChromaStride % 16) == 0 && ((intptr_t)dst[1] % 16u) == 0)
+    if (((outChromaStride % 16) == 0) && ((reinterpret_cast<std::intptr_t>(dst[1U]) % 16u) == 0))
     {
         for (line = 0; line < chromaHeight; ++line)
         {
-            PIXCONV_MEMCPY_ALIGNED_TWO(dst[2] + outChromaStride * line, u + inChromaStride * line,
-                                       dst[1] + outChromaStride * line, v + inChromaStride * line, chromaWidth);
+            PIXCONV_MEMCPY_ALIGNED_TWO(dst[2U] + outChromaStride * line, u + inChromaStride * line,
+                                       dst[1U] + outChromaStride * line, v + inChromaStride * line, chromaWidth);
         }
     }
     else
     {
         for (line = 0; line < chromaHeight; ++line)
         {
-            memcpy(dst[2] + outChromaStride * line, u + inChromaStride * line, chromaWidth);
-            memcpy(dst[1] + outChromaStride * line, v + inChromaStride * line, chromaWidth);
+            std::memcpy(dst[2U] + outChromaStride * line, u + inChromaStride * line, chromaWidth);
+            std::memcpy(dst[1U] + outChromaStride * line, v + inChromaStride * line, chromaWidth);
         }
     }
 
@@ -249,16 +259,16 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_yv)
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv420_nv12)
 {
-    const ptrdiff_t inLumaStride = srcStride[0];
-    const ptrdiff_t inChromaStride = srcStride[1];
+    const std::ptrdiff_t inLumaStride = srcStride[0U];
+    const std::ptrdiff_t inChromaStride = srcStride[1U];
 
-    const ptrdiff_t outLumaStride = dstStride[0];
-    const ptrdiff_t outChromaStride = dstStride[1];
+    const std::ptrdiff_t outLumaStride = dstStride[0U];
+    const std::ptrdiff_t outChromaStride = dstStride[1U];
 
-    const ptrdiff_t chromaWidth = (width + 1) >> 1;
-    const ptrdiff_t chromaHeight = height >> 1;
+    const std::ptrdiff_t chromaWidth = (width + 1) >> 1;
+    const std::ptrdiff_t chromaHeight = height >> 1;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4;
 
     _mm_sfence();
@@ -266,15 +276,15 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv420_nv12)
     // Y
     for (line = 0; line < height; ++line)
     {
-        PIXCONV_MEMCPY_ALIGNED(dst[0] + outLumaStride * line, src[0] + inLumaStride * line, width);
+        PIXCONV_MEMCPY_ALIGNED(dst[0U] + outLumaStride * line, src[0U] + inLumaStride * line, width);
     }
 
     // U/V
     for (line = 0; line < chromaHeight; ++line)
     {
-        const uint8_t *const u = src[1] + line * inChromaStride;
-        const uint8_t *const v = src[2] + line * inChromaStride;
-        uint8_t *const d = dst[1] + line * outChromaStride;
+        const std::uint8_t *const u = src[1U] + line * inChromaStride;
+        const std::uint8_t *const v = src[2U] + line * inChromaStride;
+        std::uint8_t *const d = dst[1U] + line * outChromaStride;
 
         for (i = 0; i < (chromaWidth - 31); i += 32)
         {
@@ -315,24 +325,24 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv420_nv12)
 
 template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv422_yuy2_uyvy)
 {
-    const ptrdiff_t inLumaStride = srcStride[0];
-    const ptrdiff_t inChromaStride = srcStride[1];
+    const std::ptrdiff_t inLumaStride = srcStride[0U];
+    const std::ptrdiff_t inChromaStride = srcStride[1U];
 
-    const ptrdiff_t outStride = dstStride[0];
+    const std::ptrdiff_t outStride = dstStride[0U];
 
-    const ptrdiff_t chromaWidth = (width + 1) >> 1;
+    const std::ptrdiff_t chromaWidth = (width + 1) >> 1;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5;
 
     _mm_sfence();
 
     for (line = 0; line < height; ++line)
     {
-        const uint8_t *const y = src[0] + line * inLumaStride;
-        const uint8_t *const u = src[1] + line * inChromaStride;
-        const uint8_t *const v = src[2] + line * inChromaStride;
-        uint8_t *const d = dst[0] + line * outStride;
+        const std::uint8_t *const y = src[0U] + line * inLumaStride;
+        const std::uint8_t *const u = src[1U] + line * inChromaStride;
+        const std::uint8_t *const v = src[2U] + line * inChromaStride;
+        std::uint8_t *const d = dst[0U] + line * outStride;
 
         for (i = 0; i < chromaWidth; i += 16)
         {
@@ -385,35 +395,36 @@ template HRESULT CLAVPixFmtConverter::convert_yuv422_yuy2_uyvy<1> CONV_FUNC_PARA
 
 template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv422_yuy2_uyvy_dither_le)
 {
-    const ptrdiff_t inLumaStride = srcStride[0];
-    const ptrdiff_t inChromaStride = srcStride[1];
-    const ptrdiff_t outStride = dstStride[0];
-    const ptrdiff_t chromaWidth = (width + 1) >> 1;
+    const std::ptrdiff_t inLumaStride = srcStride[0U];
+    const std::ptrdiff_t inChromaStride = srcStride[1U];
+    const std::ptrdiff_t outStride = dstStride[0U];
+    const std::ptrdiff_t chromaWidth = (width + 1) >> 1;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
-    if (dithers == nullptr)
+    const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 
     _mm_sfence();
 
     for (line = 0; line < height; ++line)
     {
-        const uint16_t *const y = (const uint16_t *)(src[0] + line * inLumaStride);
-        const uint16_t *const u = (const uint16_t *)(src[1] + line * inChromaStride);
-        const uint16_t *const v = (const uint16_t *)(src[2] + line * inChromaStride);
-        uint16_t *const d = (uint16_t *)(dst[0] + line * outStride);
+        const std::uint16_t *const y = reinterpret_cast<const std::uint16_t *>((src[0U] + line * inLumaStride));
+        const std::uint16_t *const u = reinterpret_cast<const std::uint16_t *>((src[1U] + line * inChromaStride));
+        const std::uint16_t *const v = reinterpret_cast<const std::uint16_t *>((src[2U] + line * inChromaStride));
+        std::uint16_t *const d = reinterpret_cast<std::uint16_t *>((dst[0U] + line * outStride));
 
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm4 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 0));
-            xmm5 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 8));
-            xmm6 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 16));
-            xmm7 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 24));
+            xmm4 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 0)));
+            xmm5 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 8)));
+            xmm6 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 16)));
+            xmm7 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 24)));
         }
         else
         {
@@ -465,13 +476,13 @@ template HRESULT CLAVPixFmtConverter::convert_yuv422_yuy2_uyvy_dither_le<1> CONV
 
 DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12)
 {
-    const ptrdiff_t inLumaStride = srcStride[0];
-    const ptrdiff_t inChromaStride = srcStride[1];
-    const ptrdiff_t outLumaStride = dstStride[0];
-    const ptrdiff_t outChromaStride = dstStride[1];
-    const ptrdiff_t chromaHeight = height >> 1;
+    const std::ptrdiff_t inLumaStride = srcStride[0U];
+    const std::ptrdiff_t inChromaStride = srcStride[1U];
+    const std::ptrdiff_t outLumaStride = dstStride[0U];
+    const std::ptrdiff_t outChromaStride = dstStride[1U];
+    const std::ptrdiff_t chromaHeight = height >> 1;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm7;
 
     xmm7 = _mm_set1_epi16(0x00FF);
@@ -479,16 +490,16 @@ DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12)
     _mm_sfence();
 
     // Copy the y
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        PIXCONV_MEMCPY_ALIGNED(dst[0] + outLumaStride * line, src[0] + inLumaStride * line, width);
+        PIXCONV_MEMCPY_ALIGNED(dst[0U] + outLumaStride * line, src[0U] + inLumaStride * line, width);
     }
 
-    for (line = 0; line < chromaHeight; line++)
+    for (line = 0; line < chromaHeight; ++line)
     {
-        const uint8_t *const uv = src[1] + line * inChromaStride;
-        uint8_t *const dv = dst[1] + outChromaStride * line;
-        uint8_t *const du = dst[2] + outChromaStride * line;
+        const std::uint8_t *const uv = src[1U] + line * inChromaStride;
+        std::uint8_t *const dv = dst[1U] + outChromaStride * line;
+        std::uint8_t *const du = dst[2U] + outChromaStride * line;
 
         for (i = 0; i < width; i += 32)
         {
@@ -517,30 +528,31 @@ DECLARE_CONV_FUNC_IMPL(convert_nv12_yv12)
 
 DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
-    const ptrdiff_t chromaHeight = (height >> 1);
+    const std::ptrdiff_t inStride = srcStride[0U];
+    const std::ptrdiff_t outStride = dstStride[0U];
+    const std::ptrdiff_t chromaHeight = (height >> 1);
 
-    const ptrdiff_t byteWidth = width << 1;
+    const std::ptrdiff_t byteWidth = width << 1;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
-    if (dithers == nullptr)
+    const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
+    if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
+}
 
     __m128i xmm0, xmm1, xmm2, xmm3;
 
     _mm_sfence();
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm2 = _mm_load_si128((const __m128i *)(dithers + (line << 4) + 0));
-            xmm3 = _mm_load_si128((const __m128i *)(dithers + (line << 4) + 8));
+            xmm2 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 4) + 0)));
+            xmm3 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 4) + 8)));
         }
         else
         {
@@ -548,8 +560,8 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
             xmm3 = xmm2;
         }
 
-        const uint8_t *y = (src[0] + line * inStride);
-        uint8_t *dy = (dst[0] + line * outStride);
+        const std::uint8_t *y = (src[0U] + line * inStride);
+        std::uint8_t *dy = (dst[0U] + line * outStride);
 
         for (i = 0; i < byteWidth; i += 32)
         {
@@ -567,13 +579,13 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
         }
     }
 
-    for (line = 0; line < chromaHeight; line++)
+    for (line = 0; line < chromaHeight; ++line)
     {
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm2 = _mm_load_si128((const __m128i *)(dithers + (line << 4) + 0));
-            xmm3 = _mm_load_si128((const __m128i *)(dithers + (line << 4) + 8));
+            xmm2 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 4) + 0)));
+            xmm3 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 4) + 8)));
         }
         else
         {
@@ -581,8 +593,8 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
             xmm3 = xmm2;
         }
 
-        const uint8_t *uv = (src[1] + line * inStride);
-        uint8_t *duv = (dst[1] + line * outStride);
+        const std::uint8_t *uv = (src[1U] + line * inStride);
+        std::uint8_t *duv = (dst[1U] + line * outStride);
 
         for (i = 0; i < byteWidth; i += 32)
         {
@@ -603,22 +615,22 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
     return S_OK;
 }
 
+LAV_TARGET("sse4.1")
 DECLARE_CONV_FUNC_IMPL(convert_y210_p210_sse4)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const std::ptrdiff_t inStride = srcStride[0U];
 
-    const ptrdiff_t byteWidth = width << 2;
+    const std::ptrdiff_t byteWidth = width << 2;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
     xmm7 = _mm_set1_epi32(0x0000FFFF);
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        const uint8_t *srcLine = src[0] + line * inStride;
-        uint8_t *dstY = dst[0] + line * dstStride[0];
-        uint8_t *dstUV = dst[1] + line * dstStride[1];
+        const std::uint8_t *srcLine = src[0U] + line * inStride;
+        std::uint8_t *dstY = dst[0U] + line * dstStride[0U];
+        std::uint8_t *dstUV = dst[1U] + line * dstStride[1U];
         for (i = 0; i < (byteWidth - 63); i += 64)
         {
             PIXCONV_LOAD_ALIGNED(xmm0, srcLine + i + 0); // Y0 U Y1 V
@@ -654,14 +666,14 @@ DECLARE_CONV_FUNC_IMPL(convert_y210_p210_sse4)
         // process left-over pixel
         for (; i < (byteWidth - 7); i += 8)
         {
-            const uint16_t *pixel = (const uint16_t *)(srcLine + i);
-            uint16_t *out_y = (uint16_t *)(dstY + (i >> 1));
-            uint16_t *out_uv = (uint16_t *)(dstUV + (i >> 1));
+            const std::uint16_t *pixel = reinterpret_cast<const std::uint16_t *>((srcLine + i));
+            std::uint16_t *out_y = reinterpret_cast<std::uint16_t *>((dstY + (i >> 1)));
+            std::uint16_t *out_uv = reinterpret_cast<std::uint16_t *>((dstUV + (i >> 1)));
 
-            out_y [0] = pixel[0];
-            out_uv[0] = pixel[1];
-            out_y [1] = pixel[2];
-            out_uv[1] = pixel[3];
+            out_y [0U] = pixel[0U];
+            out_uv[0U] = pixel[1U];
+            out_y [1U] = pixel[2U];
+            out_uv[1U] = pixel[3U];
         }
     }
 
@@ -670,21 +682,20 @@ DECLARE_CONV_FUNC_IMPL(convert_y210_p210_sse4)
 
 DECLARE_CONV_FUNC_IMPL(convert_yuy2_yv16_sse2)
 {
-    const ptrdiff_t inStride = srcStride[0];
-    const ptrdiff_t outStride = dstStride[0];
+    const std::ptrdiff_t inStride = srcStride[0U];
 
-    const ptrdiff_t byteWidth = width << 1;
+    const std::ptrdiff_t byteWidth = width << 1;
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
     xmm7 = _mm_set1_epi16(0x00FF);
 
-    for (line = 0; line < height; line++)
+    for (line = 0; line < height; ++line)
     {
-        const uint8_t *srcLine = src[0] + line * inStride;
-        uint8_t *dstY = dst[0] + line * dstStride[0];
-        uint8_t *dstV = dst[1] + line * dstStride[1];
-        uint8_t *dstU = dst[2] + line * dstStride[2];
+        const std::uint8_t *srcLine = src[0U] + line * inStride;
+        std::uint8_t *dstY = dst[0U] + line * dstStride[0U];
+        std::uint8_t *dstV = dst[1U] + line * dstStride[1U];
+        std::uint8_t *dstU = dst[2U] + line * dstStride[2U];
         for (i = 0; i < (byteWidth - 63); i += 64)
         {
             PIXCONV_LOAD_ALIGNED(xmm0, srcLine + i + 0); // Y0 U Y1 V
@@ -728,15 +739,15 @@ DECLARE_CONV_FUNC_IMPL(convert_yuy2_yv16_sse2)
         // process left-over pixel
         for (; i < (byteWidth - 3); i += 4)
         {
-            const uint8_t *pixel = (const uint8_t *)(srcLine + i);
-            uint8_t *out_y = (uint8_t *)(dstY + (i >> 1));
-            uint8_t *out_u = (uint8_t *)(dstU + (i >> 2));
-            uint8_t *out_v = (uint8_t *)(dstV + (i >> 2));
+            const std::uint8_t *pixel = reinterpret_cast<const std::uint8_t *>((srcLine + i));
+            std::uint8_t *out_y = reinterpret_cast<std::uint8_t *>((dstY + (i >> 1)));
+            std::uint8_t *out_u = reinterpret_cast<std::uint8_t *>((dstU + (i >> 2)));
+            std::uint8_t *out_v = reinterpret_cast<std::uint8_t *>((dstV + (i >> 2)));
 
-            out_y[0] = pixel[0];
-            out_u[0] = pixel[1];
-            out_y[1] = pixel[2];
-            out_v[0] = pixel[3];
+            out_y[0U] = pixel[0U];
+            out_u[0U] = pixel[1U];
+            out_y[1U] = pixel[2U];
+            out_v[0U] = pixel[3U];
         }
     }
 

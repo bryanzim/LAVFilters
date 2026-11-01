@@ -18,7 +18,12 @@
  */
 
 #include "stdafx.h"
+
 #include "MediaSampleSideData.h"
+
+#include <cstddef>
+#include <cstring>
+
 
 CMediaSampleSideData::CMediaSampleSideData(LPCTSTR pName, CBaseAllocator *pAllocator, HRESULT *phr, LPBYTE pBuffer,
                                            LONG length)
@@ -38,7 +43,7 @@ STDMETHODIMP CMediaSampleSideData::QueryInterface(REFIID riid, __deref_out void 
 
     if (riid == __uuidof(IMediaSideData))
     {
-        return GetInterface((IMediaSideData *)this, ppv);
+        return GetInterface(reinterpret_cast<IMediaSideData *>(this), ppv);
     }
     else
     {
@@ -67,9 +72,9 @@ STDMETHODIMP_(ULONG) CMediaSampleSideData::Release()
         /* Free all resources */
         if (m_dwFlags & Sample_TypeChanged)
         {
-            SetMediaType(NULL);
+            SetMediaType(nullptr);
         }
-        ASSERT(m_pMediaType == NULL);
+        ASSERT(m_pMediaType == nullptr);
         m_dwFlags = 0;
         m_dwTypeSpecificFlags = 0;
         m_dwStreamId = AM_STREAM_MEDIA;
@@ -80,14 +85,14 @@ STDMETHODIMP_(ULONG) CMediaSampleSideData::Release()
         // Our refcount is reliably 0 thus no-one will mess with us
         m_pAllocator->ReleaseBuffer(this);
     }
-    return (ULONG)lRef;
+    return static_cast<ULONG>(lRef);
 }
 
 void CMediaSampleSideData::ReleaseSideData()
 {
-    CAutoLock Lock(&m_csSideData);
+    CAutoLock const Lock(&m_csSideData);
 
-    for (auto it = m_SideData.begin(); it != m_SideData.end(); it++)
+    for (auto it = m_SideData.begin(); it != m_SideData.end(); ++it)
     {
         SideDataEntry *sd = &(it->second);
         _aligned_free(sd->pData);
@@ -97,23 +102,22 @@ void CMediaSampleSideData::ReleaseSideData()
 }
 
 // IMediaSideData
-STDMETHODIMP CMediaSampleSideData::SetSideData(GUID guidType, const BYTE *pData, size_t size)
+STDMETHODIMP CMediaSampleSideData::SetSideData(GUID guidType, const BYTE *pData, std::size_t size)
 {
-    if (!pData || !size)
-        return E_POINTER;
+    if (!pData || !size) { return E_POINTER; }
 
-    CAutoLock Lock(&m_csSideData);
+    CAutoLock const Lock(&m_csSideData);
 
-    auto it = m_SideData.find(guidType);
+    auto const it = m_SideData.find(guidType);
     if (it != m_SideData.end())
     {
         SideDataEntry *sd = &(it->second);
-        BYTE *newData = (BYTE *)_aligned_realloc(sd->pData, size, 16);
+        BYTE *newData = reinterpret_cast<BYTE *>(_aligned_realloc(sd->pData, size, 16));
         if (newData)
         {
             sd->size = size;
             sd->pData = newData;
-            memcpy(newData, pData, size);
+            std::memcpy(newData, pData, size);
         }
         else
         {
@@ -123,11 +127,11 @@ STDMETHODIMP CMediaSampleSideData::SetSideData(GUID guidType, const BYTE *pData,
     else
     {
         SideDataEntry sd;
-        sd.pData = (BYTE *)_aligned_malloc(size, 16);
+        sd.pData = reinterpret_cast<BYTE *>(_aligned_malloc(size, 16));
         if (sd.pData)
         {
             sd.size = size;
-            memcpy(sd.pData, pData, size);
+            std::memcpy(sd.pData, pData, size);
         }
         else
         {
@@ -140,14 +144,13 @@ STDMETHODIMP CMediaSampleSideData::SetSideData(GUID guidType, const BYTE *pData,
     return S_OK;
 }
 
-STDMETHODIMP CMediaSampleSideData::GetSideData(GUID guidType, const BYTE **pData, size_t *pSize)
+STDMETHODIMP CMediaSampleSideData::GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize)
 {
-    if (!pData || !pSize)
-        return E_POINTER;
+    if (!pData || !pSize) { return E_POINTER; }
 
-    CAutoLock Lock(&m_csSideData);
+    CAutoLock const Lock(&m_csSideData);
 
-    auto it = m_SideData.find(guidType);
+    auto const it = m_SideData.find(guidType);
     if (it != m_SideData.end())
     {
         *pData = it->second.pData;

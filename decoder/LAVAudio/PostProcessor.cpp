@@ -18,9 +18,17 @@
  */
 
 #include "stdafx.h"
+
 #include "PostProcessor.h"
+
 #include "LAVAudio.h"
 #include "Media.h"
+
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
 
 extern "C"
 {
@@ -29,9 +37,9 @@ extern "C"
 
 // PCM Volume Adjustment Factors, both for integer and float math
 // entries start at 2 channel mixing, half volume
-static int pcm_volume_adjust_integer[7] = {362, 443, 512, 572, 627, 677, 724};
+static std::array<int, 7U> pcm_volume_adjust_integer{362, 443, 512, 572, 627, 677, 724};
 
-static float pcm_volume_adjust_float[7] = {1.41421356f, 1.73205081f, 2.00000000f, 2.23606798f,
+static std::array<float, 7U> pcm_volume_adjust_float{1.41421356f, 1.73205081f, 2.00000000f, 2.23606798f,
                                            2.44948974f, 2.64575131f, 2.82842712f};
 
 // SCALE_CA helper macro for SampleCopyAdjust
@@ -54,45 +62,45 @@ static float pcm_volume_adjust_float[7] = {1.41421356f, 1.73205081f, 2.00000000f
 //
 static inline void SampleCopyAdjust(BYTE *pOut, const BYTE *pIn, int iFactor, LAVAudioSampleFormat sfSampleFormat)
 {
-    ASSERT(abs(iFactor) > 1 && abs(iFactor) <= 8);
-    const int factorIndex = abs(iFactor) - 2;
+    ASSERT(((std::abs)(iFactor) > 1 && (std::abs)(iFactor) <= 8));
+    const int factorIndex = (std::abs)(iFactor) - 2;
 
     switch (sfSampleFormat)
     {
     case SampleFormat_U8: {
-        uint8_t *pOutSample = pOut;
-        int32_t sample = *pIn + INT8_MIN;
+        std::uint8_t *pOutSample = pOut;
+        std::int32_t sample = *pIn + INT8_MIN;
         SCALE_CA(sample, iFactor, pcm_volume_adjust_integer[factorIndex]);
         *pOutSample = av_clip_uint8(sample - INT8_MIN);
     }
     break;
     case SampleFormat_16: {
-        int16_t *pOutSample = (int16_t *)pOut;
-        int32_t sample = *((int16_t *)pIn);
+        std::int16_t *pOutSample = reinterpret_cast<std::int16_t *>(pOut);
+        std::int32_t sample = *(const_cast<std::int16_t *>(reinterpret_cast<const std::int16_t *>(pIn)));
         SCALE_CA(sample, iFactor, pcm_volume_adjust_integer[factorIndex]);
         *pOutSample = av_clip_int16(sample);
     }
     break;
     case SampleFormat_24: {
-        int32_t sample = (pIn[0] << 8) + (pIn[1] << 16) + (pIn[2] << 24);
+        std::int32_t sample = (pIn[0U] << 8) + (pIn[1U] << 16) + (pIn[2U] << 24);
         sample >>= 8;
         SCALE_CA(sample, iFactor, pcm_volume_adjust_integer[factorIndex]);
         sample = av_clip(sample, INT24_MIN, INT24_MAX);
-        pOut[0] = sample & 0xff;
-        pOut[1] = (sample >> 8) & 0xff;
-        pOut[2] = (sample >> 16) & 0xff;
+        pOut[0U] = sample & 0xff;
+        pOut[1U] = (sample >> 8) & 0xff;
+        pOut[2U] = (sample >> 16) & 0xff;
     }
     break;
     case SampleFormat_32: {
-        int32_t *pOutSample = (int32_t *)pOut;
-        int64_t sample = *((int32_t *)pIn);
+        std::int32_t *pOutSample = reinterpret_cast<std::int32_t *>(pOut);
+        std::int64_t sample = *(const_cast<std::int32_t *>(reinterpret_cast<const std::int32_t *>(pIn)));
         SCALE_CA(sample, iFactor, pcm_volume_adjust_integer[factorIndex]);
         *pOutSample = av_clipl_int32(sample);
     }
     break;
     case SampleFormat_FP32: {
-        float *pOutSample = (float *)pOut;
-        float sample = *((float *)pIn);
+        float *pOutSample = reinterpret_cast<float *>(pOut);
+        float sample = *(const_cast<float *>(reinterpret_cast<const float *>(pIn)));
         if (iFactor > 0)
         {
             sample *= pcm_volume_adjust_float[factorIndex];
@@ -118,7 +126,7 @@ static inline void Silence(BYTE *pBuffer, LAVAudioSampleFormat sfSampleFormat)
     case SampleFormat_16:
     case SampleFormat_24:
     case SampleFormat_32:
-    case SampleFormat_FP32: memset(pBuffer, 0, get_byte_per_sample(sfSampleFormat)); break;
+    case SampleFormat_FP32: std::memset(pBuffer, 0, get_byte_per_sample(sfSampleFormat)); break;
     case SampleFormat_U8: *pBuffer = 128U; break;
     default: ASSERT(0);
     }
@@ -160,11 +168,11 @@ static inline void Silence(BYTE *pBuffer, LAVAudioSampleFormat sfSampleFormat)
 HRESULT ExtendedChannelMapping(BufferDetails *pcm, const unsigned uOutChannels, const ExtendedChannelMap extMap)
 {
 #ifdef DEBUG
-    ASSERT(pcm && pcm->bBuffer);
-    ASSERT(uOutChannels > 0 && uOutChannels <= 8);
-    for (unsigned idx = 0; idx < uOutChannels; ++idx)
+    ASSERT((pcm && pcm->bBuffer));
+    ASSERT((uOutChannels > 0 && uOutChannels <= 8));
+    for (unsigned idx{ 0U }; idx < uOutChannels; ++idx)
     {
-        ASSERT(extMap[idx].idx >= -1 && extMap[idx].idx < pcm->layout.nb_channels);
+        ASSERT((extMap[idx].idx >= -1 && extMap[idx].idx < pcm->layout.nb_channels));
     }
 #endif
     // Sample Size
@@ -177,19 +185,21 @@ HRESULT ExtendedChannelMapping(BufferDetails *pcm, const unsigned uOutChannels, 
     const BYTE *pIn = pcm->bBuffer->Ptr();
     BYTE *pOut = out->Ptr();
 
-    for (unsigned i = 0; i < pcm->nSamples; ++i)
+    for (unsigned i{ 0U }; i < pcm->nSamples; ++i)
     {
-        for (unsigned ch = 0; ch < uOutChannels; ++ch)
+        for (unsigned ch{ 0U }; ch < uOutChannels; ++ch)
         {
             if (extMap[ch].idx >= 0)
             {
-                if (!extMap[ch].factor || abs(extMap[ch].factor) == 1)
-                    memcpy(pOut, pIn + (extMap[ch].idx * uSampleSize), uSampleSize);
-                else
+                if (!extMap[ch].factor || ((std::abs)(extMap[ch].factor) == 1)) {
+                    std::memcpy(pOut, pIn + (extMap[ch].idx * uSampleSize), uSampleSize);
+                } else {
                     SampleCopyAdjust(pOut, pIn + (extMap[ch].idx * uSampleSize), extMap[ch].factor, pcm->sfFormat);
+}
             }
-            else
+            else {
                 Silence(pOut, pcm->sfFormat);
+}
             pOut += uSampleSize;
         }
         pIn += uSampleSize * pcm->layout.nb_channels;
@@ -210,7 +220,7 @@ HRESULT ExtendedChannelMapping(BufferDetails *pcm, const unsigned uOutChannels, 
 
 HRESULT CLAVAudio::CheckChannelLayoutConformity(AVChannelLayout * layout)
 {
-    int channels = layout->nb_channels;
+    int const channels = layout->nb_channels;
 
     if (layout->order != AV_CHANNEL_ORDER_NATIVE)
     {
@@ -227,11 +237,12 @@ HRESULT CLAVAudio::CheckChannelLayoutConformity(AVChannelLayout * layout)
         goto noprocessing;
     }
 
-    DWORD dwMask = (DWORD)layout->u.mask;
+    DWORD const dwMask = static_cast<DWORD>(layout->u.mask);
 
     // We require multi-channel and at least containing stereo
-    if (!CHL_CONTAINS_ALL(dwMask, AV_CH_LAYOUT_STEREO) || channels == 2)
+    if (!CHL_CONTAINS_ALL(dwMask, AV_CH_LAYOUT_STEREO) || (channels == 2)) {
         goto noprocessing;
+}
 
     // We do not know what to do with "top" channels
     if (dwMask & (AV_CH_TOP_CENTER | AV_CH_TOP_FRONT_LEFT | AV_CH_TOP_FRONT_CENTER | AV_CH_TOP_FRONT_RIGHT |
@@ -255,8 +266,8 @@ HRESULT CLAVAudio::CheckChannelLayoutConformity(AVChannelLayout * layout)
     }
 
     // No need to process full 5.1/6.1 layouts, or any 8 channel layouts
-    if (dwMask == AV_CH_LAYOUT_5POINT1 || dwMask == AV_CH_LAYOUT_5POINT1_BACK || dwMask == AV_CH_LAYOUT_6POINT1_BACK ||
-        channels == 8)
+    if ((dwMask == AV_CH_LAYOUT_5POINT1) || (dwMask == AV_CH_LAYOUT_5POINT1_BACK) || (dwMask == AV_CH_LAYOUT_6POINT1_BACK) ||
+        (channels == 8))
     {
         DbgLog((LOG_TRACE, 10, L"::CheckChannelLayoutConformity(): Layout is already a default layout (mask: 0x%x)",
                 dwMask));
@@ -267,20 +278,23 @@ HRESULT CLAVAudio::CheckChannelLayoutConformity(AVChannelLayout * layout)
     if (CHL_CONTAINS_ALL(AV_CH_LAYOUT_5POINT1, dwMask)            /* 5.1 with side channels */
         || CHL_CONTAINS_ALL(AV_CH_LAYOUT_5POINT1_BACK, dwMask)    /* 5.1 with back channels */
         || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_5POINT1_WIDE, dwMask)  /* 5.1 with side-front channels */
-        || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_5POINT1_BC, dwMask))  /* 3/1/x layouts, front channels with a back center */
+        || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_5POINT1_BC, dwMask)) {  /* 3/1/x layouts, front channels with a back center */
         return Create51Conformity(dwMask);
+}
 
     // Check 6.1 channels (5.1 layouts + Back Center)
     if (CHL_CONTAINS_ALL(AV_CH_LAYOUT_6POINT1, dwMask)           /* 6.1 with side channels */
         || CHL_CONTAINS_ALL(AV_CH_LAYOUT_6POINT1_BACK, dwMask) /* 6.1 with back channels */
-        || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_5POINT1_WIDE | AV_CH_BACK_CENTER, dwMask)) /* 6.1 with side-front channels */
+        || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_5POINT1_WIDE | AV_CH_BACK_CENTER, dwMask)) { /* 6.1 with side-front channels */
         return Create61Conformity(dwMask);
+}
 
     // Check 7.1 channels
     if (CHL_CONTAINS_ALL(AV_CH_LAYOUT_7POINT1, dwMask)                  /* 7.1 with side+back channels */
         || CHL_CONTAINS_ALL(AV_CH_LAYOUT_7POINT1_WIDE, dwMask)          /* 7.1 with front-side+back channels */
-        || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_7POINT1_EXTRAWIDE, dwMask)) /* 7.1 with front-side+side channels */
+        || CHL_CONTAINS_ALL(LAV_CH_LAYOUT_7POINT1_EXTRAWIDE, dwMask)) { /* 7.1 with front-side+side channels */
         return Create71Conformity(dwMask);
+}
 
 noprocessing:
     m_bChannelMappingRequired = FALSE;
@@ -290,17 +304,19 @@ noprocessing:
 HRESULT CLAVAudio::Create51Conformity(DWORD dwLayout)
 {
     DbgLog((LOG_TRACE, 10, L"::Create51Conformity(): Creating 5.1 default layout (mask: 0x%x)", dwLayout));
-    int ch = 0;
+    int ch{ 0 };
     ExtChMapClear(&m_ChannelMap);
     // All layouts we support have to contain L/R
     ExtChMapSet(&m_ChannelMap, 0, ch++, 0);
     ExtChMapSet(&m_ChannelMap, 1, ch++, 0);
     // Center channel
-    if (dwLayout & AV_CH_FRONT_CENTER)
+    if (dwLayout & AV_CH_FRONT_CENTER) {
         ExtChMapSet(&m_ChannelMap, 2, ch++, 0);
+}
     // LFE
-    if (dwLayout & AV_CH_LOW_FREQUENCY)
+    if (dwLayout & AV_CH_LOW_FREQUENCY) {
         ExtChMapSet(&m_ChannelMap, 3, ch++, 0);
+}
     // Back/Side
     if (dwLayout & (AV_CH_SIDE_LEFT | AV_CH_BACK_LEFT | AV_CH_FRONT_LEFT_OF_CENTER))
     {
@@ -328,17 +344,19 @@ HRESULT CLAVAudio::Create61Conformity(DWORD dwLayout)
     }
 
     DbgLog((LOG_TRACE, 10, L"::Create61Conformity(): Creating 6.1 default layout (mask: 0x%x)", dwLayout));
-    int ch = 0;
+    int ch{ 0 };
     ExtChMapClear(&m_ChannelMap);
     // All layouts we support have to contain L/R
     ExtChMapSet(&m_ChannelMap, 0, ch++, 0);
     ExtChMapSet(&m_ChannelMap, 1, ch++, 0);
     // Center channel
-    if (dwLayout & AV_CH_FRONT_CENTER)
+    if (dwLayout & AV_CH_FRONT_CENTER) {
         ExtChMapSet(&m_ChannelMap, 2, ch++, 0);
+}
     // LFE
-    if (dwLayout & AV_CH_LOW_FREQUENCY)
+    if (dwLayout & AV_CH_LOW_FREQUENCY) {
         ExtChMapSet(&m_ChannelMap, 3, ch++, 0);
+}
     // Back channels, if before BC
     if (dwLayout & (AV_CH_BACK_LEFT | AV_CH_FRONT_LEFT_OF_CENTER))
     {
@@ -347,8 +365,9 @@ HRESULT CLAVAudio::Create61Conformity(DWORD dwLayout)
         ExtChMapSet(&m_ChannelMap, 5, ch++, 0);
     }
     // Back Center
-    if (dwLayout & AV_CH_BACK_CENTER)
+    if (dwLayout & AV_CH_BACK_CENTER) {
         ExtChMapSet(&m_ChannelMap, 6, ch++, 0);
+}
     // Back channels, if after BC
     if (dwLayout & AV_CH_SIDE_LEFT)
     {
@@ -366,17 +385,19 @@ HRESULT CLAVAudio::Create61Conformity(DWORD dwLayout)
 HRESULT CLAVAudio::Create71Conformity(DWORD dwLayout)
 {
     DbgLog((LOG_TRACE, 10, L"::Create71Conformity(): Creating 7.1 default layout (mask: 0x%x)", dwLayout));
-    int ch = 0;
+    int ch{ 0 };
     ExtChMapClear(&m_ChannelMap);
     // All layouts we support have to contain L/R
     ExtChMapSet(&m_ChannelMap, 0, ch++, 0);
     ExtChMapSet(&m_ChannelMap, 1, ch++, 0);
     // Center channel
-    if (dwLayout & AV_CH_FRONT_CENTER)
+    if (dwLayout & AV_CH_FRONT_CENTER) {
         ExtChMapSet(&m_ChannelMap, 2, ch++, 0);
+}
     // LFE
-    if (dwLayout & AV_CH_LOW_FREQUENCY)
+    if (dwLayout & AV_CH_LOW_FREQUENCY) {
         ExtChMapSet(&m_ChannelMap, 3, ch++, 0);
+}
     // Back channels
     if (dwLayout & AV_CH_BACK_CENTER)
     {
@@ -424,9 +445,9 @@ HRESULT CLAVAudio::PadTo32(BufferDetails *buffer)
     const BYTE *pDataIn = buffer->bBuffer->Ptr();
     BYTE *pDataOut = pcmOut->Ptr();
 
-    for (unsigned int i = 0; i < buffer->nSamples; ++i)
+    for (unsigned int i{ 0U }; i < buffer->nSamples; ++i)
     {
-        for (int ch = 0; ch < buffer->layout.nb_channels; ++ch)
+        for (int ch{ 0 }; ch < buffer->layout.nb_channels; ++ch)
         {
             AV_WL32(pDataOut, AV_RL24(pDataIn) << 8);
             pDataOut += 4;
@@ -443,12 +464,13 @@ HRESULT CLAVAudio::PadTo32(BufferDetails *buffer)
 
 HRESULT CLAVAudio::Truncate32Buffer(BufferDetails *buffer)
 {
-    ASSERT(buffer->sfFormat == SampleFormat_32 && buffer->wBitsPerSample <= 24);
+    ASSERT((buffer->sfFormat == SampleFormat_32 && buffer->wBitsPerSample <= 24));
 
     // Determine the bytes per sample to keep. Cut a 16-bit sample to 24 if 16-bit is disabled for some reason
     const int bytes_per_sample = buffer->wBitsPerSample <= 16 && GetSampleFormat(SampleFormat_16) ? 2 : 3;
-    if (bytes_per_sample == 3 && !GetSampleFormat(SampleFormat_24))
+    if ((bytes_per_sample == 3) && !GetSampleFormat(SampleFormat_24)) {
         return S_FALSE;
+}
 
     const int skip = 4 - bytes_per_sample;
     const DWORD size = (buffer->nSamples * buffer->layout.nb_channels) * bytes_per_sample;
@@ -459,11 +481,11 @@ HRESULT CLAVAudio::Truncate32Buffer(BufferDetails *buffer)
     BYTE *pDataOut = pcmOut->Ptr();
 
     pDataIn += skip;
-    for (unsigned int i = 0; i < buffer->nSamples; ++i)
+    for (unsigned int i{ 0U }; i < buffer->nSamples; ++i)
     {
-        for (int ch = 0; ch < buffer->layout.nb_channels; ++ch)
+        for (int ch{ 0 }; ch < buffer->layout.nb_channels; ++ch)
         {
-            memcpy(pDataOut, pDataIn, bytes_per_sample);
+            std::memcpy(pDataOut, pDataIn, bytes_per_sample);
             pDataOut += bytes_per_sample;
             pDataIn += 4;
         }
@@ -478,7 +500,7 @@ HRESULT CLAVAudio::Truncate32Buffer(BufferDetails *buffer)
 
 HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
 {
-    int ret = 0;
+    int ret{ 0 };
 
     AVChannelLayout chMixingLayout{};
     if (av_channel_layout_check(&m_chOverrideMixer) != 0)
@@ -495,25 +517,25 @@ HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
     }
 
     // No mixing stereo, if the user doesn't want it
-    if (buffer->layout.nb_channels <= 2 && (m_settings.MixingFlags & LAV_MIXING_FLAG_UNTOUCHED_STEREO))
+    if ((buffer->layout.nb_channels <= 2) && (m_settings.MixingFlags & LAV_MIXING_FLAG_UNTOUCHED_STEREO))
     {
         av_channel_layout_uninit(&chMixingLayout);
         av_channel_layout_copy(&chMixingLayout, &buffer->layout);
     }
 
-    LAVAudioSampleFormat outputFormat = av_channel_layout_compare(&buffer->layout, &chMixingLayout) != 0
+    LAVAudioSampleFormat const outputFormat = av_channel_layout_compare(&buffer->layout, &chMixingLayout) != 0
                                             ? GetBestAvailableSampleFormat(SampleFormat_FP32)
                                             : GetBestAvailableSampleFormat(buffer->sfFormat);
 
     // Short Circuit some processing
-    if (av_channel_layout_compare(&buffer->layout, &chMixingLayout) == 0 && !buffer->bPlanar)
+    if ((av_channel_layout_compare(&buffer->layout, &chMixingLayout) == 0) && (!buffer->bPlanar))
     {
-        if (buffer->sfFormat == SampleFormat_24 && outputFormat == SampleFormat_32)
+        if ((buffer->sfFormat == SampleFormat_24) && (outputFormat == SampleFormat_32))
         {
             PadTo32(buffer);
             return S_OK;
         }
-        else if (buffer->sfFormat == SampleFormat_32 && outputFormat == SampleFormat_24)
+        else if ((buffer->sfFormat == SampleFormat_32) && (outputFormat == SampleFormat_24))
         {
             buffer->wBitsPerSample = 24;
             Truncate32Buffer(buffer);
@@ -527,9 +549,9 @@ HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
         PadTo32(buffer);
     }
 
-    if (av_channel_layout_compare(&buffer->layout, &m_MixingInputLayout) != 0 || (!m_swrContext && !m_bAVResampleFailed) || m_bMixingSettingsChanged ||
-        av_channel_layout_compare(&m_chRemixLayout, &chMixingLayout) != 0 || outputFormat != m_sfRemixFormat ||
-        buffer->sfFormat != m_MixingInputFormat)
+    if ((av_channel_layout_compare(&buffer->layout, &m_MixingInputLayout) != 0) || (!m_swrContext && !m_bAVResampleFailed) || m_bMixingSettingsChanged ||
+        (av_channel_layout_compare(&m_chRemixLayout, &chMixingLayout) != 0) || (outputFormat != m_sfRemixFormat) ||
+        (buffer->sfFormat != m_MixingInputFormat))
     {
         m_bAVResampleFailed = FALSE;
         m_bMixingSettingsChanged = FALSE;
@@ -545,7 +567,7 @@ HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
         m_sfRemixFormat = outputFormat;
 
         swr_alloc_set_opts2(&m_swrContext, &chMixingLayout, get_ff_sample_fmt(m_sfRemixFormat), buffer->dwSamplesPerSec,
-                               &buffer->layout, get_ff_sample_fmt(buffer->sfFormat), buffer->dwSamplesPerSec, 0, NULL);
+                               &buffer->layout, get_ff_sample_fmt(buffer->sfFormat), buffer->dwSamplesPerSec, 0, nullptr);
 
         av_opt_set_int(m_swrContext, "dither_method",
                        m_settings.SampleConvertDither ? SWR_DITHER_TRIANGULAR_HIGHPASS : SWR_DITHER_NONE, 0);
@@ -555,16 +577,16 @@ HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
         {
             ASSERT(chMixingLayout.order == AV_CHANNEL_ORDER_NATIVE);
 
-            BOOL bNormalize = !!(m_settings.MixingFlags & LAV_MIXING_FLAG_NORMALIZE_MATRIX);
-            BOOL bClipProtection = !!(m_settings.MixingFlags & LAV_MIXING_FLAG_CLIP_PROTECTION);
-            av_opt_set_int(m_swrContext, "clip_protection", !bNormalize && bClipProtection, 0);
+            BOOL const bNormalize = !!(m_settings.MixingFlags & LAV_MIXING_FLAG_NORMALIZE_MATRIX);
+            BOOL const bClipProtection = !!(m_settings.MixingFlags & LAV_MIXING_FLAG_CLIP_PROTECTION);
+            av_opt_set_int(m_swrContext, "clip_protection", (!bNormalize && bClipProtection), 0);
             av_opt_set_int(m_swrContext, "internal_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
 
             // setup matrix parameters
-            const double center_mix_level = (double)m_settings.MixingCenterLevel / 10000.0;
-            const double surround_mix_level = (double)m_settings.MixingSurroundLevel / 10000.0;
+            const double center_mix_level = static_cast<double>(m_settings.MixingCenterLevel) / 10000.0;
+            const double surround_mix_level = static_cast<double>(m_settings.MixingSurroundLevel) / 10000.0;
             const double lfe_mix_level =
-                (double)m_settings.MixingLFELevel / 10000.0 / (chMixingLayout.u.mask == AV_CH_LAYOUT_MONO ? 1.0 : M_SQRT1_2);
+                static_cast<double>(m_settings.MixingLFELevel) / 10000.0 / (chMixingLayout.u.mask == AV_CH_LAYOUT_MONO ? 1.0 : M_SQRT1_2);
 
             av_opt_set_double(m_swrContext, "center_mix_level", center_mix_level, 0);
             av_opt_set_double(m_swrContext, "surround_mix_level", surround_mix_level, 0);
@@ -590,7 +612,7 @@ HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
 
     av_channel_layout_uninit(&chMixingLayout);
 
-    LAVAudioSampleFormat bufferFormat =
+    LAVAudioSampleFormat const bufferFormat =
         (m_sfRemixFormat == SampleFormat_24) ? SampleFormat_32 : m_sfRemixFormat; // avresample always outputs 32-bit
 
     GrowableArray<BYTE> *pcmOut = new GrowableArray<BYTE>();
@@ -599,7 +621,8 @@ HRESULT CLAVAudio::PerformAVRProcessing(BufferDetails *buffer)
     BYTE *pOut = pcmOut->Ptr();
 
     BYTE *pIn = buffer->bBuffer->Ptr();
-    ret = swr_convert(m_swrContext, &pOut, pcmOut->GetAllocated(), (const uint8_t **)&pIn, buffer->nSamples);
+    ret = swr_convert(m_swrContext, &pOut, pcmOut->GetAllocated(),
+                      reinterpret_cast<const std::uint8_t **>(static_cast<void *>(&pIn)), buffer->nSamples);
     if (ret < 0)
     {
         DbgLog((LOG_ERROR, 10, L"swr_convert failed"));
@@ -625,12 +648,12 @@ setuperr:
 HRESULT CLAVAudio::PostProcess(BufferDetails *buffer)
 {
     // Validate channel mask
-    if (buffer->layout.order == AV_CHANNEL_ORDER_UNSPEC || (buffer->layout.order == AV_CHANNEL_ORDER_NATIVE && buffer->layout.u.mask == 0) || (buffer->layout.order != AV_CHANNEL_ORDER_UNSPEC && buffer->layout.order != AV_CHANNEL_ORDER_NATIVE))
+    if ((buffer->layout.order == AV_CHANNEL_ORDER_UNSPEC) || (buffer->layout.order == AV_CHANNEL_ORDER_NATIVE && buffer->layout.u.mask == 0) || (buffer->layout.order != AV_CHANNEL_ORDER_UNSPEC && buffer->layout.order != AV_CHANNEL_ORDER_NATIVE))
     {
-        int layout_channels = buffer->layout.nb_channels;
+        int const layout_channels = buffer->layout.nb_channels;
 
         av_channel_layout_uninit(&buffer->layout);
-        DWORD dwMask = get_channel_mask(layout_channels);
+        DWORD const dwMask = get_channel_mask(layout_channels);
         if (dwMask)
         {
             av_channel_layout_from_mask(&buffer->layout, dwMask);
@@ -650,7 +673,7 @@ HRESULT CLAVAudio::PostProcess(BufferDetails *buffer)
         }
         else
         {
-            if (av_channel_layout_compare(&buffer->layout, &m_SuppressLayout) != 0 && buffer->layout.nb_channels <= m_SuppressLayout.nb_channels)
+            if ((av_channel_layout_compare(&buffer->layout, &m_SuppressLayout) != 0) && (buffer->layout.nb_channels <= m_SuppressLayout.nb_channels))
             {
                 // only warn once
                 if (av_channel_layout_compare(&m_chOverrideMixer, &m_SuppressLayout) != 0)
@@ -668,22 +691,23 @@ HRESULT CLAVAudio::PostProcess(BufferDetails *buffer)
         }
     }
 
-    ASSERT(buffer->layout.order == AV_CHANNEL_ORDER_NATIVE || buffer->layout.order == AV_CHANNEL_ORDER_UNSPEC);
+    ASSERT((buffer->layout.order == AV_CHANNEL_ORDER_NATIVE || buffer->layout.order == AV_CHANNEL_ORDER_UNSPEC));
 
-    BOOL bOverrideMixing = av_channel_layout_check(&m_chOverrideMixer) != 0;
+    BOOL const bOverrideMixing = av_channel_layout_check(&m_chOverrideMixer) != 0;
 
     // determine the layout we're mixing to
     AVChannelLayout chMixingLayout{};
-    if (bOverrideMixing)
+    if (bOverrideMixing) {
         av_channel_layout_copy(&chMixingLayout, &m_chOverrideMixer);
-    else if (m_settings.MixingEnabled)
+    } else if (m_settings.MixingEnabled) {
         av_channel_layout_from_mask(&chMixingLayout, m_settings.MixingLayout);
+}
 
-    BOOL bMixing = (m_settings.MixingEnabled || bOverrideMixing) &&
+    BOOL const bMixing = (m_settings.MixingEnabled || bOverrideMixing) &&
                    av_channel_layout_compare(&buffer->layout, &chMixingLayout) != 0;
-    LAVAudioSampleFormat outputFormat = GetBestAvailableSampleFormat(buffer->sfFormat);
+    LAVAudioSampleFormat const outputFormat = GetBestAvailableSampleFormat(buffer->sfFormat);
     // Perform conversion to layout and sample format, if required
-    if (bMixing || outputFormat != buffer->sfFormat)
+    if (bMixing || (outputFormat != buffer->sfFormat))
     {
         PerformAVRProcessing(buffer);
     }
@@ -704,25 +728,27 @@ HRESULT CLAVAudio::PostProcess(BufferDetails *buffer)
     }
 
     // Map to the requested 5.1 layout
-    if (m_settings.Output51Legacy && buffer->layout.u.mask == AV_CH_LAYOUT_5POINT1)
+    if (m_settings.Output51Legacy && (buffer->layout.u.mask == AV_CH_LAYOUT_5POINT1)) {
         buffer->layout.u.mask = AV_CH_LAYOUT_5POINT1_BACK;
-    else if (!m_settings.Output51Legacy && buffer->layout.u.mask == AV_CH_LAYOUT_5POINT1_BACK)
+    } else if (!m_settings.Output51Legacy && (buffer->layout.u.mask == AV_CH_LAYOUT_5POINT1_BACK)) {
         buffer->layout.u.mask = AV_CH_LAYOUT_5POINT1;
+}
 
     // Check if current output uses back layout, and keep it active in that case
     if (buffer->layout.u.mask == AV_CH_LAYOUT_5POINT1)
     {
-        WAVEFORMATEX *wfe = (WAVEFORMATEX *)m_pOutput->CurrentMediaType().Format();
+        WAVEFORMATEX *wfe = reinterpret_cast<WAVEFORMATEX *>(m_pOutput->CurrentMediaType().Format());
         if (wfe->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
         {
-            WAVEFORMATEXTENSIBLE *wfex = (WAVEFORMATEXTENSIBLE *)wfe;
-            if (wfex->dwChannelMask == AV_CH_LAYOUT_5POINT1_BACK)
+            WAVEFORMATEXTENSIBLE *wfex = reinterpret_cast<WAVEFORMATEXTENSIBLE *>(wfe);
+            if (wfex->dwChannelMask == AV_CH_LAYOUT_5POINT1_BACK) {
                 buffer->layout.u.mask = AV_CH_LAYOUT_5POINT1_BACK;
+}
         }
     }
 
     // Mono -> Stereo expansion
-    if (buffer->layout.nb_channels == 1 && m_settings.ExpandMono)
+    if ((buffer->layout.nb_channels == 1) && m_settings.ExpandMono)
     {
         ExtendedChannelMap map = {{0, -2}, {0, -2}};
         ExtendedChannelMapping(buffer, 2, map);
@@ -753,7 +779,7 @@ HRESULT CLAVAudio::PostProcess(BufferDetails *buffer)
     }
 
     // Truncate 24-in-32 to real 24
-    if (buffer->sfFormat == SampleFormat_32 && buffer->wBitsPerSample && buffer->wBitsPerSample <= 24)
+    if ((buffer->sfFormat == SampleFormat_32) && (buffer->wBitsPerSample) && (buffer->wBitsPerSample <= 24))
     {
         Truncate32Buffer(buffer);
     }

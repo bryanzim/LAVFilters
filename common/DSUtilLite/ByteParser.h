@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 struct GetBitContext;
 
 /**
@@ -30,7 +32,7 @@ class CByteParser
 {
   public:
     /** Construct a Byte Parser to parse the given BYTE array with the given length */
-    CByteParser(const BYTE *pData, size_t length);
+    CByteParser(const BYTE *pData, std::size_t length);
     virtual ~CByteParser();
 
     /** Read 1 to 32 Bits from the Byte Array. If peek is set, the data will just be returned, and the buffer not
@@ -46,20 +48,20 @@ class CByteParser
     int SExpGolombRead();
 
     /** Pointer to the start of the byte array */
-    const BYTE *Start() const { return m_pData; }
+    [[nodiscard]] constexpr const BYTE *Start() const noexcept { return m_pData; }
     /** Pointer to the end of the byte array */
-    const BYTE *End() const { return m_pEnd; }
+    [[nodiscard]] constexpr const BYTE *End() const noexcept { return m_pEnd; }
 
     /** Overall length (in bytes) of the byte array */
-    size_t Length() const;
+    std::size_t Length() const;
 
-    size_t Pos() const;
+    std::size_t Pos() const;
 
     /** Number of bytes remaining in the array */
-    size_t Remaining() const { return RemainingBits() >> 3; }
+    [[nodiscard]] std::size_t Remaining() const { return RemainingBits() >> 3; }
 
     /** Number of bits remaining */
-    size_t RemainingBits() const;
+    std::size_t RemainingBits() const;
 
     void BitByteAlign();
 

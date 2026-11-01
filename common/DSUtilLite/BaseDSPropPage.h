@@ -37,5 +37,5 @@ class CBaseDSPropPage : public CBasePropertyPage
     HWND createHintWindow(HWND parent, int timePop = 1700, int timeInit = 70, int timeReshow = 7);
 
   private:
-    HWND m_hHint = 0;
+    HWND m_hHint{ nullptr };
 };

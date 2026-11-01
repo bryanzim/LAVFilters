@@ -20,15 +20,21 @@
  */
 
 #include "stdafx.h"
-#include "decoders/dxva2dec.h"
+
 #include "DXVA2SurfaceAllocator.h"
 
+#include "decoders/dxva2dec.h"
 #include "moreuuids.h"
+
+
+#ifdef _WIN32
 #include <evr.h>
 #include <Mferror.h>
+#endif
+
 
 CDXVA2Sample::CDXVA2Sample(CDXVA2SurfaceAllocator *pAlloc, HRESULT *phr)
-    : CMediaSampleSideData(NAME("CDXVA2Sample"), (CBaseAllocator *)pAlloc, phr, nullptr, 0)
+    : CMediaSampleSideData(NAME("CDXVA2Sample"), reinterpret_cast<CBaseAllocator *>(pAlloc), phr, nullptr, 0)
 {
 }
 
@@ -47,11 +53,11 @@ STDMETHODIMP CDXVA2Sample::QueryInterface(REFIID riid, __deref_out void **ppv)
 
     if (riid == __uuidof(IMFGetService))
     {
-        return GetInterface((IMFGetService *)this, ppv);
+        return GetInterface(reinterpret_cast<IMFGetService *>(this), ppv);
     }
     else if (riid == __uuidof(ILAVDXVA2Sample))
     {
-        return GetInterface((ILAVDXVA2Sample *)this, ppv);
+        return GetInterface(reinterpret_cast<ILAVDXVA2Sample *>(this), ppv);
     }
     else
     {
@@ -67,7 +73,7 @@ STDMETHODIMP_(ULONG) CDXVA2Sample::AddRef()
 STDMETHODIMP_(ULONG) CDXVA2Sample::Release()
 {
     // Return a temporary variable for thread safety.
-    ULONG cRef = __super::Release();
+    ULONG const cRef = __super::Release();
     return cRef;
 }
 
@@ -101,8 +107,9 @@ void CDXVA2Sample::SetSurface(DWORD surfaceId, IDirect3DSurface9 *pSurf)
     SafeRelease(&m_pSurface);
     m_pSurface = pSurf;
     m_dwSurfaceId = surfaceId;
-    if (m_pSurface)
+    if (m_pSurface) {
         m_pSurface->AddRef();
+}
 }
 
 STDMETHODIMP_(int) CDXVA2Sample::GetDXSurfaceId()
@@ -112,14 +119,15 @@ STDMETHODIMP_(int) CDXVA2Sample::GetDXSurfaceId()
 
 CDXVA2SurfaceAllocator::CDXVA2SurfaceAllocator(CDecDXVA2 *m_pDXVA2Dec, HRESULT *phr)
     : CBaseAllocator(NAME("CDXVA2SurfaceAllocator"), nullptr, phr)
-    , m_pDec(m_pDXVA2Dec)
+    , m_pDec{m_pDXVA2Dec}
 {
 }
 
 CDXVA2SurfaceAllocator::~CDXVA2SurfaceAllocator(void)
 {
-    if (m_pDec && m_pDec->m_pDXVA2Allocator == this)
+    if (m_pDec && (m_pDec->m_pDXVA2Allocator == this)) {
         m_pDec->m_pDXVA2Allocator = nullptr;
+}
 }
 
 // IUnknown
@@ -138,14 +146,13 @@ HRESULT CDXVA2SurfaceAllocator::Alloc()
     HRESULT hr = S_OK;
     IDirectXVideoDecoderService *pDXVA2Service = nullptr;
 
-    if (!m_pDec)
-        return E_FAIL;
+    if (!m_pDec) { return E_FAIL; }
 
     CheckPointer(m_pDec->m_pD3DDevMngr, E_UNEXPECTED);
     hr = m_pDec->m_pD3DDevMngr->GetVideoService(m_pDec->m_hDevice, IID_IDirectXVideoDecoderService,
-                                                (void **)&pDXVA2Service);
+                                                reinterpret_cast<void **>(&pDXVA2Service));
     CheckPointer(pDXVA2Service, E_UNEXPECTED);
-    CAutoLock lock(this);
+    CAutoLock const lock(this);
 
     hr = __super::Alloc();
 
@@ -183,7 +190,7 @@ HRESULT CDXVA2SurfaceAllocator::Alloc()
     {
         DbgLog((LOG_TRACE, 10, L"-> Creating samples"));
         // Important : create samples in reverse order !
-        for (int i = m_lCount - 1; i >= 0; i--)
+        for (int i = m_lCount - 1; i >= 0; --i)
         {
             CDXVA2Sample *pSample = new CDXVA2Sample(this, &hr);
             if (pSample == nullptr)
@@ -224,7 +231,7 @@ void CDXVA2SurfaceAllocator::Free()
     DbgLog((LOG_TRACE, 10, L"CDXVA2SurfaceAllocator::Free()"));
     CMediaSample *pSample = nullptr;
 
-    CAutoLock lock(this);
+    CAutoLock const lock(this);
 
     do
     {
@@ -237,7 +244,7 @@ void CDXVA2SurfaceAllocator::Free()
 
     if (m_ppRTSurfaceArray)
     {
-        for (UINT i = 0; i < m_nSurfaceArrayCount; i++)
+        for (UINT i{ 0U }; i < m_nSurfaceArrayCount; ++i)
         {
             if (m_ppRTSurfaceArray[i] != nullptr)
             {

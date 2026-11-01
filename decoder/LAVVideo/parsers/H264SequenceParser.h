@@ -19,13 +19,15 @@
 
 #pragma once
 
+#include <cstddef>
+
 class CH264SequenceParser
 {
   public:
-    CH264SequenceParser(void);
+    explicit CH264SequenceParser();
     virtual ~CH264SequenceParser(void);
 
-    HRESULT ParseNALs(const BYTE *buffer, size_t buflen, int nal_size);
+    HRESULT ParseNALs(const BYTE *buffer, std::size_t buflen, int nal_size);
 
   public:
     struct
@@ -53,5 +55,5 @@ class CH264SequenceParser
     } pps;
 
   private:
-    HRESULT ParseSPS(const BYTE *buffer, size_t buflen);
+    HRESULT ParseSPS(const BYTE *buffer, std::size_t buflen);
 };

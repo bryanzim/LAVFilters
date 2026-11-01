@@ -18,9 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "HEVCSequenceParser.h"
 
 #include "H264Nalu.h"
+
+#include <cstddef>
+
 
 #define HEVC_NAL_VPS 32
 #define HEVC_NAL_SPS 33
@@ -36,7 +40,7 @@ CHEVCSequenceParser::~CHEVCSequenceParser()
 {
 }
 
-HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int nal_size)
+HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, std::size_t buflen, int nal_size)
 {
     CH265Nalu nalu;
     nalu.SetBuffer(buffer, buflen, nal_size);
@@ -44,7 +48,7 @@ HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
     while (nalu.ReadNext())
     {
         const BYTE *data = nalu.GetDataBuffer() + 2;
-        const size_t len = nalu.GetDataLength() - 2;
+        const std::size_t len = nalu.GetDataLength() - 2;
         if (nalu.GetType() == HEVC_NAL_SPS)
         {
             CH264NALUnescape unescapedNAL(data, len);
@@ -56,7 +60,7 @@ HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
     return S_OK;
 }
 
-HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
+HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
 {
     CByteParser parser(buffer, buflen);
     int i;
@@ -68,10 +72,10 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     {
         int profile_present;
         int level_present;
-    } Sublayers[7];
+    } Sublayers[7U];
 
     parser.BitSkip(4);                      // sps_video_parameter_set_id
-    int max_sub_layers = parser.BitRead(3); // sps_max_sub_layers_minus1
+    int const max_sub_layers = parser.BitRead(3); // sps_max_sub_layers_minus1
     parser.BitSkip(1);                      // sps_temporal_id_nesting_flag
 
     // profile tier level
@@ -79,11 +83,12 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     parser.BitSkip(1);               // general_tier_flag
     sps.profile = parser.BitRead(5); // general_profile_idc
 
-    for (i = 0; i < 32; i++)
+    for (i = 0; i < 32; ++i)
     {
-        int flag = parser.BitRead(1);
-        if (sps.profile == 0 && i > 0 && flag)
+        int const flag = parser.BitRead(1);
+        if ((sps.profile == 0) && (i > 0) && flag) {
             sps.profile = i;
+}
     }
     parser.BitSkip(1); // general_progressive_source_flag
     parser.BitSkip(1); // general_interlaced_source_flag
@@ -105,10 +110,9 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     parser.BitSkip(1);             // general_reserved_zero_bit
     sps.level = parser.BitRead(8); // general_level_idc
 
-    if (max_sub_layers > 7)
-        return E_FAIL;
+    if (max_sub_layers > 7) { return E_FAIL; }
 
-    for (i = 0; i < max_sub_layers; i++)
+    for (i = 0; i < max_sub_layers; ++i)
     {
         Sublayers[i].profile_present = parser.BitRead(1); // sub_layer_profile_present_flag
         Sublayers[i].level_present = parser.BitRead(1);   // sub_layer_level_present_flag
@@ -116,11 +120,12 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
 
     if (max_sub_layers > 0)
     {
-        for (i = max_sub_layers; i < 8; i++)
+        for (i = max_sub_layers; i < 8; ++i) {
             parser.BitSkip(2); // reserved_zero_2bits
+}
     }
 
-    for (i = 0; i < max_sub_layers; i++)
+    for (i = 0; i < max_sub_layers; ++i)
     {
         if (Sublayers[i].profile_present)
         {
@@ -144,8 +149,9 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
 
     parser.UExpGolombRead();              // sps_id
     sps.chroma = parser.UExpGolombRead(); // chroma_format_idc
-    if (sps.chroma == 3)
+    if (sps.chroma == 3) {
         parser.BitRead(1); // separate_color_plane_flag
+}
 
     parser.UExpGolombRead(); // width
     parser.UExpGolombRead(); // height
@@ -163,7 +169,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
 
     /*int log2_max_pic_order_count = parser.UExpGolombRead() + 4; // log2_max_pic_order_cnt_lsb_minus4
 
-    for (i = (parser.BitRead(1) ? 0 : max_sub_layers); i <= max_sub_layers; i++) {
+    for (i = (parser.BitRead(1) ? 0 : max_sub_layers); i <= max_sub_layers; ++i) {
       parser.UExpGolombRead(); // sps_max_dec_pic_buffering_minus1
       parser.UExpGolombRead(); // sps_max_num_reorder_pics
       parser.UExpGolombRead(); // sps_max_latency_increase_plus1
@@ -179,8 +185,8 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     // scaling list
     if (parser.BitRead(1)) { // scaling_list_enabled_flag
       if (parser.BitRead(1)) { // sps_scaling_list_data_present_flag
-        for (int sizeId = 0; sizeId < 4; sizeId++) {
-          for (int matrixId = 0; matrixId < 6; matrixId += ((sizeId == 3) ? 3 : 1)) {
+        for (int sizeId{ 0 }; sizeId < 4; ++sizeId) {
+          for (int matrixId{ 0 }; matrixId < 6; matrixId += ((sizeId == 3) ? 3 : 1)) {
             if (!parser.BitRead(1)) { // scaling_list_pred_mode_flag
               parser.UExpGolombRead(); // scaling_list_pred_matrix_id_delta
             }
@@ -189,7 +195,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
                 parser.SExpGolombRead();
 
               int coefNum = min(64, 1 << (4 + (sizeId << 1)));
-              for (i = 0; i < coefNum; i++)
+              for (i = 0; i < coefNum; ++i)
                 parser.SExpGolombRead(); // scaling_list_delta_coef
             }
           }
@@ -212,14 +218,14 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
       return E_FAIL;
 
     // st_ref_pic_set
-    for (i = 0; i < num_short_term_ref_pic_set; i++) {
-      if (i > 0 && parser.BitRead(1)) { // inter_ref_pic_set_prediction_flag
+    for (i = 0; i < num_short_term_ref_pic_set; ++i) {
+      if ((i > 0) && parser.BitRead(1)) { // inter_ref_pic_set_prediction_flag
         if (i == num_short_term_ref_pic_set) // only in slice header?
           parser.UExpGolombRead(); // delta_idx_minus1
 
         parser.BitSkip(1); // delta_rps_sign
         parser.UExpGolombRead(); // abs_delta_rps_minus1
-        for (j = 0; j <= ShortTermRPS[i - 1].NumDeltaPocs; j++) {
+        for (j = 0; j <= ShortTermRPS[i - 1].NumDeltaPocs; ++j) {
           if (!parser.BitRead(1)) // used_by_curr_pic_flag
             parser.BitRead(1); // use_delta_flag
         }
@@ -229,12 +235,12 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
         int num_positive = parser.UExpGolombRead();
         ShortTermRPS[i].NumDeltaPocs = num_negative + num_positive;
 
-        for (j = 0; j < num_negative; j++) {
+        for (j = 0; j < num_negative; ++j) {
           parser.UExpGolombRead(); // delta_poc_s0_minus1
           parser.BitSkip(1); // used_by_curr_pic_s0_flag
         }
 
-        for (j = 0; j < num_positive; j++) {
+        for (j = 0; j < num_positive; ++j) {
           parser.UExpGolombRead(); // delta_poc_s0_minus1
           parser.BitSkip(1); // used_by_curr_pic_s0_flag
         }
@@ -243,7 +249,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
 
     if (parser.BitRead(1)) { // long_term_ref_pics_present_flag
       int num_long_term = parser.UExpGolombRead();
-      for (i = 0; i < num_long_term; i++) {
+      for (i = 0; i < num_long_term; ++i) {
         parser.BitSkip(log2_max_pic_order_count);
         parser.BitSkip(1);
       }
@@ -302,7 +308,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
         if (parser.BitRead(1)) { // vui_hrd_parameters_present_flag
           int nal_hrd_parameters_present = parser.BitRead(1);
           int vcl_hrd_parameters_present = parser.BitRead(1);
-          int sub_hrd_parameters_present = 0;
+          int sub_hrd_parameters_present{ 0 };
 
           if (nal_hrd_parameters_present || vcl_hrd_parameters_present) {
             sub_hrd_parameters_present = parser.BitRead(1);
@@ -322,7 +328,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
             parser.BitSkip(5); // dpb_output_delay_length_minus1
           }
 
-          for (i = 0; i <= max_sub_layers; i++) {
+          for (i = 0; i <= max_sub_layers; ++i) {
             int fixed_pic_rate_flag = parser.BitRead(1);
             int fixed_pic_rate_in_cvs_flag = 1, low_delay_hrd = 0;
 
@@ -334,12 +340,12 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
             else
               low_delay_hrd = parser.BitRead(1);
 
-            int cpb_count = 0;
+            int cpb_count{ 0 };
             if (!low_delay_hrd)
               cpb_count = parser.UExpGolombRead();
 
             if (nal_hrd_parameters_present) {
-              for (j = 0; j <= cpb_count; j++) {
+              for (j = 0; j <= cpb_count; ++j) {
                 parser.UExpGolombRead(); // bit_rate_value_minus1
                 parser.UExpGolombRead(); // cpb_size_value_minus1
 
@@ -352,7 +358,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
               }
             }
             if (vcl_hrd_parameters_present) {
-              for (j = 0; j <= cpb_count; j++) {
+              for (j = 0; j <= cpb_count; ++j) {
                 parser.UExpGolombRead(); // bit_rate_value_minus1
                 parser.UExpGolombRead(); // cpb_size_value_minus1
 
@@ -371,7 +377,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
       }
     }
 
-    int sps_range_extension_present = 0;
+    int sps_range_extension_present{ 0 };
     if (parser.BitRead(1)) { // sps_extension_present_flag
       sps_range_extension_present = parser.BitRead(1);
       parser.BitSkip(1); // sps_multilayer_extension_flag

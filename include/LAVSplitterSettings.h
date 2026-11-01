@@ -19,7 +19,9 @@
 
 #pragma once
 
+#ifdef _WIN32
 #include <Unknwn.h> // IUnknown and GUID Macros
+#endif
 
 // {774A919D-EA95-4A87-8A1E-F48ABE8499C7}
 DEFINE_GUID(IID_ILAVFSettings, 0x774a919d, 0xea95, 0x4a87, 0x8a, 0x1e, 0xf4, 0x8a, 0xbe, 0x84, 0x99, 0xc7);

@@ -18,7 +18,9 @@
  */
 
 #include "stdafx.h"
+
 #include "LAVSubtitleFrame.h"
+
 
 CLAVSubtitleFrame::CLAVSubtitleFrame(void)
     : CUnknown(L"CLAVSubtitleFrame", nullptr)
@@ -29,7 +31,7 @@ CLAVSubtitleFrame::CLAVSubtitleFrame(void)
 
 CLAVSubtitleFrame::~CLAVSubtitleFrame(void)
 {
-    for (int i = 0; i < m_NumBitmaps; i++)
+    for (int i{ 0 }; i < m_NumBitmaps; ++i)
     {
         m_Bitmaps[i]->Release();
     }
@@ -57,9 +59,9 @@ STDMETHODIMP CLAVSubtitleFrame::AddBitmap(CLAVSubRect *subRect)
         return E_OUTOFMEMORY;
     }
 
-    m_Bitmaps = (CLAVSubRect **)mem;
+    m_Bitmaps = reinterpret_cast<CLAVSubRect **>(mem);
     m_Bitmaps[m_NumBitmaps] = subRect;
-    m_NumBitmaps++;
+    ++m_NumBitmaps;
 
     // Hold reference on the subtitle rect
     subRect->AddRef();
@@ -91,8 +93,7 @@ STDMETHODIMP CLAVSubtitleFrame::GetBitmapCount(int *count)
 STDMETHODIMP CLAVSubtitleFrame::GetBitmap(int index, ULONGLONG *id, POINT *position, SIZE *size, LPCVOID *pixels,
                                           int *pitch)
 {
-    if (index < 0 || index >= m_NumBitmaps)
-        return E_INVALIDARG;
+    if ((index < 0) || (index >= m_NumBitmaps)) { return E_INVALIDARG; }
     CheckPointer(id, E_POINTER);
     CheckPointer(position, E_POINTER);
     CheckPointer(size, E_POINTER);

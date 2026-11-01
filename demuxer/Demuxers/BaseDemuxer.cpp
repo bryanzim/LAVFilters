@@ -18,15 +18,19 @@
  */
 
 #include "stdafx.h"
+
 #include "BaseDemuxer.h"
 
 #include "moreuuids.h"
 
+#include <cstring>
+
+
 CBaseDemuxer::CBaseDemuxer(LPCTSTR pName, CCritSec *pLock)
     : CUnknown(pName, nullptr)
-    , m_pLock(pLock)
+    , m_pLock{pLock}
 {
-    for (int i = 0; i < unknown; ++i)
+    for (int i{ 0 }; i < unknown; ++i)
     {
         m_dActiveStreams[i] = -1;
     }
@@ -43,10 +47,10 @@ void CBaseDemuxer::CreateNoSubtitleStream()
     mtype.majortype = MEDIATYPE_Subtitle;
     mtype.subtype = MEDIASUBTYPE_UTF8;
     mtype.formattype = FORMAT_SubtitleInfo;
-    SUBTITLEINFO *subInfo = (SUBTITLEINFO *)mtype.AllocFormatBuffer(sizeof(SUBTITLEINFO));
-    memset(subInfo, 0, mtype.FormatLength());
-    wcscpy_s(subInfo->TrackName, NO_SUB_STRING);
-    strcpy_s(subInfo->IsoLang, "und");
+    SUBTITLEINFO *subInfo = reinterpret_cast<SUBTITLEINFO *>(mtype.AllocFormatBuffer(sizeof(SUBTITLEINFO)));
+    std::memset(subInfo, 0, mtype.FormatLength());
+    ::wcscpy_s(subInfo->TrackName.data(), subInfo->TrackName.size(), NO_SUB_STRING);
+    ::strcpy_s(subInfo->IsoLang.data(), subInfo->IsoLang.size(), "und");
     subInfo->dwOffset = sizeof(SUBTITLEINFO);
     s.streamInfo->mtypes.push_back(mtype);
     // Append it to the list
@@ -64,9 +68,9 @@ void CBaseDemuxer::CreatePGSForcedSubtitleStream()
     mtype.majortype = MEDIATYPE_Subtitle;
     mtype.subtype = MEDIASUBTYPE_HDMVSUB;
     mtype.formattype = FORMAT_SubtitleInfo;
-    SUBTITLEINFO *subInfo = (SUBTITLEINFO *)mtype.AllocFormatBuffer(sizeof(SUBTITLEINFO));
-    memset(subInfo, 0, mtype.FormatLength());
-    wcscpy_s(subInfo->TrackName, FORCED_SUB_STRING);
+    SUBTITLEINFO *subInfo = reinterpret_cast<SUBTITLEINFO *>(mtype.AllocFormatBuffer(sizeof(SUBTITLEINFO)));
+    std::memset(subInfo, 0, mtype.FormatLength());
+    ::wcscpy_s(subInfo->TrackName.data(), subInfo->TrackName.size(), FORCED_SUB_STRING);
     subInfo->dwOffset = sizeof(SUBTITLEINFO);
     s.streamInfo->mtypes.push_back(mtype);
     // Append it to the list
@@ -118,11 +122,10 @@ void CBaseDemuxer::CStreamList::Clear()
 
 CBaseDemuxer::stream *CBaseDemuxer::FindStream(DWORD pid)
 {
-    for (int i = 0; i < StreamType::unknown; i++)
+    for (int i{ 0 }; i < StreamType::unknown; ++i)
     {
         stream *pStream = m_streams[i].FindStream(pid);
-        if (pStream)
-            return pStream;
+        if (pStream) { return pStream; }
     }
     return nullptr;
 }

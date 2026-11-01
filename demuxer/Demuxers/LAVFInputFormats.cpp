@@ -19,6 +19,9 @@
 
 #include "stdafx.h"
 
+#include <cstring>
+
+
 static const char *RAW_VIDEO = "rawvideo";
 static const char *RAW_VIDEO_DESC = "raw video files";
 
@@ -44,6 +47,9 @@ struct lavf_iformat_map
     {"h263", RAW_VIDEO, RAW_VIDEO_DESC},
     {"h264", RAW_VIDEO, RAW_VIDEO_DESC},
     {"hevc", RAW_VIDEO, RAW_VIDEO_DESC},
+    {"vvc", RAW_VIDEO, RAW_VIDEO_DESC},
+    {"apv", RAW_VIDEO, RAW_VIDEO_DESC},
+    {"evc", RAW_VIDEO, RAW_VIDEO_DESC},
     {"ingenient", RAW_VIDEO, RAW_VIDEO_DESC},
     {"mjpeg", RAW_VIDEO, RAW_VIDEO_DESC},
     {"vc1", RAW_VIDEO, RAW_VIDEO_DESC},
@@ -85,19 +91,22 @@ void lavf_get_iformat_infos(const AVInputFormat *pFormat, const char **pszName, 
 {
     const char *name = pFormat->name;
     const char *desc = pFormat->long_name;
-    for (int i = 0; i < countof(lavf_input_formats); ++i)
+    for (int i{ 0 }; i < countof(lavf_input_formats); ++i)
     {
-        if (strcmp(lavf_input_formats[i].orig_format, name) == 0)
+        if (std::strcmp(lavf_input_formats[i].orig_format, name) == 0)
         {
             name = lavf_input_formats[i].new_format;
-            if (lavf_input_formats[i].new_description)
+            if (lavf_input_formats[i].new_description) {
                 desc = lavf_input_formats[i].new_description;
+}
             break;
         }
     }
 
-    if (pszName)
+    if (pszName) {
         *pszName = name;
-    if (pszDescription)
+}
+    if (pszDescription) {
         *pszDescription = desc;
+}
 }

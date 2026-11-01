@@ -18,20 +18,22 @@
  */
 
 #pragma once
-#include "DecBase.h"
 #include "avcodec.h"
+#include "d3d11/D3D11SurfaceAllocator.h"
+#include "DecBase.h"
 
+#ifdef _WIN32
 #include <d3d11.h>
 #include <dxgi.h>
+#endif
 
-#include "d3d11/D3D11SurfaceAllocator.h"
 
 extern "C"
 {
-#include "libavutil/hwcontext.h"
-#include "libavutil/hwcontext_d3d11va.h"
 #include "libavcodec/d3d11va.h"
 #include "libavcodec/h265_rext_profiles.h"
+#include "libavutil/hwcontext.h"
+#include "libavutil/hwcontext_d3d11va.h"
 }
 
 #define D3D11_QUEUE_SURFACES 4
@@ -41,7 +43,7 @@ typedef HRESULT(WINAPI *PFN_CREATE_DXGI_FACTORY1)(REFIID riid, void **ppFactory)
 class CDecD3D11 : public CDecAvcodec
 {
   public:
-    CDecD3D11(void);
+    explicit CDecD3D11();
     virtual ~CDecD3D11(void);
 
     // ILAVDecoder
@@ -81,7 +83,7 @@ class CDecD3D11 : public CDecAvcodec
     HRESULT DeliverD3D11Readback(LAVFrame *pFrame);
     HRESULT DeliverD3D11ReadbackDirect(LAVFrame *pFrame);
 
-    BOOL IsHardwareAccelerator() { return TRUE; }
+    [[nodiscard]] BOOL IsHardwareAccelerator() noexcept { return TRUE; }
 
   private:
     STDMETHODIMP DestroyDecoder(bool bFull);
@@ -112,24 +114,24 @@ class CDecD3D11 : public CDecAvcodec
     D3D11_VIDEO_DECODER_CONFIG m_DecoderConfig;
     ID3D11VideoDecoder *m_pDecoder = nullptr;
 
-    int m_nOutputViews = 0;
+    int m_nOutputViews{ 0 };
     ID3D11VideoDecoderOutputView **m_pOutputViews = nullptr;
 
-    DWORD m_dwSurfaceWidth = 0;
-    DWORD m_dwSurfaceHeight = 0;
-    DWORD m_dwSurfaceCount = 0;
+    DWORD m_dwSurfaceWidth{ 0U };
+    DWORD m_dwSurfaceHeight{ 0U };
+    DWORD m_dwSurfaceCount{ 0U };
     DXGI_FORMAT m_SurfaceFormat = DXGI_FORMAT_UNKNOWN;
 
-    BOOL m_bReadBackFallback = FALSE;
-    BOOL m_bDirect = FALSE;
-    BOOL m_bFailHWDecode = FALSE;
+    BOOL m_bReadBackFallback{ FALSE };
+    BOOL m_bDirect{ FALSE };
+    BOOL m_bFailHWDecode{ FALSE };
 
-    BOOL m_bP016ToP010Fallback = FALSE;
+    BOOL m_bP016ToP010Fallback{ FALSE };
 
     ID3D11Texture2D *m_pD3D11StagingTexture = nullptr;
 
     LAVFrame *m_FrameQueue[D3D11_QUEUE_SURFACES];
-    int m_FrameQueuePosition = 0;
+    int m_FrameQueuePosition{ 0 };
     int m_DisplayDelay = D3D11_QUEUE_SURFACES;
 
     struct
@@ -139,7 +141,7 @@ class CDecD3D11 : public CDecAvcodec
 
         HMODULE dxgilib;
         PFN_CREATE_DXGI_FACTORY1 mCreateDXGIFactory1;
-    } dx = {0};
+    } dx = {nullptr};
 
     DXGI_ADAPTER_DESC m_AdapterDesc = {0};
 

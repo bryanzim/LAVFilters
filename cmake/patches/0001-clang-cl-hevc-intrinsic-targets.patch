@@ -1,0 +1,40 @@
+diff --git a/libavcodec/x86/hevc/idct_intrinsic.c b/libavcodec/x86/hevc/idct_intrinsic.c
+index a5c09d00df..8d088b67f4 100644
+--- a/libavcodec/x86/hevc/idct_intrinsic.c
++++ b/libavcodec/x86/hevc/idct_intrinsic.c
+@@ -8,6 +8,8 @@
+ #ifdef __GNUC__
+ #pragma GCC push_options
+ #pragma GCC target("sse2")
++#elif defined(__clang__)
++#pragma clang attribute push (__attribute__((target("sse2"))), apply_to=function)
+ #endif
+ 
+ #if HAVE_SSE2
+@@ -713,4 +715,6 @@ TRANSFORM2(32, 12);
+ 
+ #ifdef __GNUC__
+ #pragma GCC pop_options
++#elif defined(__clang__)
++#pragma clang attribute pop
+ #endif
+diff --git a/libavcodec/x86/hevc/intra_intrinsic.c b/libavcodec/x86/hevc/intra_intrinsic.c
+index a5cfdbe6f2..77fc688636 100644
+--- a/libavcodec/x86/hevc/intra_intrinsic.c
++++ b/libavcodec/x86/hevc/intra_intrinsic.c
+@@ -8,6 +8,8 @@
+ #ifdef __GNUC__
+ #pragma GCC push_options
+ #pragma GCC target("sse4.1")
++#elif defined(__clang__)
++#pragma clang attribute push (__attribute__((target("sse4.1"))), apply_to=function)
+ #endif
+ 
+ #if HAVE_SSE2
+@@ -919,4 +921,6 @@ void pred_angular_3_10_sse(uint8_t *_src, const uint8_t *_top, const uint8_t *_l
+ 
+ #ifdef __GNUC__
+ #pragma GCC pop_options
++#elif defined(__clang__)
++#pragma clang attribute pop
+ #endif

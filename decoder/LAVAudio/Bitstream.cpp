@@ -18,10 +18,20 @@
  */
 
 #include "stdafx.h"
-#include "LAVAudio.h"
 
-#include <MMReg.h>
+#include "LAVAudio.h"
 #include "moreuuids.h"
+
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+
+#ifdef _WIN32
+#include <MMReg.h>
+#endif
+
 
 #define LAV_BITSTREAM_BUFFER_SIZE 4096
 #define LAV_BITSTREAM_DTS_HD_HR_RATE 192000
@@ -41,7 +51,7 @@ static struct
 // Check whether a codec is bitstreaming eligible and enabled
 BOOL CLAVAudio::IsBitstreaming(AVCodecID codec)
 {
-    for (int i = 0; i < countof(lavf_bitstream_config); ++i)
+    for (int i{ 0 }; i < countof(lavf_bitstream_config); ++i)
     {
         if (lavf_bitstream_config[i].codec == codec)
         {
@@ -56,9 +66,8 @@ BOOL CLAVAudio::IsBitstreaming(AVCodecID codec)
 HRESULT CLAVAudio::InitBitstreaming()
 {
     // Alloc buffer for the AVIO context
-    BYTE *buffer = (BYTE *)CoTaskMemAlloc(LAV_BITSTREAM_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);
-    if (!buffer)
-        return E_OUTOFMEMORY;
+    BYTE *buffer = reinterpret_cast<BYTE *>(CoTaskMemAlloc(LAV_BITSTREAM_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE));
+    if (!buffer) { return E_OUTOFMEMORY; }
 
     // Create AVIO context
     m_avioBitstream = avio_alloc_context(buffer, LAV_BITSTREAM_BUFFER_SIZE, 1, this, nullptr, BSWriteBuffer, nullptr);
@@ -82,25 +91,26 @@ HRESULT CLAVAudio::ShutdownBitstreaming()
 }
 
 // Static function for the AVIO context that writes the buffer into our own output buffer
-int CLAVAudio::BSWriteBuffer(void *opaque, const uint8_t *buf, int buf_size)
+int CLAVAudio::BSWriteBuffer(void *opaque, const std::uint8_t *buf, int buf_size)
 {
-    CLAVAudio *filter = (CLAVAudio *)opaque;
+    CLAVAudio *filter = reinterpret_cast<CLAVAudio *>(opaque);
     filter->m_bsOutput.Append(buf, buf_size);
     return buf_size;
 }
 
 HRESULT CLAVAudio::CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe)
 {
-    int ret = 0;
+    int ret{ 0 };
 
-    if (m_avBSContext)
+    if (m_avBSContext) {
         FreeBitstreamContext();
+}
     m_bsParser.Reset();
 
     DbgLog((LOG_TRACE, 20, "Creating Bistreaming Context..."));
 
     ret = avformat_alloc_output_context2(&m_avBSContext, nullptr, "spdif", nullptr);
-    if (ret < 0 || !m_avBSContext)
+    if ((ret < 0) || !m_avBSContext)
     {
         DbgLog((LOG_ERROR, 10, L"::CreateBitstreamContext() -- alloc of avformat spdif muxer failed (ret: %d)", ret));
         goto fail;
@@ -124,7 +134,7 @@ HRESULT CLAVAudio::CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe)
     }
     av_opt_set_int(m_avBSContext->priv_data, "dtshd_fallback_time", -1, 0);
 
-    AVStream *st = avformat_new_stream(m_avBSContext, 0);
+    AVStream *st = avformat_new_stream(m_avBSContext, nullptr);
     if (!st)
     {
         DbgLog((LOG_ERROR, 10, L"::CreateBitstreamContext() -- alloc of output stream failed"));
@@ -151,22 +161,23 @@ fail:
 
 HRESULT CLAVAudio::UpdateBitstreamContext()
 {
-    if (!m_pInput || !m_pInput->IsConnected())
+    if (!m_pInput || (!m_pInput->IsConnected())) {
         return E_UNEXPECTED;
+}
 
-    BOOL bBitstream = IsBitstreaming(m_nCodecId);
+    BOOL const bBitstream = IsBitstreaming(m_nCodecId);
     if ((bBitstream && !m_avBSContext) || (!bBitstream && m_avBSContext))
     {
-        CMediaType mt = m_pInput->CurrentMediaType();
+        CMediaType const mt = m_pInput->CurrentMediaType();
 
         const void *format = mt.Format();
         GUID format_type = mt.formattype;
         DWORD formatlen = mt.cbFormat;
 
         // Override the format type
-        if (mt.subtype == MEDIASUBTYPE_FFMPEG_AUDIO && format_type == FORMAT_WaveFormatExFFMPEG)
+        if ((mt.subtype == MEDIASUBTYPE_FFMPEG_AUDIO) && (format_type == FORMAT_WaveFormatExFFMPEG))
         {
-            WAVEFORMATEXFFMPEG *wfexff = (WAVEFORMATEXFFMPEG *)mt.Format();
+            WAVEFORMATEXFFMPEG *wfexff = reinterpret_cast<WAVEFORMATEXFFMPEG *>(mt.Format());
             format = &wfexff->wfex;
             format_type = FORMAT_WaveFormatEx;
             formatlen -= sizeof(WAVEFORMATEXFFMPEG) - sizeof(WAVEFORMATEX);
@@ -209,7 +220,7 @@ HRESULT CLAVAudio::FreeBitstreamContext()
     m_bsOutput.SetSize(0);
 
     // reset TrueHD MAT state
-    memset(&m_TrueHDMATState, 0, sizeof(m_TrueHDMATState));
+    std::memset(&m_TrueHDMATState, 0, sizeof(m_TrueHDMATState));
 
     return S_OK;
 }
@@ -223,7 +234,7 @@ CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRa
     mt.formattype = FORMAT_WaveFormatEx;
 
     WAVEFORMATEXTENSIBLE wfex;
-    memset(&wfex, 0, sizeof(wfex));
+    std::memset(&wfex, 0, sizeof(wfex));
 
     WAVEFORMATEX *wfe = &wfex.Format;
 
@@ -249,7 +260,7 @@ CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRa
         subtype = KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_MLP;
         break;
     case AV_CODEC_ID_DTS:
-        if (m_settings.bBitstream[Bitstream_DTSHD] && !bDTSHDOverride && m_DTSBitstreamMode != DTS_Core)
+        if (m_settings.bBitstream[Bitstream_DTSHD] && !bDTSHDOverride && (m_DTSBitstreamMode != DTS_Core))
         {
             wfe->nSamplesPerSec = 192000;
             wfe->nChannels = (m_DTSBitstreamMode == DTS_HDHR) ? 2 : 8;
@@ -277,24 +288,20 @@ CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRa
     }
 
     mt.SetSampleSize(1);
-    mt.SetFormat((BYTE *)&wfex, sizeof(wfex.Format) + wfex.Format.cbSize);
+    mt.SetFormat(reinterpret_cast<BYTE *>(&wfex), sizeof(wfex.Format) + wfex.Format.cbSize);
 
     return mt;
 }
 
 CLAVAudio::DTSBitstreamMode CLAVAudio::GetDTSHDBitstreamMode()
 {
-    if (m_bForceDTSCore || !m_settings.bBitstream[Bitstream_DTSHD])
-        return DTS_Core;
+    if (m_bForceDTSCore || !m_settings.bBitstream[Bitstream_DTSHD]) { return DTS_Core; }
 
-    if (m_settings.DTSHDFraming)
-        return DTS_HDMA;
+    if (m_settings.DTSHDFraming) { return DTS_HDMA; }
 
-    if (!m_bsParser.m_bDTSHD)
-        return DTS_Core;
+    if (!m_bsParser.m_bDTSHD) { return DTS_Core; }
 
-    if (m_pAVCtx->profile == AV_PROFILE_DTS_HD_HRA)
-        return DTS_HDHR;
+    if (m_pAVCtx->profile == AV_PROFILE_DTS_HD_HRA) { return DTS_HDHR; }
 
     return DTS_HDMA;
 }
@@ -306,7 +313,7 @@ void CLAVAudio::ActivateDTSHDMuxing()
 
     // Check if downstream actually accepts it..
     const CMediaType &mt = CreateBitstreamMediaType(m_nCodecId, m_bsParser.m_dwSampleRate);
-    HRESULT hr = m_pOutput->GetConnected()->QueryAccept(&mt);
+    HRESULT const hr = m_pOutput->GetConnected()->QueryAccept(&mt);
     if (hr != S_OK)
     {
         DbgLog((LOG_TRACE, 20, L"-> But downstream doesn't want DTS-HD, sticking to DTS core"));
@@ -324,30 +331,32 @@ void CLAVAudio::ActivateDTSHDMuxing()
 HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consumed, HRESULT *hrDeliver)
 {
     HRESULT hr = S_OK;
-    int ret = 0;
-    BOOL bFlush = (pDataBuffer == nullptr);
+    int ret{ 0 };
+    BOOL const bFlush = (pDataBuffer == nullptr);
 
-    if (m_pBitstreamPacket == nullptr)
+    if (m_pBitstreamPacket == nullptr) {
         m_pBitstreamPacket = av_packet_alloc();
+}
 
     m_pBitstreamPacket->duration = 1;
 
     consumed = 0;
     while (buffsize > 0)
     {
-        if (bFlush)
+        if (bFlush) {
             buffsize = 0;
+}
 
         BYTE *pOut = nullptr;
-        int pOut_size = 0;
-        int used_bytes = av_parser_parse2(m_pParser, m_pAVCtx, &pOut, &pOut_size, pDataBuffer, buffsize, AV_NOPTS_VALUE,
+        int pOut_size{ 0 };
+        int const used_bytes = av_parser_parse2(m_pParser, m_pAVCtx, &pOut, &pOut_size, pDataBuffer, buffsize, AV_NOPTS_VALUE,
                                           AV_NOPTS_VALUE, 0);
         if (used_bytes < 0)
         {
             DbgLog((LOG_TRACE, 50, L"::Bitstream() - audio parsing failed (ret: %d)", -used_bytes));
             return E_FAIL;
         }
-        else if (used_bytes == 0 && pOut_size == 0)
+        else if ((used_bytes == 0) && (pOut_size == 0))
         {
             DbgLog((LOG_TRACE, 50, L"::Bitstream() - could not process buffer, starving?"));
             break;
@@ -356,14 +365,14 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
         // Timestamp cache to compensate for one frame delay the parser might introduce, in case the frames were already
         // perfectly sliced apart If we used more (or equal) bytes then was output again, we encountered a new frame,
         // update timestamps
-        if (used_bytes >= pOut_size && m_bUpdateTimeCache)
+        if ((used_bytes >= pOut_size) && m_bUpdateTimeCache)
         {
             m_rtStartInputCache = m_rtStartInput;
             m_rtStopInputCache = m_rtStopInput;
             m_bUpdateTimeCache = FALSE;
         }
 
-        if (!bFlush && used_bytes > 0)
+        if (!bFlush && (used_bytes > 0))
         {
             buffsize -= used_bytes;
             pDataBuffer += used_bytes;
@@ -385,8 +394,9 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                 // Set long-time cache to the first timestamp encountered, used by TrueHD and E-AC3 because the S/PDIF
                 // muxer caches data internally If the current timestamp is not valid, use the last delivery timestamp
                 // in m_rtStart
-                if (m_rtBitstreamCache == AV_NOPTS_VALUE)
+                if (m_rtBitstreamCache == AV_NOPTS_VALUE) {
                     m_rtBitstreamCache = m_rtStartInputCache != AV_NOPTS_VALUE ? m_rtStartInputCache : m_rtStart;
+}
 
                 BitstreamTrueHD(pOut, pOut_size, hrDeliver);
             }
@@ -394,9 +404,10 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
             {
                 if (m_nCodecId == AV_CODEC_ID_DTS)
                 {
-                    DTSBitstreamMode mode = GetDTSHDBitstreamMode();
-                    if (mode != DTS_Core && mode != m_DTSBitstreamMode)
+                    DTSBitstreamMode const mode = GetDTSHDBitstreamMode();
+                    if ((mode != DTS_Core) && (mode != m_DTSBitstreamMode)) {
                         ActivateDTSHDMuxing();
+}
                 }
 
                 m_pBitstreamPacket->data = pOut;
@@ -416,8 +427,9 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                 // Set long-time cache to the first timestamp encountered, used by TrueHD and E-AC3 because the S/PDIF
                 // muxer caches data internally If the current timestamp is not valid, use the last delivery timestamp
                 // in m_rtStart
-                if (m_rtBitstreamCache == AV_NOPTS_VALUE)
+                if (m_rtBitstreamCache == AV_NOPTS_VALUE) {
                     m_rtBitstreamCache = m_rtStartInputCache != AV_NOPTS_VALUE ? m_rtStartInputCache : m_rtStart;
+}
 
                 // Deliver frame
                 if (m_bsOutput.GetCount() > 0)
@@ -429,8 +441,7 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
             }
 
             /* if the bitstreaming context is lost at this point, then the deliver function caused a fallback to PCM */
-            if (m_avBSContext == nullptr)
-                return S_FALSE;
+            if (m_avBSContext == nullptr) { return S_FALSE; }
         }
     }
 
@@ -442,8 +453,7 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
 {
     HRESULT hr = S_OK;
 
-    if (m_bFlushing)
-        return S_FALSE;
+    if (m_bFlushing) { return S_FALSE; }
 
     CMediaType mt = CreateBitstreamMediaType(codec, m_bsParser.m_dwSampleRate);
 
@@ -461,36 +471,38 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
 
     if (m_bResyncTimestamp && (rtStartInput != AV_NOPTS_VALUE || m_rtBitstreamCache != AV_NOPTS_VALUE))
     {
-        if (m_rtBitstreamCache != AV_NOPTS_VALUE)
+        if (m_rtBitstreamCache != AV_NOPTS_VALUE) {
             m_rtStart = m_rtBitstreamCache;
-        else
+        } else {
             m_rtStart = rtStartInput;
+}
         m_bResyncTimestamp = FALSE;
     }
 
     REFERENCE_TIME rtStart = m_rtStart, rtStop = AV_NOPTS_VALUE;
-    REFERENCE_TIME rtOffset = (REFERENCE_TIME)round(DBL_SECOND_MULT * (double)nSamplesOffset / m_bsParser.m_dwSampleRate / m_dRate);
-    double dDuration = DBL_SECOND_MULT * (double)m_bsParser.m_dwSamples / m_bsParser.m_dwSampleRate / m_dRate;
-    m_dStartOffset += fmod(dDuration, 1.0);
+    REFERENCE_TIME const rtOffset = static_cast<REFERENCE_TIME>(std::round(DBL_SECOND_MULT * (double)nSamplesOffset / m_bsParser.m_dwSampleRate / m_dRate));
+    double const dDuration = DBL_SECOND_MULT * static_cast<double>(m_bsParser.m_dwSamples) / m_bsParser.m_dwSampleRate / m_dRate;
+    m_dStartOffset += std::fmod(dDuration, 1.0);
 
     // Add rounded duration to rtStop
-    rtStop = rtStart + (REFERENCE_TIME)(dDuration + 0.5);
+    rtStop = rtStart + static_cast<REFERENCE_TIME>((dDuration + 0.5));
     // and unrounded to m_rtStart..
-    m_rtStart += (REFERENCE_TIME)dDuration;
+    m_rtStart += static_cast<REFERENCE_TIME>(dDuration);
     // and accumulate error..
     if (m_dStartOffset > 0.5)
     {
-        m_rtStart++;
+        ++m_rtStart;
         m_dStartOffset -= 1.0;
     }
 
-    REFERENCE_TIME rtJitter = 0;
-    if (m_rtBitstreamCache != AV_NOPTS_VALUE)
+    REFERENCE_TIME rtJitter{ 0 };
+    if (m_rtBitstreamCache != AV_NOPTS_VALUE) {
         rtJitter = rtStart - m_rtBitstreamCache + rtOffset;
+}
     m_faJitter.Sample(rtJitter);
 
-    REFERENCE_TIME rtJitterMin = m_faJitter.AbsMinimum();
-    if (m_settings.AutoAVSync && abs(rtJitterMin) > m_JitterLimit)
+    REFERENCE_TIME const rtJitterMin = m_faJitter.AbsMinimum();
+    if (m_settings.AutoAVSync && ((std::abs)(rtJitterMin) > m_JitterLimit))
     {
         DbgLog((LOG_TRACE, 10, L"::Deliver(): corrected A/V sync by %I64d", rtJitterMin));
         m_rtStart -= rtJitterMin;
@@ -514,7 +526,7 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
 
     if (m_settings.AudioDelayEnabled)
     {
-        REFERENCE_TIME rtDelay = (REFERENCE_TIME)((m_settings.AudioDelay * 10000i64) / m_dRate);
+        REFERENCE_TIME const rtDelay = static_cast<REFERENCE_TIME>(((m_settings.AudioDelay * 10000i64) / m_dRate));
         rtStart += rtDelay;
         rtStop += rtDelay;
     }
@@ -532,24 +544,25 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
     // byte-swap if needed
     if (bSwap)
     {
-        lav_spdif_bswap_buf16((uint16_t *)pDataOut, (uint16_t *)buffer, dwSize >> 1);
+        lav_spdif_bswap_buf16(const_cast<std::uint16_t *>(reinterpret_cast<const std::uint16_t *>(pDataOut)),
+                              const_cast<std::uint16_t *>(reinterpret_cast<const std::uint16_t *>(buffer)), dwSize >> 1);
     }
     else
     {
-        memcpy(pDataOut, buffer, dwSize);
+        std::memcpy(pDataOut, buffer, dwSize);
     }
 
     if (hr == S_OK)
     {
         hr = m_pOutput->GetConnected()->QueryAccept(&mt);
-        if (hr == S_FALSE && m_nCodecId == AV_CODEC_ID_DTS && m_DTSBitstreamMode != DTS_Core)
+        if ((hr == S_FALSE) && (m_nCodecId == AV_CODEC_ID_DTS) && (m_DTSBitstreamMode != DTS_Core))
         {
             DbgLog((LOG_TRACE, 1, L"DTS-HD Media Type failed with %0#.8x, trying fallback to DTS core", hr));
             m_bForceDTSCore = TRUE;
             UpdateBitstreamContext();
             goto done;
         }
-        else if (hr == S_FALSE && m_settings.bBitstreamingFallback)
+        else if ((hr == S_FALSE) && m_settings.bBitstreamingFallback)
         {
             BitstreamFallbackToPCM();
             goto done;
@@ -575,7 +588,7 @@ HRESULT CLAVAudio::BitstreamFallbackToPCM()
     // fallback to decoding
     FreeBitstreamContext();
 
-    for (int i = 0; i < countof(lavf_bitstream_config); ++i)
+    for (int i{ 0 }; i < countof(lavf_bitstream_config); ++i)
     {
         if (lavf_bitstream_config[i].codec == m_nCodecId)
         {

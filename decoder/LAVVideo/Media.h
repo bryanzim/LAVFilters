@@ -20,6 +20,13 @@
 #pragma once
 
 #include "IMediaSideData.h"
+#include "LAVVideoSettings.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+
 #include "libavutil/mastering_display_metadata.h"
 #include "libavutil/hdr_dynamic_metadata.h"
 #include "libavutil/dovi_meta.h"
@@ -32,7 +39,7 @@ int getThreadFlags(AVCodecID codecId);
 struct codec_config_t
 {
     int nCodecs;
-    AVCodecID codecs[MAX_NUM_CC_CODECS];
+    std::array<AVCodecID, MAX_NUM_CC_CODECS> codecs{};
     const char *name;
     const char *description;
 };
@@ -48,8 +55,8 @@ void processFFDOVIData(MediaSideDataDOVIMetadata *sd, const AVDOVIMetadata *ff);
 #define STATE_NOT_FOUND 0
 #define STATE_EOS_FOUND 1
 #define STATE_GOP_FOUND 2
-int CheckForSequenceMarkers(AVCodecID codec, const uint8_t *buf, long len, uint32_t *state,
-                            const uint8_t **pos = nullptr);
+int CheckForSequenceMarkers(AVCodecID codec, const std::uint8_t *buf, long len, std::uint32_t *state,
+                            const std::uint8_t **pos = nullptr);
 
-int sws_scale2(struct SwsContext *c, const uint8_t *const srcSlice[], const ptrdiff_t srcStride[], int srcSliceY,
-               int srcSliceH, uint8_t *const dst[], const ptrdiff_t dstStride[]);
+int sws_scale2(struct SwsContext *c, const std::uint8_t *const srcSlice[], const std::ptrdiff_t srcStride[], int srcSliceY,
+               int srcSliceH, std::uint8_t *const dst[], const std::ptrdiff_t dstStride[]);

@@ -26,7 +26,7 @@ bool CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey);
 class CRegistry
 {
   public:
-    CRegistry();
+    explicit CRegistry();
     CRegistry(HKEY hkeyRoot, LPCTSTR pszSubKey, HRESULT &hr, BOOL bReadOnly = FALSE, BOOL b64Bit = TRUE);
     ~CRegistry();
 

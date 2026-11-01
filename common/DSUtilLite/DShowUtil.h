@@ -21,9 +21,13 @@
 
 #pragma once
 
+#ifdef _WIN32
+#include <DShow.h>
+#endif
+
+#include <cstddef>
 #include <list>
 #include <string>
-#include <DShow.h>
 
 #define LCID_NOSUBTITLES -1
 
@@ -86,7 +90,7 @@ extern void DbgCloseLogFile();
     }
 #define QI(i) (riid == __uuidof(i)) ? GetInterface((i *)this, ppv):
 #define QI2(i) (riid == IID_##i) ? GetInterface((i *)this, ppv):
-#define countof(array) (sizeof(array) / sizeof(array[0]))
+#define countof(array) (sizeof(array) / sizeof(array[0U]))
 
 // Gennenric IUnknown creation function
 template <class T> static CUnknown *WINAPI CreateInstance(LPUNKNOWN lpunk, HRESULT *phr)
@@ -159,8 +163,8 @@ void videoFormatTypeHandler(const BYTE *format, const GUID *formattype, BITMAPIN
                             DWORD *pDwAspectY = nullptr);
 void audioFormatTypeHandler(const BYTE *format, const GUID *formattype, DWORD *pnSamples, WORD *pnChannels,
                             WORD *pnBitsPerSample, WORD *pnBlockAlign, DWORD *pnBytesPerSec, DWORD *pnChannelMask);
-void getExtraData(const AM_MEDIA_TYPE &mt, BYTE *extra, size_t *extralen);
-void getExtraData(const BYTE *format, const GUID *formattype, const size_t formatlen, BYTE *extra, size_t *extralen);
+void getExtraData(const AM_MEDIA_TYPE &mt, BYTE *extra, std::size_t *extralen);
+void getExtraData(const BYTE *format, const GUID *formattype, const std::size_t formatlen, BYTE *extra, std::size_t *extralen);
 
 struct AVPacket;
 struct MediaSideDataFFMpeg;

@@ -18,7 +18,12 @@
  */
 
 #include "stdafx.h"
+
 #include "registry.h"
+
+#include <cstring>
+#include <cwchar>
+
 
 bool CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey)
 {
@@ -34,7 +39,7 @@ bool CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey)
         return true;
     }
 
-    SetLastError((DWORD)lRet);
+    SetLastError(static_cast<DWORD>(lRet));
     return false;
 }
 
@@ -49,8 +54,9 @@ CRegistry::CRegistry(HKEY hkeyRoot, LPCTSTR pszSubKey, HRESULT &hr, BOOL bReadOn
 
 CRegistry::~CRegistry()
 {
-    if (m_key)
+    if (m_key) {
         RegCloseKey(*m_key);
+}
     delete m_key;
 }
 
@@ -65,8 +71,9 @@ HRESULT CRegistry::Open(HKEY hkeyRoot, LPCTSTR pszSubKey, BOOL bReadOnly, BOOL b
 
     m_key = new HKEY();
     REGSAM sam = bReadOnly ? KEY_READ : KEY_READ | KEY_WRITE;
-    if (b64Bit)
+    if (b64Bit) {
         sam |= KEY_WOW64_64KEY;
+}
     lRet = RegOpenKeyEx(hkeyRoot, pszSubKey, 0, sam, m_key);
     if (lRet != ERROR_SUCCESS)
     {
@@ -96,13 +103,13 @@ std::wstring CRegistry::ReadString(LPCTSTR pszKey, HRESULT &hr)
     if (lRet == ERROR_SUCCESS)
     {
         // Alloc Buffer to fit the data
-        WCHAR *buffer = (WCHAR *)CoTaskMemAlloc(dwSize);
+        WCHAR *buffer = reinterpret_cast<WCHAR *>(CoTaskMemAlloc(dwSize));
         if (!buffer)
         {
             hr = E_OUTOFMEMORY;
             return result;
         }
-        memset(buffer, 0, dwSize);
+        std::memset(buffer, 0, dwSize);
         lRet = RegQueryValueEx(*m_key, pszKey, nullptr, nullptr, (LPBYTE)buffer, &dwSize);
         result = std::wstring(buffer);
         CoTaskMemFree(buffer);
@@ -128,8 +135,8 @@ HRESULT CRegistry::WriteString(LPCTSTR pszKey, const LPCTSTR pszValue)
         return E_UNEXPECTED;
     }
 
-    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_SZ, (const BYTE *)pszValue,
-                         (DWORD)((wcslen(pszValue) + 1) * sizeof(WCHAR)));
+    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_SZ, reinterpret_cast<const BYTE *>(pszValue),
+                         static_cast<DWORD>(((std::wcslen(pszValue) + 1) * sizeof(WCHAR))));
     if (lRet != ERROR_SUCCESS)
     {
         return E_FAIL;
@@ -141,7 +148,7 @@ DWORD CRegistry::ReadDWORD(LPCTSTR pszKey, HRESULT &hr)
 {
     LONG lRet;
     DWORD dwSize = sizeof(DWORD);
-    DWORD dwVal = 0;
+    DWORD dwVal{ 0U };
 
     hr = S_OK;
 
@@ -151,7 +158,7 @@ DWORD CRegistry::ReadDWORD(LPCTSTR pszKey, HRESULT &hr)
         return 0;
     }
 
-    lRet = RegQueryValueEx(*m_key, pszKey, 0, nullptr, (LPBYTE)&dwVal, &dwSize);
+    lRet = RegQueryValueEx(*m_key, pszKey, nullptr, nullptr, (LPBYTE)&dwVal, &dwSize);
 
     if (lRet != ERROR_SUCCESS)
     {
@@ -173,7 +180,7 @@ HRESULT CRegistry::WriteDWORD(LPCTSTR pszKey, DWORD dwValue)
         return E_UNEXPECTED;
     }
 
-    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_DWORD, (const BYTE *)&dwValue, sizeof(dwValue));
+    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_DWORD, reinterpret_cast<const BYTE *>(&dwValue), sizeof(dwValue));
     if (lRet != ERROR_SUCCESS)
     {
         return E_FAIL;
@@ -183,7 +190,7 @@ HRESULT CRegistry::WriteDWORD(LPCTSTR pszKey, DWORD dwValue)
 
 BOOL CRegistry::ReadBOOL(LPCTSTR pszKey, HRESULT &hr)
 {
-    DWORD dwVal = ReadDWORD(pszKey, hr);
+    DWORD const dwVal = ReadDWORD(pszKey, hr);
     return dwVal ? TRUE : FALSE;
 }
 
@@ -210,13 +217,13 @@ BYTE *CRegistry::ReadBinary(LPCTSTR pszKey, DWORD &dwSize, HRESULT &hr)
     if (lRet == ERROR_SUCCESS)
     {
         // Alloc Buffer to fit the data
-        result = (BYTE *)CoTaskMemAlloc(dwSize);
+        result = reinterpret_cast<BYTE *>(CoTaskMemAlloc(dwSize));
         if (!result)
         {
             hr = E_OUTOFMEMORY;
             return result;
         }
-        memset(result, 0, dwSize);
+        std::memset(result, 0, dwSize);
         lRet = RegQueryValueEx(*m_key, pszKey, nullptr, nullptr, (LPBYTE)result, &dwSize);
     }
 
@@ -242,7 +249,7 @@ HRESULT CRegistry::WriteBinary(LPCTSTR pszKey, const BYTE *pbValue, int iLen)
         return E_UNEXPECTED;
     }
 
-    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_BINARY, (const BYTE *)pbValue, iLen);
+    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_BINARY, reinterpret_cast<const BYTE *>(pbValue), iLen);
     if (lRet != ERROR_SUCCESS)
     {
         return E_FAIL;

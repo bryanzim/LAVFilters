@@ -18,7 +18,16 @@
  */
 
 #include "stdafx.h"
+
 #include "BDDemuxer.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+
 #include "libbluray/bdnav/mpls_data.h"
 
 extern "C"
@@ -28,27 +37,26 @@ extern "C"
 
 #define BD_READ_BUFFER_SIZE (6144 * 20)
 
-int CBDDemuxer::BDByteStreamRead(void *opaque, uint8_t *buf, int buf_size)
+int CBDDemuxer::BDByteStreamRead(void *opaque, std::uint8_t *buf, int buf_size)
 {
-    CBDDemuxer *demux = (CBDDemuxer *)opaque;
-    int ret = bd_read(demux->m_pBD, buf, buf_size);
+    CBDDemuxer *demux = reinterpret_cast<CBDDemuxer *>(opaque);
+    int const ret = bd_read(demux->m_pBD, buf, buf_size);
     return (ret != 0) ? ret : AVERROR_EOF;
 }
 
-int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, int64_t offset, int whence)
+std::int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, std::int64_t offset, int whence)
 {
-    CBDDemuxer *demux = (CBDDemuxer *)opaque;
+    CBDDemuxer *demux = reinterpret_cast<CBDDemuxer *>(opaque);
     BLURAY *bd = demux->m_pBD;
 
-    int64_t pos = 0;
+    std::int64_t pos{ 0 };
     if (whence == SEEK_SET)
     {
         pos = offset;
     }
     else if (whence == SEEK_CUR)
     {
-        if (offset == 0)
-            return bd_tell(bd);
+        if (offset == 0) { return bd_tell(bd); }
         pos = bd_tell(bd) + offset;
     }
     else if (whence == SEEK_END)
@@ -59,20 +67,22 @@ int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, int64_t offset, int whence)
     {
         return bd_get_title_size(bd);
     }
-    else
+    else {
         return -1;
-    if (pos < 0)
+}
+    if (pos < 0) {
         pos = 0;
-    int64_t achieved = bd_seek(bd, pos);
+}
+    std::int64_t achieved = bd_seek(bd, pos);
     if (pos > achieved)
     {
         offset = pos - achieved;
         DbgLog((LOG_TRACE, 10, L"BD Seek to %I64d, achieved %I64d, correcting target by %I64d", pos, achieved, offset));
-        uint8_t *dump_buffer = (uint8_t *)CoTaskMemAlloc(6144);
+        std::uint8_t *dump_buffer = reinterpret_cast<std::uint8_t *>(CoTaskMemAlloc(6144));
         while (offset > 0)
         {
-            int to_read = (int)min(offset, 6144);
-            int did_read = bd_read(bd, dump_buffer, to_read);
+            int const to_read = static_cast<int>(min(offset, 6144));
+            int const did_read = bd_read(bd, dump_buffer, to_read);
             offset -= did_read;
             if (did_read < to_read)
             {
@@ -88,12 +98,12 @@ int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, int64_t offset, int whence)
     return achieved;
 }
 
-static inline REFERENCE_TIME Convert90KhzToDSTime(int64_t timestamp)
+static inline REFERENCE_TIME Convert90KhzToDSTime(std::int64_t timestamp)
 {
     return av_rescale(timestamp, 1000, 9);
 }
 
-static inline int64_t ConvertDSTimeTo90Khz(REFERENCE_TIME timestamp)
+static inline std::int64_t ConvertDSTimeTo90Khz(REFERENCE_TIME timestamp)
 {
     return av_rescale(timestamp, 9, 1000);
 }
@@ -106,28 +116,28 @@ static void bd_log(const char *log)
     // skip the path these two have in common
     while (*log == *path)
     {
-        log++;
-        path++;
+        ++log;
+        ++path;
     }
     while (*log == *subpath)
     {
-        log++;
-        subpath++;
+        ++log;
+        ++subpath;
     }
-    wchar_t line[4096] = {0};
-    size_t len = strlen(log);
+    std::array<wchar_t, 4096U> line{0};
+    std::size_t len = std::strlen(log);
     if (log[len - 1] == '\n')
     {
-        len--;
+        --len;
     }
-    SafeMultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, log, (int)len, line, 4096);
-    DbgLog((LOG_TRACE, 40, L"[BD] %s", line));
+    SafeMultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, log, static_cast<int>(len), line.data(), 4096);
+    DbgLog((LOG_TRACE, 40, L"[BD] %s", line.data()));
 }
 #endif
 
 CBDDemuxer::CBDDemuxer(CCritSec *pLock, ILAVFSettingsInternal *pSettings)
     : CBaseDemuxer(L"bluray demuxer", pLock)
-    , m_pSettings(pSettings)
+    , m_pSettings{pSettings}
 {
 #ifdef DEBUG
     bd_set_debug_mask(DBG_FILE | DBG_BLURAY | DBG_DIR | DBG_NAV | DBG_CRIT);
@@ -183,38 +193,38 @@ STDMETHODIMP CBDDemuxer::NonDelegatingQueryInterface(REFIID riid, void **ppv)
 // Demuxer Functions
 STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPCOLESTR pszReferrer)
 {
-    CAutoLock lock(m_pLock);
+    CAutoLock const lock(m_pLock);
     HRESULT hr = S_OK;
 
     int ret; // return code from C functions
 
     // Convert the filename from wchar to char for libbluray
-    char fileName[4096];
-    ret = SafeWideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, fileName, 4096, nullptr, nullptr);
+    std::array<char, 4096U> fileName{};
+    ret = SafeWideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, fileName.data(), 4096, nullptr, nullptr);
 
-    int iPlaylist = -1;
+    int iPlaylist{ -1 };
 
     DbgLog((LOG_TRACE, 10, L"Initializing BluRay Demuxer; Entry Point: %s", pszFileName));
 
-    size_t len = strlen(fileName);
+    std::size_t const len = std::strlen(fileName.data());
     if (len > 16)
     {
-        char *bd_path = fileName;
-        if (_strcmpi(bd_path + strlen(bd_path) - 16, "\\BDMV\\index.bdmv") == 0)
+        char *bd_path = fileName.data();
+        if (_strcmpi(bd_path + std::strlen(bd_path) - 16, "\\BDMV\\index.bdmv") == 0)
         {
-            bd_path[strlen(bd_path) - 15] = 0;
+            bd_path[std::strlen(bd_path) - 15] = 0;
         }
-        else if (len > 22 && _strcmpi(bd_path + strlen(bd_path) - 22, "\\BDMV\\MovieObject.bdmv") == 0)
+        else if ((len > 22) && (_strcmpi(bd_path + std::strlen(bd_path) - 22, "\\BDMV\\MovieObject.bdmv") == 0))
         {
-            bd_path[strlen(bd_path) - 21] = 0;
+            bd_path[std::strlen(bd_path) - 21] = 0;
         }
-        else if (len > 25 && _strnicmp(bd_path + strlen(bd_path) - 25, "\\BDMV\\PLAYLIST\\", 15) == 0)
+        else if ((len > 25) && (::_strnicmp(bd_path + std::strlen(bd_path) - 25, "\\BDMV\\PLAYLIST\\", 15) == 0))
         {
-            char *playlist = &bd_path[strlen(bd_path) - 10];
-            bd_path[strlen(bd_path) - 24] = 0;
+            char *playlist = &bd_path[std::strlen(bd_path) - 10];
+            bd_path[std::strlen(bd_path) - 24] = 0;
 
-            playlist[5] = 0;
-            iPlaylist = atoi(playlist);
+            playlist[5U] = 0;
+            iPlaylist = std::atoi(playlist);
         }
         else
         {
@@ -227,10 +237,10 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
             return E_FAIL;
         }
         m_pBD = bd;
-        strcpy_s(m_cBDRootPath, bd_path);
+        ::strcpy_s(m_cBDRootPath.data(), m_cBDRootPath.size(),  bd_path);
 
-        uint32_t timelimit = (iPlaylist != -1) ? 0 : 180;
-        uint8_t flags = (iPlaylist != -1) ? TITLES_ALL : TITLES_RELEVANT;
+        std::uint32_t timelimit = (iPlaylist != -1) ? 0 : 180;
+        std::uint8_t flags = (iPlaylist != -1) ? TITLES_ALL : TITLES_RELEVANT;
 
         // Fetch titles
     fetchtitles:
@@ -254,10 +264,10 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
         DbgLog((LOG_TRACE, 20, L"Found %d titles", m_nTitleCount));
         DbgLog((LOG_TRACE, 20, L" ------ Begin Title Listing ------"));
 
-        uint64_t longest_duration = 0;
-        uint32_t title_id = 0;
-        boolean found = false;
-        for (uint32_t i = 0; i < m_nTitleCount; i++)
+        std::uint64_t longest_duration{ 0U };
+        std::uint32_t title_id{ 0U };
+        boolean found{ false };
+        for (std::uint32_t i{ 0U }; i < m_nTitleCount; ++i)
         {
             BLURAY_TITLE_INFO *info = bd_get_title_info(bd, i, 0);
             if (info)
@@ -265,20 +275,21 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
                 DbgLog((LOG_TRACE, 20, L"Title %u, Playlist %u (%u clips, %u chapters), Duration %I64u (%I64u seconds)",
                         i, info->playlist, info->clip_count, info->chapter_count, info->duration,
                         Convert90KhzToDSTime(info->duration) / DSHOW_TIME_BASE));
-                if (iPlaylist != -1 && info->playlist == iPlaylist)
+                if ((iPlaylist != -1) && (info->playlist == iPlaylist))
                 {
                     title_id = i;
                     found = true;
                 }
-                else if (iPlaylist == -1 && info->duration > longest_duration)
+                else if ((iPlaylist == -1) && (info->duration > longest_duration))
                 {
                     title_id = i;
                     longest_duration = info->duration;
                 }
                 bd_free_title_info(info);
             }
-            if (found)
+            if (found) {
                 break;
+}
         }
         DbgLog((LOG_TRACE, 20, L" ------ End Title Listing ------"));
 
@@ -290,8 +301,8 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
 
 STDMETHODIMP CBDDemuxer::Start()
 {
-    HRESULT hr = m_lavfDemuxer->Start();
-    if (m_MVCPlayback && !m_lavfDemuxer->m_bH264MVCCombine)
+    HRESULT const hr = m_lavfDemuxer->Start();
+    if (m_MVCPlayback && (!m_lavfDemuxer->m_bH264MVCCombine))
     {
         CloseMVCExtensionDemuxer();
         m_MVCPlayback = FALSE;
@@ -317,9 +328,9 @@ void CBDDemuxer::ProcessBDEvents()
     {
         if (event.event == BD_EVENT_PLAYITEM)
         {
-            uint64_t clip_start, clip_in, bytepos;
-            int ret = bd_get_clip_infos(m_pBD, event.param, &clip_start, &clip_in, &bytepos, nullptr);
-            if (ret && m_lavfDemuxer->GetStartTime() != AV_NOPTS_VALUE)
+            std::uint64_t clip_start, clip_in, bytepos;
+            int const ret = bd_get_clip_infos(m_pBD, event.param, &clip_start, &clip_in, &bytepos, nullptr);
+            if (ret && (m_lavfDemuxer->GetStartTime() != AV_NOPTS_VALUE))
             {
                 m_rtNewOffset = Convert90KhzToDSTime(clip_start - clip_in) + m_lavfDemuxer->GetStartTime();
                 m_bNewOffsetPos = bytepos - 4;
@@ -343,11 +354,11 @@ STDMETHODIMP CBDDemuxer::ProcessPacket(Packet *pPacket)
 {
     ProcessBDEvents();
 
-    if (pPacket && pPacket->rtStart != Packet::INVALID_TIME)
+    if (pPacket && (pPacket->rtStart != Packet::INVALID_TIME))
     {
         REFERENCE_TIME rtOffset = m_rtOffset[pPacket->StreamId];
-        if (m_StreamClip[pPacket->StreamId] != m_NewClip && pPacket->bPosition != -1 &&
-            pPacket->bPosition >= m_bNewOffsetPos)
+        if ((m_StreamClip[pPacket->StreamId] != m_NewClip) && (pPacket->bPosition != -1) &&
+            (pPacket->bPosition >= m_bNewOffsetPos))
         {
             DbgLog((LOG_TRACE, 10,
                     L"Actual clip change detected in stream %d; time: %I64d, old offset: %I64d, new offset: %I64d",
@@ -356,8 +367,8 @@ STDMETHODIMP CBDDemuxer::ProcessPacket(Packet *pPacket)
             m_StreamClip[pPacket->StreamId] = m_NewClip;
 
             // Flush MVC extensions on stream change, it'll re-fill automatically
-            if (m_MVCPlayback && pPacket->StreamId == m_lavfDemuxer->m_nH264MVCBaseStream &&
-                m_MVCExtensionClip != m_NewClip)
+            if (m_MVCPlayback && (pPacket->StreamId == m_lavfDemuxer->m_nH264MVCBaseStream) &&
+                (m_MVCExtensionClip != m_NewClip))
             {
                 m_lavfDemuxer->FlushMVCExtensionQueue();
                 CloseMVCExtensionDemuxer();
@@ -370,7 +381,7 @@ STDMETHODIMP CBDDemuxer::ProcessPacket(Packet *pPacket)
         pPacket->rtStop += rtOffset;
     }
 
-    if (m_EndOfStreamPacketFlushProtection && pPacket && pPacket->bPosition != -1)
+    if (m_EndOfStreamPacketFlushProtection && pPacket && (pPacket->bPosition != -1))
     {
         if (pPacket->bPosition < m_bNewOffsetPos)
         {
@@ -387,8 +398,9 @@ STDMETHODIMP CBDDemuxer::ProcessPacket(Packet *pPacket)
 
 void CBDDemuxer::CloseMVCExtensionDemuxer()
 {
-    if (m_MVCFormatContext)
+    if (m_MVCFormatContext) {
         avformat_close_input(&m_MVCFormatContext);
+}
 
     m_MVCExtensionClip = -1;
 }
@@ -397,11 +409,10 @@ STDMETHODIMP CBDDemuxer::OpenMVCExtensionDemuxer(int playItem)
 {
     int ret;
     MPLS_PL *pl = bd_get_title_mpls(m_pBD);
-    if (!pl)
-        return E_FAIL;
+    if (!pl) { return E_FAIL; }
 
     const char *clip_id = pl->ext_sub_path[m_MVCExtensionSubPathIndex].sub_play_item[playItem].clip->clip_id;
-    char *fileName = av_asprintf("%sBDMV\\STREAM\\%s.m2ts", m_cBDRootPath, clip_id);
+    char *fileName = av_asprintf("%sBDMV\\STREAM\\%s.m2ts", m_cBDRootPath.data(), clip_id);
 
     DbgLog((LOG_TRACE, 10, "CBDDemuxer::OpenMVCExtensionDemuxer(): Opening MVC extension stream at %s", fileName));
 
@@ -426,10 +437,10 @@ STDMETHODIMP CBDDemuxer::OpenMVCExtensionDemuxer(int playItem)
 
     // Find and select our MVC stream
     DbgLog((LOG_TRACE, 10, "-> MVC m2ts has %d streams", m_MVCFormatContext->nb_streams));
-    for (unsigned i = 0; i < m_MVCFormatContext->nb_streams; i++)
+    for (unsigned i{ 0U }; i < m_MVCFormatContext->nb_streams; ++i)
     {
-        if (m_MVCFormatContext->streams[i]->codecpar->codec_id == AV_CODEC_ID_H264_MVC &&
-            m_MVCFormatContext->streams[i]->codecpar->extradata_size > 0)
+        if ((m_MVCFormatContext->streams[i]->codecpar->codec_id == AV_CODEC_ID_H264_MVC) &&
+            (m_MVCFormatContext->streams[i]->codecpar->extradata_size > 0))
         {
             m_MVCStreamIndex = i;
             break;
@@ -457,8 +468,7 @@ fail:
 #define MVC_DEMUX_COUNT 100
 STDMETHODIMP CBDDemuxer::FillMVCExtensionQueue(REFERENCE_TIME rtBase)
 {
-    if (!m_MVCFormatContext)
-        return E_FAIL;
+    if (!m_MVCFormatContext) { return E_FAIL; }
 
     int ret, count = 0;
     bool found = (rtBase == Packet::INVALID_TIME);
@@ -470,7 +480,7 @@ STDMETHODIMP CBDDemuxer::FillMVCExtensionQueue(REFERENCE_TIME rtBase)
         av_packet_unref(pMVCPacket);
         ret = av_read_frame(m_MVCFormatContext, pMVCPacket);
 
-        if (ret == AVERROR(EINTR) || ret == AVERROR(EAGAIN))
+        if ((ret == AVERROR(EINTR)) || (ret == AVERROR(EAGAIN)))
         {
             continue;
         }
@@ -479,7 +489,7 @@ STDMETHODIMP CBDDemuxer::FillMVCExtensionQueue(REFERENCE_TIME rtBase)
             DbgLog((LOG_TRACE, 10, L"EOF reading MVC extension data"));
             break;
         }
-        else if (pMVCPacket->size <= 0 || pMVCPacket->stream_index != m_MVCStreamIndex)
+        else if ((pMVCPacket->size <= 0) || (pMVCPacket->stream_index != m_MVCStreamIndex))
         {
             continue;
         }
@@ -487,12 +497,12 @@ STDMETHODIMP CBDDemuxer::FillMVCExtensionQueue(REFERENCE_TIME rtBase)
         {
             AVStream *stream = m_MVCFormatContext->streams[pMVCPacket->stream_index];
 
-            REFERENCE_TIME rtDTS =
+            REFERENCE_TIME const rtDTS =
                 m_lavfDemuxer->ConvertTimestampToRT(pMVCPacket->dts, stream->time_base.num, stream->time_base.den);
-            REFERENCE_TIME rtPTS =
+            REFERENCE_TIME const rtPTS =
                 m_lavfDemuxer->ConvertTimestampToRT(pMVCPacket->pts, stream->time_base.num, stream->time_base.den);
 
-            if (rtBase == Packet::INVALID_TIME || rtDTS == Packet::INVALID_TIME)
+            if ((rtBase == Packet::INVALID_TIME) || (rtDTS == Packet::INVALID_TIME))
             {
                 // do nothing, can't compare timestamps when they are not set
             }
@@ -521,18 +531,17 @@ STDMETHODIMP CBDDemuxer::FillMVCExtensionQueue(REFERENCE_TIME rtBase)
 
             m_lavfDemuxer->QueueMVCExtension(pPacket);
 
-            count++;
+            ++count;
         }
     };
 
     av_packet_free(&pMVCPacket);
 
-    if (found)
-        return S_OK;
-    else if (count > 0)
+    if (found) { return S_OK; } else if (count > 0) {
         return S_FALSE;
-    else
+    } else {
         return E_FAIL;
+}
 }
 
 STDMETHODIMP CBDDemuxer::SetTitle(int idx)
@@ -558,9 +567,9 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
     MPLS_PL *mpls = bd_get_title_mpls(m_pBD);
     if (mpls)
     {
-        for (int i = 0; i < mpls->ext_sub_count; i++)
+        for (int i{ 0 }; i < mpls->ext_sub_count; ++i)
         {
-            if (mpls->ext_sub_path[i].type == 8 && mpls->ext_sub_path[i].sub_playitem_count == mpls->list_count)
+            if ((mpls->ext_sub_path[i].type == 8) && (mpls->ext_sub_path[i].sub_playitem_count == mpls->list_count))
             {
                 DbgLog((LOG_TRACE, 20, L"CBDDemuxer::SetTitle(): Enabling BD3D MVC demuxing"));
                 DbgLog((LOG_TRACE, 20, L" -> MVC_Base_view_R_flag: %d", m_pTitle->mvc_base_view_r_flag));
@@ -579,7 +588,7 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
         av_free(m_pb);
     }
 
-    uint8_t *buffer = (uint8_t *)av_mallocz(BD_READ_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);
+    std::uint8_t *buffer = reinterpret_cast<std::uint8_t *>(av_mallocz(BD_READ_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE));
     m_pb = avio_alloc_context(buffer, BD_READ_BUFFER_SIZE, 0, this, BDByteStreamRead, nullptr, BDByteStreamSeek);
 
     SafeRelease(&m_lavfDemuxer);
@@ -595,7 +604,7 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
         return hr;
     }
 
-    if (m_MVCPlayback && !m_lavfDemuxer->m_bH264MVCCombine)
+    if (m_MVCPlayback && (!m_lavfDemuxer->m_bH264MVCCombine))
     {
         DbgLog((LOG_TRACE, 10,
                 L"CBDDemuxer::SetTitle(): MVC demuxing was requested, but main demuxer did not activate MVC mode, "
@@ -613,15 +622,13 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
     m_EndOfStreamPacketFlushProtection = FALSE;
 
     // space for storing stream offsets
-    m_StreamClip = (uint16_t *)CoTaskMemAlloc(sizeof(*m_StreamClip) * m_lavfDemuxer->GetNumStreams());
-    if (!m_StreamClip)
-        return E_OUTOFMEMORY;
-    memset(m_StreamClip, -1, sizeof(*m_StreamClip) * m_lavfDemuxer->GetNumStreams());
+    m_StreamClip = reinterpret_cast<std::uint16_t *>(CoTaskMemAlloc(sizeof(*m_StreamClip) * m_lavfDemuxer->GetNumStreams()));
+    if (!m_StreamClip) { return E_OUTOFMEMORY; }
+    std::memset(m_StreamClip, -1, sizeof(*m_StreamClip) * m_lavfDemuxer->GetNumStreams());
 
-    m_rtOffset = (REFERENCE_TIME *)CoTaskMemAlloc(sizeof(*m_rtOffset) * m_lavfDemuxer->GetNumStreams());
-    if (!m_rtOffset)
-        return E_OUTOFMEMORY;
-    memset(m_rtOffset, 0, sizeof(*m_rtOffset) * m_lavfDemuxer->GetNumStreams());
+    m_rtOffset = reinterpret_cast<REFERENCE_TIME *>(CoTaskMemAlloc(sizeof(*m_rtOffset) * m_lavfDemuxer->GetNumStreams()));
+    if (!m_rtOffset) { return E_OUTOFMEMORY; }
+    std::memset(m_rtOffset, 0, sizeof(*m_rtOffset) * m_lavfDemuxer->GetNumStreams());
 
     DbgLog((LOG_TRACE, 20, L"Opened BD title with %d clips and %d chapters", m_pTitle->clip_count,
             m_pTitle->chapter_count));
@@ -632,7 +639,7 @@ void CBDDemuxer::ProcessBluRayMetadata()
 {
     if (m_MVCPlayback)
     {
-        HRESULT hr = OpenMVCExtensionDemuxer(m_NewClip);
+        HRESULT const hr = OpenMVCExtensionDemuxer(m_NewClip);
         if (SUCCEEDED(hr))
         {
             AVStream *mvcStream = m_MVCFormatContext->streams[m_MVCStreamIndex];
@@ -644,9 +651,9 @@ void CBDDemuxer::ProcessBluRayMetadata()
             {
                 avstream->codecpar->codec_id = AV_CODEC_ID_H264_MVC;
                 avstream->codecpar->extradata =
-                    (BYTE *)av_mallocz(mvcStream->codecpar->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
+                    reinterpret_cast<BYTE *>(av_mallocz(mvcStream->codecpar->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE));
                 avstream->codecpar->extradata_size = mvcStream->codecpar->extradata_size;
-                memcpy(avstream->codecpar->extradata, mvcStream->codecpar->extradata,
+                std::memcpy(avstream->codecpar->extradata, mvcStream->codecpar->extradata,
                        mvcStream->codecpar->extradata_size);
             }
         }
@@ -656,12 +663,12 @@ void CBDDemuxer::ProcessBluRayMetadata()
         }
     }
 
-    ASSERT(m_pTitle->clip_count >= 1 && m_pTitle->clips);
-    int64_t max_clip_duration = 0;
-    for (uint32_t i = 0; i < m_pTitle->clip_count; ++i)
+    ASSERT((m_pTitle->clip_count >= 1 && m_pTitle->clips));
+    std::int64_t max_clip_duration{ 0 };
+    for (std::uint32_t i{ 0U }; i < m_pTitle->clip_count; ++i)
     {
-        int64_t clip_duration = (m_pTitle->clips[i].out_time - m_pTitle->clips[i].in_time);
-        bool overwrite_info = false;
+        std::int64_t const clip_duration = (m_pTitle->clips[i].out_time - m_pTitle->clips[i].in_time);
+        bool overwrite_info{ false };
         if (clip_duration > max_clip_duration)
         {
             overwrite_info = true;
@@ -676,18 +683,18 @@ void CBDDemuxer::ProcessBluRayMetadata()
     if (mpls)
     {
         // Read the PG offsets and store them as metadata
-        std::list<uint8_t> pg_sequences;
-        for (int i = 0; i < mpls->play_item[0].stn.num_pg; i++)
+        std::list<std::uint8_t> pg_sequences;
+        for (int i{ 0 }; i < mpls->play_item[0U].stn.num_pg; ++i)
         {
-            AVStream *avstream = m_lavfDemuxer->GetAVStreamByPID(mpls->play_item[0].stn.pg[i].pid);
-            if (mpls->play_item[0].stn.pg[i].ss_offset_sequence_id != 0xFF)
+            AVStream *avstream = m_lavfDemuxer->GetAVStreamByPID(mpls->play_item[0U].stn.pg[i].pid);
+            if (mpls->play_item[0U].stn.pg[i].ss_offset_sequence_id != 0xFF)
             {
-                pg_sequences.push_back(mpls->play_item[0].stn.pg[i].ss_offset_sequence_id);
+                pg_sequences.push_back(mpls->play_item[0U].stn.pg[i].ss_offset_sequence_id);
                 if (avstream)
                 {
-                    char offset[4];
-                    _itoa_s(mpls->play_item[0].stn.pg[i].ss_offset_sequence_id, offset, 10);
-                    av_dict_set(&avstream->metadata, "3d-plane", offset, 0);
+                    std::array<char, 4U> offset{};
+                    _itoa_s(mpls->play_item[0U].stn.pg[i].ss_offset_sequence_id, offset.data(), offset.size(),  10);
+                    av_dict_set(&avstream->metadata, "3d-plane", offset.data(), 0);
                 }
             }
         }
@@ -699,18 +706,18 @@ void CBDDemuxer::ProcessBluRayMetadata()
             pg_sequences.sort();
             pg_sequences.unique();
 
-            size_t size = pg_sequences.size() * 4;
+            std::size_t const size = pg_sequences.size() * 4;
             char *offsets = new char[size];
-            offsets[0] = 0;
+            offsets[0U] = 0;
 
             // Append all offsets to the string
-            for (auto it = pg_sequences.begin(); it != pg_sequences.end(); it++)
+            for (auto it = pg_sequences.begin(); it != pg_sequences.end(); ++it)
             {
-                size_t len = strlen(offsets);
+                std::size_t len = std::strlen(offsets);
                 if (len > 0)
                 {
                     offsets[len] = ',';
-                    len++;
+                    ++len;
                 }
                 _itoa_s(*it, offsets + len, size - len, 10);
             }
@@ -720,14 +727,14 @@ void CBDDemuxer::ProcessBluRayMetadata()
         }
 
         // Export a list of all IG offsets
-        if (mpls->play_item[0].stn.num_ig > 0)
+        if (mpls->play_item[0U].stn.num_ig > 0)
         {
-            std::list<uint8_t> ig_sequences;
-            for (int i = 0; i < mpls->play_item[0].stn.num_ig; i++)
+            std::list<std::uint8_t> ig_sequences;
+            for (int i{ 0 }; i < mpls->play_item[0U].stn.num_ig; ++i)
             {
-                if (mpls->play_item[0].stn.ig[i].ss_offset_sequence_id != 0xFF)
+                if (mpls->play_item[0U].stn.ig[i].ss_offset_sequence_id != 0xFF)
                 {
-                    ig_sequences.push_back(mpls->play_item[0].stn.ig[i].ss_offset_sequence_id);
+                    ig_sequences.push_back(mpls->play_item[0U].stn.ig[i].ss_offset_sequence_id);
                 }
             }
 
@@ -736,18 +743,18 @@ void CBDDemuxer::ProcessBluRayMetadata()
                 // strip duplicate entries
                 ig_sequences.unique();
 
-                size_t size = ig_sequences.size() * 4;
+                std::size_t const size = ig_sequences.size() * 4;
                 char *offsets = new char[size];
-                offsets[0] = 0;
+                offsets[0U] = 0;
 
                 // Append all offsets to the string
-                for (auto it = ig_sequences.begin(); it != ig_sequences.end(); it++)
+                for (auto it = ig_sequences.begin(); it != ig_sequences.end(); ++it)
                 {
-                    size_t len = strlen(offsets);
+                    std::size_t len = std::strlen(offsets);
                     if (len > 0)
                     {
                         offsets[len] = ',';
-                        len++;
+                        ++len;
                     }
                     _itoa_s(*it, offsets + len, size - len, 10);
                 }
@@ -774,7 +781,7 @@ STDMETHODIMP CBDDemuxer::GetTitleInfo(int idx, REFERENCE_TIME *rtDuration, WCHAR
       *rtDuration = Convert90KhzToDSTime(info->duration);
     }
     if (ppszName) {
-      WCHAR buffer[80];
+      std::array<WCHAR, 80> buffer{};
       swprintf_s(buffer, L"Title %d", idx + 1);
       size_t size = (wcslen(buffer) + 1) * sizeof(WCHAR);
       *ppszName = (WCHAR *)CoTaskMemAlloc(size);
@@ -794,9 +801,9 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
     {
         return;
     }
-    for (int k = 0; k < clpi->program.num_prog; k++)
+    for (int k{ 0 }; k < clpi->program.num_prog; ++k)
     {
-        for (int i = 0; i < clpi->program.progs[k].num_streams; i++)
+        for (int i{ 0 }; i < clpi->program.progs[k].num_streams; ++i)
         {
             CLPI_PROG_STREAM *stream = &clpi->program.progs[k].streams[i];
             AVStream *avstream = m_lavfDemuxer->GetAVStreamByPID(stream->pid);
@@ -810,12 +817,13 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
             }
             if (avstream)
             {
-                if (stream->lang[0] != 0)
-                    av_dict_set(&avstream->metadata, "language", (const char *)stream->lang,
+                if (stream->lang[0U] != 0) {
+                    av_dict_set(&avstream->metadata, "language", reinterpret_cast<const char *>(stream->lang),
                                 overwrite ? 0 : AV_DICT_DONT_OVERWRITE);
+}
                 if (avstream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                 {
-                    if (avstream->codecpar->width == 0 || avstream->codecpar->height == 0)
+                    if ((avstream->codecpar->width == 0) || (avstream->codecpar->height == 0))
                     {
                         switch (stream->format)
                         {
@@ -846,7 +854,7 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
                         }
                     }
 
-                    if (m_MVCPlayback && stream->coding_type == BLURAY_STREAM_TYPE_VIDEO_H264)
+                    if (m_MVCPlayback && (stream->coding_type == BLURAY_STREAM_TYPE_VIDEO_H264))
                     {
                         av_dict_set(&avstream->metadata, "stereo_mode",
                                     m_pTitle->mvc_base_view_r_flag ? "mvc_rl" : "mvc_lr", 0);
@@ -868,10 +876,11 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
                                       : 48000;
                         if (avstream->codecpar->codec_id == AV_CODEC_ID_DTS)
                         {
-                            if (stream->coding_type == BLURAY_STREAM_TYPE_AUDIO_DTSHD)
+                            if (stream->coding_type == BLURAY_STREAM_TYPE_AUDIO_DTSHD) {
                                 avstream->codecpar->profile = AV_PROFILE_DTS_HD_HRA;
-                            else if (stream->coding_type == BLURAY_STREAM_TYPE_AUDIO_DTSHD_MASTER)
+                            } else if (stream->coding_type == BLURAY_STREAM_TYPE_AUDIO_DTSHD_MASTER) {
                                 avstream->codecpar->profile = AV_PROFILE_DTS_HD_MA;
+}
                         }
                     }
                 }
@@ -882,23 +891,24 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
 
 STDMETHODIMP CBDDemuxer::Seek(REFERENCE_TIME rTime)
 {
-    int64_t prev = bd_tell(m_pBD);
+    std::int64_t const prev = bd_tell(m_pBD);
 
-    int64_t target = bd_find_seek_point(m_pBD, ConvertDSTimeTo90Khz(rTime));
+    std::int64_t const target = bd_find_seek_point(m_pBD, ConvertDSTimeTo90Khz(rTime));
     m_EndOfStreamPacketFlushProtection = FALSE;
 
     DbgLog((LOG_TRACE, 1, "Seek Request: %I64u (time); %I64u (byte), %I64u (prev byte)", rTime, target, prev));
-    HRESULT hr = m_lavfDemuxer->SeekByte(target + 4, AVSEEK_FLAG_BACKWARD);
+    HRESULT const hr = m_lavfDemuxer->SeekByte(target + 4, AVSEEK_FLAG_BACKWARD);
 
     if (m_MVCPlayback && m_MVCFormatContext)
     {
         // Re-open to switch clip if needed
         CloseMVCExtensionDemuxer();
-        if (FAILED(OpenMVCExtensionDemuxer(m_NewClip)))
+        if (FAILED(OpenMVCExtensionDemuxer(m_NewClip))) {
             return E_FAIL;
+}
 
         // Adjust for clip offset
-        int64_t seek_pts = 0;
+        std::int64_t seek_pts{ 0 };
         if (rTime > 0)
         {
             AVStream *stream = m_MVCFormatContext->streams[m_MVCStreamIndex];
@@ -909,8 +919,9 @@ STDMETHODIMP CBDDemuxer::Seek(REFERENCE_TIME rTime)
             seek_pts = m_lavfDemuxer->ConvertRTToTimestamp(rTime, stream->time_base.num, stream->time_base.den);
         }
 
-        if (seek_pts < 0)
+        if (seek_pts < 0) {
             seek_pts = 0;
+}
 
         av_seek_frame(m_MVCFormatContext, m_MVCStreamIndex, seek_pts, AVSEEK_FLAG_BACKWARD);
     }
@@ -928,8 +939,9 @@ STDMETHODIMP CBDDemuxer::get_ExSeekCapabilities(long *pExCapabilities)
 {
     CheckPointer(pExCapabilities, E_POINTER);
     *pExCapabilities = AM_EXSEEK_CANSEEK;
-    if (m_pTitle && m_pTitle->chapter_count > 1)
+    if (m_pTitle && (m_pTitle->chapter_count > 1)) {
         *pExCapabilities |= AM_EXSEEK_MARKERSEEK;
+}
     return S_OK;
 }
 
@@ -937,7 +949,7 @@ STDMETHODIMP CBDDemuxer::get_MarkerCount(long *pMarkerCount)
 {
     CheckPointer(pMarkerCount, E_POINTER);
     CheckPointer(m_pTitle, E_UNEXPECTED);
-    *pMarkerCount = (long)m_pTitle->chapter_count;
+    *pMarkerCount = static_cast<long>(m_pTitle->chapter_count);
     return S_OK;
 }
 
@@ -953,14 +965,14 @@ STDMETHODIMP CBDDemuxer::GetMarkerTime(long MarkerNum, double *pMarkerTime)
 {
     CheckPointer(pMarkerTime, E_POINTER);
     // Chapters go by a 1-based index, doh
-    unsigned int index = MarkerNum - 1;
+    unsigned int const index = MarkerNum - 1;
     if (index >= m_pTitle->chapter_count)
     {
         return E_FAIL;
     }
 
-    REFERENCE_TIME rt = Convert90KhzToDSTime(m_pTitle->chapters[index].start);
-    *pMarkerTime = (double)rt / DSHOW_TIME_BASE;
+    REFERENCE_TIME const rt = Convert90KhzToDSTime(m_pTitle->chapters[index].start);
+    *pMarkerTime = static_cast<double>(rt) / DSHOW_TIME_BASE;
 
     return S_OK;
 }
@@ -969,14 +981,14 @@ STDMETHODIMP CBDDemuxer::GetMarkerName(long MarkerNum, BSTR *pbstrMarkerName)
 {
     CheckPointer(pbstrMarkerName, E_POINTER);
     // Chapters go by a 1-based index, doh
-    unsigned int index = MarkerNum - 1;
+    unsigned int const index = MarkerNum - 1;
     if (index >= m_pTitle->chapter_count)
     {
         return E_FAIL;
     }
     // Get the title, or generate one
-    OLECHAR wTitle[128];
-    swprintf_s(wTitle, L"Chapter %d", MarkerNum);
-    *pbstrMarkerName = SysAllocString(wTitle);
+    std::array<OLECHAR, 128U> wTitle{};
+    ::swprintf_s(wTitle.data(), wTitle.size(),  L"Chapter %d", MarkerNum);
+    *pbstrMarkerName = SysAllocString(wTitle.data());
     return S_OK;
 }

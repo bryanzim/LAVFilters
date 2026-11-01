@@ -22,7 +22,7 @@
 class CPopupMenu
 {
   public:
-    CPopupMenu(void);
+    explicit CPopupMenu();
     virtual ~CPopupMenu(void);
 
     HRESULT AddItem(UINT id, LPWSTR caption, BOOL checked = FALSE, BOOL enabled = TRUE);
@@ -32,6 +32,6 @@ class CPopupMenu
     HMENU Finish();
 
   private:
-    HMENU m_hMenu = 0;
-    int order = 0;
+    HMENU m_hMenu{ nullptr };
+    int order{ 0 };
 };
