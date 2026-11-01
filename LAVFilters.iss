@@ -47,7 +47,7 @@ VersionInfoVersion        = {#=LAV_VERSION_MAJOR}.{#=LAV_VERSION_MINOR}.{#=LAV_V
 VersionInfoCompany        = 1f0.de
 VersionInfoCopyright      = GPLv2
 OutputBaseFilename        = LAVFilters-{#=LAV_VERSION_STRING}{#LAV_SETUP_SUFFIX}
-OutputDir                 = .
+OutputDir                 = dist
 Compression               = lzma2/ultra64
 SolidCompression          = yes
 MinVersion                = 6.1

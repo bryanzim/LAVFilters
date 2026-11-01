@@ -135,6 +135,8 @@ The Inno Setup 7 installer packages the MSVC x86 and x64 outputs. Install Inno S
 
     cmake --build build --config Release --target installer
 
+The setup executable is written to `dist`.
+
 FFmpeg is included as a submodule, pointing to a custom fork with patches for LAV and DirectShow. The CMake matrix builds the MSVC and Clang copies. `build_ffmpeg.sh` (MinGW GCC) and `build_ffmpeg_msvc.sh` remain available for a single architecture.
 
 The custom fork of FFmpeg can be found here:

@@ -3,31 +3,26 @@ SETLOCAL
 
 PUSHD "%~dp0"
 
-SET nbMAJOR_PART=0
 SET nbCOMMIT_PART=0
-SET nbHASH_PART=00000
 SET OLDVER=
+SET BASE=
 
-:: check for git presence
-CALL git describe >NUL 2>&1
-IF ERRORLEVEL 1 (
-    GOTO NOGIT
-)
+:: LAV_VERSION_BUILD is the commits on upstream since the last official
+:: release. origin/master tracks that line. Commits only on this branch
+:: are not counted. This clone has no upstream tags, so the release base
+:: is the newest origin/master commit that changed the version macros,
+:: which is the commit upstream tags.
+CALL git rev-parse --verify origin/master >NUL 2>&1
+IF ERRORLEVEL 1 GOTO WRITE_VER
 
-:: Get git-describe output
-FOR /F "tokens=*" %%A IN ('"git describe --long --abbrev=5 HEAD"') DO (
-  SET strFILE_VERSION=%%A
-)
+FOR /F "delims=" %%A IN ('git describe --tags --abbrev^=0 --match "0.*" origin/master 2^>NUL') DO SET "BASE=%%A"
+IF DEFINED BASE GOTO COUNT
 
-:: Split into tag, nb commits, hash
-FOR /F "tokens=1,2,3 delims=-" %%A IN ("%strFILE_VERSION%") DO (
-  SET nbMAJOR_PART=%%A
-  SET nbCOMMIT_PART=%%B
-  SET nbHASH_PART=%%C
-)
+FOR /F "delims=" %%A IN ('git log -1 --format^=%%H origin/master -G "define LAV_VERSION_" -- includes/version.h') DO SET "BASE=%%A"
+IF NOT DEFINED BASE GOTO WRITE_VER
 
-:: strip the "g" off the hash
-SET nbHASH_PART=%nbHASH_PART:~1%
+:COUNT
+FOR /F "delims=" %%A IN ('git rev-list --count %BASE%..origin/master') DO SET "nbCOMMIT_PART=%%A"
 
 :WRITE_VER
 
@@ -41,10 +36,6 @@ IF NOT "%NEWVER%" == "%OLDVER%" (
     > includes\version_rev.h ECHO %NEWVER%
 )
 GOTO :END
-
-:NOGIT
-echo Git not found
-goto WRITE_VER
 
 :END
 POPD
