@@ -20,7 +20,11 @@
  */
 
 #include "stdafx.h"
+
 #include "ByteParser.h"
+
+#include <cstddef>
+
 
 #pragma warning(push)
 #pragma warning(disable : 4101)
@@ -33,12 +37,12 @@ extern "C"
 };
 #pragma warning(pop)
 
-CByteParser::CByteParser(const BYTE *pData, size_t length)
+CByteParser::CByteParser(const BYTE *pData, std::size_t length)
     : m_pData{pData}
     , m_pEnd{pData + length}
 {
-    m_gbCtx = (GetBitContext *)av_mallocz(sizeof(GetBitContext));
-    init_get_bits8(m_gbCtx, pData, (int)length);
+    m_gbCtx = reinterpret_cast<GetBitContext *>(av_mallocz(sizeof(GetBitContext)));
+    init_get_bits8(m_gbCtx, pData, static_cast<int>(length));
 }
 
 CByteParser::~CByteParser()
@@ -48,13 +52,9 @@ CByteParser::~CByteParser()
 
 unsigned int CByteParser::BitRead(unsigned int numBits, bool peek)
 {
-    if (numBits == 0) {
-        return 0;
-}
+    if (numBits == 0) { return 0; }
 
-    if (peek) {
-        return show_bits_long(m_gbCtx, numBits);
-    } else {
+    if (peek) { return show_bits_long(m_gbCtx, numBits); } else {
         return get_bits_long(m_gbCtx, numBits);
 }
 }
@@ -68,18 +68,16 @@ void CByteParser::BitSkip(unsigned int numBits)
     skip_bits_long(m_gbCtx, numBits);
 }
 
-size_t CByteParser::RemainingBits() const
+std::size_t CByteParser::RemainingBits() const
 {
     int const bits = get_bits_left(m_gbCtx);
-    if (bits < 0) {
-        return 0;
-}
-    return (size_t)bits;
+    if (bits < 0) { return 0; }
+    return static_cast<std::size_t>(bits);
 }
 
-size_t CByteParser::Pos() const
+std::size_t CByteParser::Pos() const
 {
-    return (size_t)(m_pEnd - m_pData - Remaining());
+    return static_cast<std::size_t>((m_pEnd - m_pData - Remaining()));
 }
 
 // Exponential Golomb Coding (with k = 0)
@@ -88,8 +86,8 @@ size_t CByteParser::Pos() const
 
 unsigned CByteParser::UExpGolombRead()
 {
-    int n = -1;
-    for (BYTE b = 0; !b && RemainingBits(); ++n)
+    int n{ -1 };
+    for (BYTE b{ 0U }; !b && RemainingBits(); ++n)
     {
         b = get_bits1(m_gbCtx);
     }
@@ -107,9 +105,7 @@ int CByteParser::SExpGolombRead()
     //   signed: 0, 1, -1, 2, -2, 3, -3, ....
     // So all even numbers are negative (last bit = 0)
     // Note that we added 1 to the unsigned value already, so the check is inverted
-    if (k & 1) {
-        return -(k >> 1);
-    } else {
+    if (k & 1) { return -(k >> 1); } else {
         return (k >> 1);
 }
 }

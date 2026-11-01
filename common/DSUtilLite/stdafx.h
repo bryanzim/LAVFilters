@@ -20,14 +20,15 @@
 #pragma once
 
 #include "common_defines.h"
+#include "streams.h"
 
+#ifdef _WIN32
 #include <Windows.h>
+#include <Commctrl.h>
 #include <Objbase.h>
 #include <tchar.h>
 #include <uuids.h>
+#endif
 
-#include <Commctrl.h>
-
-#include "streams.h"
 
 // TODO: reference additional headers your program requires here

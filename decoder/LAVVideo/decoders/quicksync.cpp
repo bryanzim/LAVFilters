@@ -18,19 +18,26 @@
  */
 
 #include "stdafx.h"
+
 #include "quicksync.h"
 
+#include "Media.h"
 #include "moreuuids.h"
-
 #include "parsers/H264SequenceParser.h"
 #include "parsers/MPEG2HeaderParser.h"
 #include "parsers/VC1HeaderParser.h"
 
-#include "Media.h"
+#include <array>
+#include <cstddef>
+#include <cstdint>
 
-#include <Shlwapi.h>
+
+#ifdef _WIN32
 #include <dxva2api.h>
 #include <evr.h>
+#include <Shlwapi.h>
+#endif
+
 
 // Timestamp padding to avoid an issue with negative timestamps
 // 10 hours should be enough padding to take care of all eventualities
@@ -87,12 +94,12 @@ class CQSMediaSample : public IMediaSample
         if (riid == IID_IUnknown)
         {
             AddRef();
-            *ppvObject = (IUnknown *)this;
+            *ppvObject = reinterpret_cast<IUnknown *>(this);
         }
         else if (riid == IID_IMediaSample)
         {
             AddRef();
-            *ppvObject = (IMediaSample *)this;
+            *ppvObject = reinterpret_cast<IMediaSample *>(this);
         }
         else
         {
@@ -110,7 +117,7 @@ class CQSMediaSample : public IMediaSample
         LONG const lRef = InterlockedDecrement(&m_cRef);
         if (lRef == 0)
         {
-            m_cRef++;
+            ++m_cRef;
             delete this;
             return 0;
         }
@@ -189,21 +196,21 @@ class CQSMediaSample : public IMediaSample
 
   private:
     BYTE *m_pBuffer = nullptr;
-    long m_lLen = 0;
-    long m_lActualLen = 0;
+    long m_lLen{ 0 };
+    long m_lActualLen{ 0 };
     REFERENCE_TIME m_rtStart = AV_NOPTS_VALUE;
     REFERENCE_TIME m_rtStop = AV_NOPTS_VALUE;
 
-    BOOL m_bSyncPoint = FALSE;
-    BOOL m_bDiscontinuity = FALSE;
+    BOOL m_bSyncPoint{ FALSE };
+    BOOL m_bDiscontinuity{ FALSE };
 
-    ULONG m_cRef = 1;
+    ULONG m_cRef{ 1U };
 };
 
 class CIDirect3DDeviceManager9Proxy : public IDirect3DDeviceManager9
 {
   public:
-    CIDirect3DDeviceManager9Proxy(IPin *pPin)
+    explicit CIDirect3DDeviceManager9Proxy(IPin *pPin)
         : m_pPin{pPin}
     {
     }
@@ -232,7 +239,7 @@ class CIDirect3DDeviceManager9Proxy : public IDirect3DDeviceManager9
         ULONG const lRef = InterlockedDecrement(&m_cRef);
         if (lRef == 0)
         {
-            m_cRef++;
+            ++m_cRef;
             delete this;
             return 0;
         }
@@ -282,7 +289,7 @@ class CIDirect3DDeviceManager9Proxy : public IDirect3DDeviceManager9
         DbgLog((LOG_TRACE, 10, L"CIDirect3DDeviceManager9Proxy::CreateDeviceManager()"));
         HRESULT hr = S_OK;
         IMFGetService *pGetService = nullptr;
-        hr = m_pPin->QueryInterface(__uuidof(IMFGetService), (void **)&pGetService);
+        hr = m_pPin->QueryInterface(__uuidof(IMFGetService), reinterpret_cast<void **>(&pGetService));
         if (FAILED(hr))
         {
             DbgLog((LOG_ERROR, 10, L"-> IMFGetService not available"));
@@ -292,7 +299,7 @@ class CIDirect3DDeviceManager9Proxy : public IDirect3DDeviceManager9
         // Get the Direct3D device manager.
         IDirect3DDeviceManager9 *pDevMgr = nullptr;
         hr = pGetService->GetService(MR_VIDEO_ACCELERATION_SERVICE, __uuidof(IDirect3DDeviceManager9),
-                                     (void **)&pDevMgr);
+                                     reinterpret_cast<void **>(&pDevMgr));
         if (FAILED(hr))
         {
             DbgLog((LOG_ERROR, 10, L"-> D3D Device Manager not available"));
@@ -308,7 +315,7 @@ class CIDirect3DDeviceManager9Proxy : public IDirect3DDeviceManager9
   private:
     IDirect3DDeviceManager9 *m_D3DManager = nullptr;
     IPin *m_pPin = nullptr;
-    ULONG m_cRef = 1;
+    ULONG m_cRef{ 1U };
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -358,12 +365,12 @@ STDMETHODIMP CDecQuickSync::Init()
 
     if (!qs.quickSyncLib)
     {
-        WCHAR wModuleFile[1024U];
-        GetModuleFileName(g_hInst, wModuleFile, 1024);
-        PathRemoveFileSpecW(wModuleFile);
-        wcscat_s(wModuleFile, TEXT("\\") TEXT(QS_DEC_DLL_NAME));
+        std::array<WCHAR, 1024U> wModuleFile{};
+        GetModuleFileName(g_hInst, wModuleFile.data(), 1024);
+        PathRemoveFileSpecW(wModuleFile.data());
+        ::wcscat_s(wModuleFile.data(), wModuleFile.size(),  TEXT("\\") TEXT(QS_DEC_DLL_NAME));
 
-        qs.quickSyncLib = LoadLibrary(wModuleFile);
+        qs.quickSyncLib = LoadLibrary(wModuleFile.data());
         if (qs.quickSyncLib == nullptr)
         {
             DWORD const dwError = GetLastError();
@@ -371,19 +378,19 @@ STDMETHODIMP CDecQuickSync::Init()
             return E_FAIL;
         }
 
-        qs.create = (pcreateQuickSync *)GetProcAddress(qs.quickSyncLib, "createQuickSync");
+        qs.create = reinterpret_cast<pcreateQuickSync *>(GetProcAddress(qs.quickSyncLib, "createQuickSync"));
         if (qs.create == nullptr)
         {
             DbgLog((LOG_ERROR, 10, L"-> Failed to load function \"createQuickSync\""));
             return E_FAIL;
         }
-        qs.destroy = (pdestroyQuickSync *)GetProcAddress(qs.quickSyncLib, "destroyQuickSync");
+        qs.destroy = reinterpret_cast<pdestroyQuickSync *>(GetProcAddress(qs.quickSyncLib, "destroyQuickSync"));
         if (qs.destroy == nullptr)
         {
             DbgLog((LOG_ERROR, 10, L"-> Failed to load function \"destroyQuickSync\""));
             return E_FAIL;
         }
-        qs.check = (pcheck *)GetProcAddress(qs.quickSyncLib, "check");
+        qs.check = reinterpret_cast<pcheck *>(GetProcAddress(qs.quickSyncLib, "check"));
         if (qs.check == nullptr)
         {
             DbgLog((LOG_ERROR, 10, L"-> Failed to load function \"check\""));
@@ -413,9 +420,7 @@ STDMETHODIMP CDecQuickSync::PostConnect(IPin *pPin)
 
 STDMETHODIMP CDecQuickSync::Check()
 {
-    if (!qs.check) {
-        return E_FAIL;
-}
+    if (!qs.check) { return E_FAIL; }
 
     DWORD const qsflags = qs.check();
     if (qsflags & QS_CAP_HW_ACCELERATION)
@@ -427,7 +432,7 @@ STDMETHODIMP CDecQuickSync::Check()
     return E_FAIL;
 }
 
-STDMETHODIMP CDecQuickSync::CheckH264Sequence(const BYTE *buffer, size_t buflen, int nal_size, int *pRefFrames,
+STDMETHODIMP CDecQuickSync::CheckH264Sequence(const BYTE *buffer, std::size_t buflen, int nal_size, int *pRefFrames,
                                               int *pProfile, int *pLevel)
 {
     DbgLog((LOG_TRACE, 10, L"CDecQuickSync::CheckH264Sequence(): Checking H264 frame for SPS"));
@@ -448,8 +453,8 @@ STDMETHODIMP CDecQuickSync::CheckH264Sequence(const BYTE *buffer, size_t buflen,
             *pLevel = h264parser.sps.level;
 }
         DbgLog((LOG_TRACE, 10, L"-> SPS found"));
-        if (h264parser.sps.profile > 100 || h264parser.sps.chroma != 1 || h264parser.sps.luma_bitdepth != 8 ||
-            h264parser.sps.chroma_bitdepth != 8)
+        if ((h264parser.sps.profile > 100) || (h264parser.sps.chroma != 1) || (h264parser.sps.luma_bitdepth != 8) ||
+            (h264parser.sps.chroma_bitdepth != 8))
         {
             DbgLog((LOG_TRACE, 10,
                     L"  -> SPS indicates video incompatible with QuickSync, aborting (profile: %d, chroma: %d, "
@@ -472,7 +477,7 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
     DestroyDecoder(false);
 
     FOURCC fourCC = (FOURCC)0;
-    for (int i = 0; i < countof(quicksync_codecs); ++i)
+    for (int i{ 0 }; i < countof(quicksync_codecs); ++i)
     {
         if (quicksync_codecs[i].ffcodec == codec)
         {
@@ -488,7 +493,7 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
     }
 
     m_pDecoder = qs.create();
-    if (!m_pDecoder || !m_pDecoder->getOK())
+    if (!m_pDecoder || (!m_pDecoder->getOK()))
     {
         DbgLog((LOG_TRACE, 10, L"-> Decoder creation failed"));
         return E_FAIL;
@@ -496,11 +501,11 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
     m_pDecoder->SetDeliverSurfaceCallback(this, &QS_DeliverSurfaceCallback);
 
     m_nAVCNalSize = 0;
-    if (pmt->subtype == MEDIASUBTYPE_AVC1 || pmt->subtype == MEDIASUBTYPE_avc1 || pmt->subtype == MEDIASUBTYPE_CCV1)
+    if ((pmt->subtype == MEDIASUBTYPE_AVC1) || (pmt->subtype == MEDIASUBTYPE_avc1) || (pmt->subtype == MEDIASUBTYPE_CCV1))
     {
         if (pmt->formattype == FORMAT_MPEG2Video)
         {
-            MPEG2VIDEOINFO *mp2vi = (MPEG2VIDEOINFO *)pmt->pbFormat;
+            MPEG2VIDEOINFO *mp2vi = reinterpret_cast<MPEG2VIDEOINFO *>(pmt->pbFormat);
             fourCC = FourCC_AVC1;
             m_bAVC1 = TRUE;
             m_nAVCNalSize = mp2vi->dwFlags;
@@ -513,14 +518,12 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
     }
 
     BYTE *extradata = nullptr;
-    size_t extralen = 0;
+    std::size_t extralen{ 0U };
     getExtraData(*pmt, nullptr, &extralen);
     if (extralen > 0)
     {
-        extradata = (BYTE *)av_malloc(extralen + AV_INPUT_BUFFER_PADDING_SIZE);
-        if (extradata == nullptr) {
-            return E_OUTOFMEMORY;
-}
+        extradata = reinterpret_cast<BYTE *>(av_malloc(extralen + AV_INPUT_BUFFER_PADDING_SIZE));
+        if (extradata == nullptr) { return E_OUTOFMEMORY; }
         getExtraData(*pmt, extradata, nullptr);
     }
 
@@ -528,13 +531,13 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
     m_bInterlaced = TRUE;
     m_bUseTimestampQueue = m_pCallback->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_ONLY_DTS;
 
-    int ref_frames = 0;
-    int profile = 0;
-    int level = 0;
+    int ref_frames{ 0 };
+    int profile{ 0 };
+    int level{ 0 };
 
     if (extralen > 0)
     {
-        if (fourCC == FourCC_AVC1 || fourCC == FourCC_H264)
+        if ((fourCC == FourCC_AVC1) || (fourCC == FourCC_H264))
         {
             hr = CheckH264Sequence(extradata, extralen, m_bAVC1 ? 2 : 0, &ref_frames, &profile, &level);
             if (FAILED(hr))
@@ -588,7 +591,7 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
 
     // Configure number of buffers (dependant on ref_frames)
     // MPEG2 and VC1 always use "low latency" mode
-    if (ref_frames > 8 || qsConfig.bTimeStampCorrection) {
+    if ((ref_frames > 8) || qsConfig.bTimeStampCorrection) {
         qsConfig.nOutputQueueLength = 8;
     } else {
         qsConfig.nOutputQueueLength = 0;
@@ -632,7 +635,7 @@ STDMETHODIMP CDecQuickSync::InitDecoder(AVCodecID codec, const CMediaType *pmt, 
     // This ensures that we only ever send valid and supported data to the decoder,
     // so with this we try to circumvent the checks in the QuickSync decoder
     mt.SetType(&MEDIATYPE_Video);
-    MPEG2VIDEOINFO *mp2vi = (*mt.FormatType() == FORMAT_MPEG2Video) ? (MPEG2VIDEOINFO *)mt.Format() : nullptr;
+    MPEG2VIDEOINFO *mp2vi = (*mt.FormatType() == FORMAT_MPEG2Video) ? reinterpret_cast<MPEG2VIDEOINFO *>(mt.Format()) : nullptr;
     BITMAPINFOHEADER *bmi = nullptr;
     videoFormatTypeHandler(mt.Format(), mt.FormatType(), &bmi);
     switch (fourCC)
@@ -705,18 +708,18 @@ STDMETHODIMP CDecQuickSync::Decode(const BYTE *buffer, int buflen, REFERENCE_TIM
 
     if (m_Codec == FourCC_MPG2)
     {
-        const uint8_t *eosmarker = nullptr;
-        const uint8_t *end = buffer + buflen;
+        const std::uint8_t *eosmarker = nullptr;
+        const std::uint8_t *end = buffer + buflen;
         int const status = CheckForSequenceMarkers(AV_CODEC_ID_MPEG2VIDEO, buffer, buflen, &m_MpegParserState, &eosmarker);
         // If we found a EOS marker, but its not at the end of the packet, then split the packet
         // to be able to individually decode the frame before the EOS, and then decode the remainder
-        if (status & STATE_EOS_FOUND && eosmarker && eosmarker != end)
+        if (status & STATE_EOS_FOUND && eosmarker && (eosmarker != end))
         {
-            Decode(buffer, (int)(eosmarker - buffer), rtStart, rtStop, bSyncPoint, bDiscontinuity, nullptr);
+            Decode(buffer, static_cast<int>((eosmarker - buffer)), rtStart, rtStop, bSyncPoint, bDiscontinuity, nullptr);
 
             rtStart = rtStop = AV_NOPTS_VALUE;
             buffer = eosmarker;
-            buflen = (int)(end - eosmarker);
+            buflen = static_cast<int>((end - eosmarker));
         }
         else if (eosmarker)
         {
@@ -765,7 +768,7 @@ STDMETHODIMP CDecQuickSync::Decode(const BYTE *buffer, int buflen, REFERENCE_TIM
 
 HRESULT CDecQuickSync::QS_DeliverSurfaceCallback(void *obj, QsFrameData *data)
 {
-    CDecQuickSync *filter = (CDecQuickSync *)obj;
+    CDecQuickSync *filter = reinterpret_cast<CDecQuickSync *>(obj);
 
     if (filter->m_bUseTimestampQueue)
     {
@@ -781,7 +784,7 @@ HRESULT CDecQuickSync::QS_DeliverSurfaceCallback(void *obj, QsFrameData *data)
         data->rtStop = AV_NOPTS_VALUE;
     }
 
-    if (data->rtStart != AV_NOPTS_VALUE && data->rtStart > 0)
+    if ((data->rtStart != AV_NOPTS_VALUE) && (data->rtStart > 0))
     {
         data->rtStart -= RTPADDING;
         if (data->rtStop != AV_NOPTS_VALUE) {
@@ -825,7 +828,7 @@ STDMETHODIMP CDecQuickSync::HandleFrame(QsFrameData *data)
     pFrame->data[1U] = data->u;
     pFrame->stride[0U] = pFrame->stride[1U] = data->dwStride;
 
-    if (!m_bInterlaced && pFrame->interlaced) {
+    if (!m_bInterlaced && (pFrame->interlaced)) {
         m_bInterlaced = TRUE;
 }
 
@@ -882,7 +885,7 @@ STDMETHODIMP CDecQuickSync::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVP
 STDMETHODIMP_(REFERENCE_TIME) CDecQuickSync::GetFrameDuration()
 {
     CMediaType  const&mt = m_pCallback->GetInputMediaType();
-    REFERENCE_TIME rtDuration = 0;
+    REFERENCE_TIME rtDuration{ 0 };
     videoFormatTypeHandler(mt.Format(), mt.FormatType(), nullptr, &rtDuration, nullptr, nullptr);
     return (m_bInterlaced && m_bDI && m_pSettings->GetHWAccelDeintOutput() == DeintOutput_FramePerField)
                ? rtDuration / 2

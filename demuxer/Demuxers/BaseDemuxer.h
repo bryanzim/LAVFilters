@@ -19,11 +19,14 @@
 
 #pragma once
 
+#include "IMediaSideDataFFmpeg.h"
+#include "Packet.h"
+#include "StreamInfo.h"
+
+#include <cstddef>
+#include <cstring>
 #include <deque>
 
-#include "StreamInfo.h"
-#include "Packet.h"
-#include "IMediaSideDataFFmpeg.h"
 
 #define DSHOW_TIME_BASE 10000000 // DirectShow times are in 100ns units
 #define NO_SUBTITLE_PID DWORD_MAX
@@ -72,15 +75,15 @@ class CBaseDemuxer : public CUnknown
         std::string trackName;
         LCID lcid;
         MediaSideDataFFMpeg SideData;
-        stream()
+        explicit stream()
         {
             streamInfo = nullptr;
             pid = 0;
             lcid = 0;
-            memset(&SideData, 0, sizeof(SideData));
+            std::memset(&SideData, 0, sizeof(SideData));
         }
-        operator DWORD() const { return pid; }
-        bool operator==(const struct stream &s) const { return (DWORD) * this == (DWORD)s; }
+        [[nodiscard]] constexpr operator DWORD() const noexcept { return pid; }
+        bool operator==(const struct stream &s) const { return static_cast<DWORD>(* this) == static_cast<DWORD>(s); }
     } stream;
 
     DECLARE_IUNKNOWN
@@ -140,7 +143,7 @@ class CBaseDemuxer : public CUnknown
     virtual STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream) { return 0; }
     virtual STDMETHODIMP_(int) GetPixelFormat(DWORD dwStream) { return AV_PIX_FMT_NONE; }
     virtual STDMETHODIMP_(int) GetHasBFrames(DWORD dwStream) { return -1; }
-    virtual STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, size_t *pSize)
+    virtual STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, std::size_t *pSize)
     {
         return E_NOTIMPL;
     }

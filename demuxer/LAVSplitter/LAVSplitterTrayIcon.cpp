@@ -18,10 +18,19 @@
  */
 
 #include "stdafx.h"
+
 #include "LAVSplitterTrayIcon.h"
+
 #include "PopupMenu.h"
 
+#include <array>
+#include <cwchar>
+
+
+#ifdef _WIN32
 #include <Qnetwork.h>
+#endif
+
 
 #define STREAM_CMD_OFFSET 100
 #define CHAPTER_CMD_OFFSET 500
@@ -43,15 +52,15 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
     IAMStreamSelect *pStreamSelect = nullptr;
     if (SUCCEEDED(m_pFilter->QueryInterface(&pStreamSelect)))
     {
-        DWORD dwStreams = 0;
+        DWORD dwStreams{ 0U };
         if (FAILED(pStreamSelect->Count(&dwStreams))) {
             dwStreams = 0;
 }
         DWORD dwLastGroup = DWORD_MAX;
-        for (DWORD i = 0; i < dwStreams; ++i)
+        for (DWORD i{ 0U }; i < dwStreams; ++i)
         {
             DWORD dwFlags = 0, dwGroup = 0;
-            LPWSTR pszName = nullptr;
+            LPWSTR pszName{ nullptr };
             if (FAILED(pStreamSelect->Info(i, nullptr, &dwFlags, nullptr, &dwGroup, &pszName, nullptr, nullptr))) {
                 continue;
 }
@@ -80,7 +89,7 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
 
     // Chapters
     IAMExtendedSeeking *pExSeeking = nullptr;
-    if (SUCCEEDED(m_pFilter->QueryInterface(IID_IAMExtendedSeeking, (void **)&pExSeeking)))
+    if (SUCCEEDED(m_pFilter->QueryInterface(IID_IAMExtendedSeeking, reinterpret_cast<void **>(&pExSeeking))))
     {
         long count = 0, current = 0;
         if (FAILED(pExSeeking->get_MarkerCount(&count))) {
@@ -92,36 +101,36 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
 }
 
         CPopupMenu chapters;
-        for (long i = 1; i <= count; ++i)
+        for (long i{ 1 }; i <= count; ++i)
         {
             double markerTime;
             if (FAILED(pExSeeking->GetMarkerTime(i, &markerTime))) {
                 continue;
 }
 
-            BSTR bstrName = nullptr;
+            BSTR bstrName{ nullptr };
             if (FAILED(pExSeeking->GetMarkerName(i, &bstrName))) {
                 continue;
 }
 
             // Create compound chapter name
-            int const total_seconds = (int)(markerTime + 0.5);
+            int const total_seconds = static_cast<int>((markerTime + 0.5));
             int const seconds = total_seconds % 60;
             int const minutes = total_seconds / 60 % 60;
             int const hours = total_seconds / 3600;
-            WCHAR chapterName[512U];
-            _snwprintf_s(chapterName, _TRUNCATE, L"%s\t[%02d:%02d:%02d]", bstrName, hours, minutes, seconds);
+            std::array<WCHAR, 512U> chapterName{};
+            _snwprintf_s(chapterName.data(), chapterName.size(), _TRUNCATE, L"%s\t[%02d:%02d:%02d]", bstrName, hours, minutes, seconds);
 
             // Sanitize any tab chars in the chapter name (replace by space)
             // More then one tab in the string messes with the popup menu rendering
-            WCHAR *nextMatch, *tabMatch = wcsstr(chapterName, L"\t");
-            while (nextMatch = wcsstr(tabMatch + 1, L"\t"))
+            WCHAR *nextMatch, *tabMatch = std::wcsstr(chapterName.data(), L"\t");
+            while (nextMatch = std::wcsstr(tabMatch + 1, L"\t"))
             {
                 *tabMatch = L' ';
                 tabMatch = nextMatch;
             }
 
-            chapters.AddItem(CHAPTER_CMD_OFFSET + i, chapterName, i == current);
+            chapters.AddItem(CHAPTER_CMD_OFFSET + i, chapterName.data(), i == current);
             SysFreeString(bstrName);
         }
         if (count)
@@ -143,7 +152,7 @@ HRESULT CLAVSplitterTrayIcon::ProcessMenuCommand(HMENU hMenu, int cmd)
 {
     CheckPointer(m_pFilter, E_FAIL);
     DbgLog((LOG_TRACE, 10, L"Menu Command %d", cmd));
-    if (cmd >= STREAM_CMD_OFFSET && cmd < m_NumStreams + STREAM_CMD_OFFSET)
+    if ((cmd >= STREAM_CMD_OFFSET) && (cmd < m_NumStreams + STREAM_CMD_OFFSET))
     {
         IAMStreamSelect *pStreamSelect = nullptr;
         if (SUCCEEDED(m_pFilter->QueryInterface(&pStreamSelect)))
@@ -152,21 +161,21 @@ HRESULT CLAVSplitterTrayIcon::ProcessMenuCommand(HMENU hMenu, int cmd)
             SafeRelease(&pStreamSelect);
         }
     }
-    else if (cmd > CHAPTER_CMD_OFFSET && cmd <= m_NumChapters + CHAPTER_CMD_OFFSET)
+    else if ((cmd > CHAPTER_CMD_OFFSET) && (cmd <= m_NumChapters + CHAPTER_CMD_OFFSET))
     {
         IAMExtendedSeeking *pExSeeking = nullptr;
-        if (SUCCEEDED(m_pFilter->QueryInterface(IID_IAMExtendedSeeking, (void **)&pExSeeking)))
+        if (SUCCEEDED(m_pFilter->QueryInterface(IID_IAMExtendedSeeking, reinterpret_cast<void **>(&pExSeeking))))
         {
             double markerTime;
             if (FAILED(pExSeeking->GetMarkerTime(cmd - CHAPTER_CMD_OFFSET, &markerTime))) {
                 goto failchapterseek;
 }
 
-            REFERENCE_TIME rtMarkerTime = (REFERENCE_TIME)(markerTime * 10000000.0);
+            REFERENCE_TIME rtMarkerTime = static_cast<REFERENCE_TIME>((markerTime * 10000000.0));
 
             // Try to get the graph to seek on, its much safer than directly trying to seek on LAV
             FILTER_INFO info;
-            if (FAILED(m_pFilter->QueryFilterInfo(&info)) || !info.pGraph) {
+            if ((FAILED(m_pFilter->QueryFilterInfo(&info))) || !info.pGraph) {
                 goto failchapterseek;
 }
 

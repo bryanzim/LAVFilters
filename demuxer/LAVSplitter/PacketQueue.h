@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <deque>
 
 #define MIN_PACKETS_IN_QUEUE 50 // Below this is considered "drying pin"
@@ -29,7 +30,7 @@ class Packet;
 class CPacketQueue : public CCritSec
 {
   public:
-    CPacketQueue(){};
+    explicit CPacketQueue(){};
 
     // Queue a new packet at the end of the list
     void Queue(Packet *pPacket);
@@ -38,10 +39,10 @@ class CPacketQueue : public CCritSec
     Packet *Get();
 
     // Get the size of the queue
-    size_t Size();
+    std::size_t Size();
 
     // Get the size of the queue in bytes
-    size_t DataSize();
+    std::size_t DataSize();
 
     // Clear the List (all elements are free'ed)
     void Clear();
@@ -58,10 +59,10 @@ class CPacketQueue : public CCritSec
   private:
     // The actual storage class
     std::deque<Packet *> m_queue;
-    size_t m_dataSize = 0;
+    std::size_t m_dataSize{ 0U };
 
 #ifdef DEBUG
-    bool m_bWarnedFull = false;
-    bool m_bWarnedExtreme = false;
+    bool m_bWarnedFull{ false };
+    bool m_bWarnedExtreme{ false };
 #endif
 };

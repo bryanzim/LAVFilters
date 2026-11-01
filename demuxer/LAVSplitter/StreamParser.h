@@ -21,8 +21,8 @@
 
 #pragma once
 
-#include "PacketQueue.h"
 #include "growarray.h"
+#include "PacketQueue.h"
 
 class CLAVOutputPin;
 
@@ -54,10 +54,10 @@ class CStreamParser
 
     Packet *m_pPacketBuffer = nullptr;
 
-    BOOL m_bPGSDropState = FALSE;
+    BOOL m_bPGSDropState{ FALSE };
     GrowableArray<BYTE> m_pgsBuffer;
 
     CPacketQueue m_queue;
 
-    bool m_bHasAccessUnitDelimiters = false;
+    bool m_bHasAccessUnitDelimiters{ false };
 };

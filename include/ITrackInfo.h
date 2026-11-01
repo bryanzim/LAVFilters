@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <array>
+
 typedef enum TrackType
 {
     TypeVideo = 1,
@@ -42,7 +44,7 @@ struct TrackElement
     UINT MinCache;    // The minimum number of frames a player should be able to cache during playback.
     UINT MaxCache;    // The maximum cache size required to store referenced frames in and the current frame. 0 means no
                       // cache is needed.
-    CHAR Language[4U]; // Specifies the language of the track, in the ISO-639-2 form. (end with '\0')
+    std::array<CHAR, 4U> Language{}; // Specifies the language of the track, in the ISO-639-2 form. (end with '\0')
 };
 
 struct TrackExtendedInfoVideo

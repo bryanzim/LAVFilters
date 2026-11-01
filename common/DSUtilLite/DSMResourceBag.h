@@ -2,14 +2,15 @@
 
 #include "IDSMResourceBag.h"
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
+
 
 class CDSMResource
 {
   public:
-    CDSMResource();
+    explicit CDSMResource();
     CDSMResource(LPCWSTR name, LPCWSTR desc, LPCWSTR mime, BYTE *pData, int len, DWORD_PTR tag = 0);
 
     CDSMResource &operator=(const CDSMResource &r);
@@ -23,7 +24,7 @@ class CDSMResource
 class CDSMResourceBag : public IDSMResourceBag
 {
   public:
-    CDSMResourceBag();
+    explicit CDSMResourceBag();
     virtual ~CDSMResourceBag();
 
     // IDSMResourceBag

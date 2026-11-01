@@ -19,12 +19,14 @@
 
 #pragma once
 
+#include <cstddef>
+
 struct GetBitContext;
 
 class CMPEG2HeaderParser
 {
   public:
-    CMPEG2HeaderParser(const BYTE *pData, size_t length);
+    CMPEG2HeaderParser(const BYTE *pData, std::size_t length);
     ~CMPEG2HeaderParser(void);
 
   public:
@@ -40,7 +42,7 @@ class CMPEG2HeaderParser
     } hdr;
 
   private:
-    void ParseMPEG2Header(const BYTE *pData, size_t length);
+    void ParseMPEG2Header(const BYTE *pData, std::size_t length);
     void MPEG2ParseSequenceHeader(GetBitContext *gb);
     void MPEG2ParseExtHeader(GetBitContext *gb);
 };

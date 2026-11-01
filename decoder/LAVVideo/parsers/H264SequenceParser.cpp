@@ -18,10 +18,14 @@
  */
 
 #include "stdafx.h"
+
 #include "H264SequenceParser.h"
 
 #include "ByteParser.h"
 #include "H264Nalu.h"
+
+#include <cstddef>
+
 
 CH264SequenceParser::CH264SequenceParser(void)
 {
@@ -33,7 +37,7 @@ CH264SequenceParser::~CH264SequenceParser(void)
 {
 }
 
-HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int nal_size)
+HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, std::size_t buflen, int nal_size)
 {
     CH264Nalu nalu;
     nalu.SetBuffer(buffer, buflen, nal_size);
@@ -41,7 +45,7 @@ HRESULT CH264SequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
     while (nalu.ReadNext())
     {
         const BYTE *data = nalu.GetDataBuffer() + 1;
-        const size_t len = nalu.GetDataLength() - 1;
+        const std::size_t len = nalu.GetDataLength() - 1;
         if (nalu.GetType() == NALU_TYPE_SPS)
         {
             ParseSPS(data, len);
@@ -72,7 +76,7 @@ static void SPSDecodeScalingList(CByteParser &parser, int size)
     }
 }
 
-HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
+HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
 {
     CByteParser parser(buffer, buflen);
     int i;
@@ -92,15 +96,15 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     sps.level = parser.BitRead(8);
     parser.UExpGolombRead(); // sps id
 
-    if (sps.profile == 100 || sps.profile == 110 || sps.profile == 122 || sps.profile == 244 || sps.profile == 44 ||
-        sps.profile == 83 || sps.profile == 86 || sps.profile == 118 || sps.profile == 128 || sps.profile == 144)
+    if ((sps.profile == 100) || (sps.profile == 110) || (sps.profile == 122) || (sps.profile == 244) || (sps.profile == 44) ||
+        (sps.profile == 83) || (sps.profile == 86) || (sps.profile == 118) || (sps.profile == 128) || (sps.profile == 144))
     {
-        sps.chroma = (int)parser.UExpGolombRead();
+        sps.chroma = static_cast<int>(parser.UExpGolombRead());
         if (sps.chroma == 3) {
             parser.BitRead(1);
 }
-        sps.luma_bitdepth = (int)parser.UExpGolombRead() + 8;
-        sps.chroma_bitdepth = (int)parser.UExpGolombRead() + 8;
+        sps.luma_bitdepth = static_cast<int>(parser.UExpGolombRead()) + 8;
+        sps.chroma_bitdepth = static_cast<int>(parser.UExpGolombRead()) + 8;
         parser.BitRead(1); // transform_bypass
 
         // decode scaling matrices
@@ -134,7 +138,7 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     }
 
     parser.UExpGolombRead();                     // log2_max_frame_num
-    int const poc_type = (int)parser.UExpGolombRead(); // poc_type
+    int const poc_type = static_cast<int>(parser.UExpGolombRead()); // poc_type
     if (poc_type == 0) {
         parser.UExpGolombRead(); // log2_max_poc_lsb
     } else if (poc_type == 1)
@@ -142,7 +146,7 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
         parser.BitRead(1);                         // delta_pic_order_always_zero_flag
         parser.SExpGolombRead();                   // offset_for_non_ref_pic
         parser.SExpGolombRead();                   // offset_for_top_to_bottom_field
-        int const cyclen = (int)parser.UExpGolombRead(); // poc_cycle_length
+        int const cyclen = static_cast<int>(parser.UExpGolombRead()); // poc_cycle_length
         for (i = 0; i < cyclen; ++i) {
             parser.SExpGolombRead(); // offset_for_ref_frame[i]
 }

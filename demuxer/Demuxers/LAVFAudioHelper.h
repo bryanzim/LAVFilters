@@ -21,8 +21,11 @@
 
 #pragma once
 
-#include "dvdmedia.h"
 #include "moreuuids.h"
+
+#ifdef _WIN32
+#include <dvdmedia.h>
+#endif
 
 // clang-format off
 const AVCodecTag mp_wav_tags[] = {
@@ -68,7 +71,7 @@ const struct AVCodecTag *const mp_wav_taglists[] = {avformat_get_riff_audio_tags
 class CLAVFAudioHelper
 {
   public:
-    CLAVFAudioHelper(){};
+    explicit CLAVFAudioHelper(){};
     CMediaType initAudioType(AVCodecParameters *codecpar, unsigned int &codecTag, std::string container);
 
     WAVEFORMATEX *CreateWVFMTEX(const AVStream *avstream, ULONG *size);

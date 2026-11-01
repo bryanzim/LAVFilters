@@ -19,17 +19,20 @@
 
 #pragma once
 
-#include <map>
-
 #include "amfilter.h"
 #include "IMediaSideData.h"
+
+#include <cstddef>
+#include <cstring>
+#include <map>
+
 
 struct SideDataGUIDComparer
 {
     bool operator()(const GUID &Left, const GUID &Right) const
     {
         // comparison logic goes here
-        return memcmp(&Left, &Right, sizeof(Right)) < 0;
+        return std::memcmp(&Left, &Right, sizeof(Right)) < 0;
     }
 };
 
@@ -45,8 +48,8 @@ class CMediaSampleSideData
     STDMETHODIMP_(ULONG) Release();
 
     // IMediaSideData
-    STDMETHODIMP SetSideData(GUID guidType, const BYTE *pData, size_t size);
-    STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, size_t *pSize);
+    STDMETHODIMP SetSideData(GUID guidType, const BYTE *pData, std::size_t size);
+    STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize);
 
   private:
     void ReleaseSideData();
@@ -54,7 +57,7 @@ class CMediaSampleSideData
     struct SideDataEntry
     {
         BYTE *pData;
-        size_t size;
+        std::size_t size;
     };
 
     CCritSec m_csSideData;

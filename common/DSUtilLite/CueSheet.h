@@ -19,13 +19,13 @@
 
 #pragma once
 
-#include <string>
 #include <list>
+#include <string>
 
 class CCueSheet
 {
   public:
-    CCueSheet();
+    explicit CCueSheet();
     ~CCueSheet();
 
     HRESULT Parse(std::string cueSheet);

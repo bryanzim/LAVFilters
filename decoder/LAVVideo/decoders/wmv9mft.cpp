@@ -18,16 +18,23 @@
  */
 
 #include "stdafx.h"
+
 #include "wmv9mft.h"
 
+#include "parsers/VC1HeaderParser.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+
+#ifdef _WIN32
 #include <mfapi.h>
 #include <mferror.h>
-
-#include <wmcodecdsp.h>
-
 #include <propvarutil.h>
+#include <wmcodecdsp.h>
+#endif
 
-#include "parsers/VC1HeaderParser.h"
 
 EXTERN_GUID(CLSID_CWMVDecMediaObject, 0x82d353df, 0x90bd, 0x4382, 0x8b, 0xc2, 0x3f, 0x61, 0x92, 0xb7, 0x6e, 0x34);
 
@@ -47,7 +54,7 @@ ILAVDecoder *CreateDecoderWMV9MFT()
 CDecWMV9MFT::CDecWMV9MFT(void)
     : CDecBase{}
 {
-    memset(&MF, 0, sizeof(MF));
+    std::memset(&MF, 0, sizeof(MF));
 }
 
 CDecWMV9MFT::~CDecWMV9MFT(void)
@@ -109,7 +116,7 @@ STDMETHODIMP CDecWMV9MFT::Init()
 
     MF.Startup(MF_VERSION, MFSTARTUP_LITE);
 
-    hr = CoCreateInstance(CLSID_CWMVDecMediaObject, nullptr, CLSCTX_INPROC_SERVER, IID_IMFTransform, (void **)&m_pMFT);
+    hr = CoCreateInstance(CLSID_CWMVDecMediaObject, nullptr, CLSCTX_INPROC_SERVER, IID_IMFTransform, reinterpret_cast<void **>(&m_pMFT));
     if (FAILED(hr))
     {
         DbgLog((LOG_TRACE, 10, L"-> Failed to create MFT object"));
@@ -140,9 +147,7 @@ static GUID VerifySubtype(AVCodecID codec, GUID subtype)
     }
     else
     {
-        if (subtype == MEDIASUBTYPE_WVC1 || subtype == MEDIASUBTYPE_wvc1) {
-            return MEDIASUBTYPE_WVC1;
-        } else if (subtype == MEDIASUBTYPE_WMVA || subtype == MEDIASUBTYPE_wmva) {
+        if ((subtype == MEDIASUBTYPE_WVC1) || (subtype == MEDIASUBTYPE_wvc1)) { return MEDIASUBTYPE_WVC1; } else if ((subtype == MEDIASUBTYPE_WMVA) || (subtype == MEDIASUBTYPE_wmva)) {
             return MEDIASUBTYPE_WMVA;
         } else { // fallback
             return MEDIASUBTYPE_WVC1;
@@ -158,34 +163,34 @@ STDMETHODIMP CDecWMV9MFT::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     DestroyDecoder(false);
 
     BITMAPINFOHEADER *pBMI = nullptr;
-    REFERENCE_TIME rtAvg = 0;
+    REFERENCE_TIME rtAvg{ 0 };
     DWORD dwARX = 0, dwARY = 0;
     videoFormatTypeHandler(*pmt, &pBMI, &rtAvg, &dwARX, &dwARY);
 
-    size_t extralen = 0;
+    std::size_t extralen{ 0U };
     BYTE *extra = nullptr;
     getExtraData(*pmt, nullptr, &extralen);
     if (extralen > 0)
     {
-        extra = (BYTE *)av_mallocz(extralen + AV_INPUT_BUFFER_PADDING_SIZE);
+        extra = reinterpret_cast<BYTE *>(av_mallocz(extralen + AV_INPUT_BUFFER_PADDING_SIZE));
         getExtraData(*pmt, extra, &extralen);
     }
 
-    if (codec == AV_CODEC_ID_VC1 && extralen)
+    if ((codec == AV_CODEC_ID_VC1) && extralen)
     {
-        size_t i = 0;
+        std::size_t i{ 0U };
         for (i = 0; i < (extralen - 4); ++i)
         {
-            uint32_t const code = AV_RB32(extra + i);
+            std::uint32_t const code = AV_RB32(extra + i);
             if ((code & ~0xFF) == 0x00000100) {
                 break;
 }
         }
         if (i == 0)
         {
-            memmove(extra + 1, extra, extralen);
+            std::memmove(extra + 1, extra, extralen);
             *extra = 0;
-            extralen++;
+            ++extralen;
         }
         else if (i > 1)
         {
@@ -217,7 +222,7 @@ STDMETHODIMP CDecWMV9MFT::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     MF.AverageTimePerFrameToFrameRate(rtAvg, &rateNum, &rateDen);
     MFSetAttributeRatio(pMTIn, MF_MT_FRAME_RATE, rateNum, rateDen);
 
-    if (dwARX != 0 && dwARY != 0)
+    if ((dwARX != 0) && (dwARY != 0))
     {
         int uParX = 1, uParY = 1;
         av_reduce(&uParX, &uParY, dwARX * pBMI->biHeight, dwARY * pBMI->biWidth, INT_MAX);
@@ -258,11 +263,11 @@ STDMETHODIMP CDecWMV9MFT::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
 STDMETHODIMP CDecWMV9MFT::SelectOutputType()
 {
     HRESULT hr = S_OK;
-    int idx = 0;
+    int idx{ 0 };
 
     m_OutPixFmt = LAVPixFmt_None;
     IMFMediaType *pMTOut = nullptr;
-    while (SUCCEEDED(hr = m_pMFT->GetOutputAvailableType(0, idx++, &pMTOut)) && m_OutPixFmt == LAVPixFmt_None)
+    while ((SUCCEEDED(hr = m_pMFT->GetOutputAvailableType(0, idx++, &pMTOut))) && (m_OutPixFmt == LAVPixFmt_None))
     {
         GUID outSubtype;
         if (SUCCEEDED(pMTOut->GetGUID(MF_MT_SUBTYPE, &outSubtype)))
@@ -306,7 +311,7 @@ IMFMediaBuffer *CDecWMV9MFT::CreateMediaBuffer(const BYTE *pData, DWORD dwDataLe
         goto done;
     }
 
-    memcpy(pOutBuffer, pData, dwDataLen);
+    std::memcpy(pOutBuffer, pData, dwDataLen);
 
     pBuffer->Unlock();
     pBuffer->SetCurrentLength(dwDataLen);
@@ -319,7 +324,7 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
                                  BOOL bSyncPoint, BOOL bDiscontinuity, IMediaSample *pMediaSample)
 {
     HRESULT hr = S_OK;
-    DWORD dwStatus = 0;
+    DWORD dwStatus{ 0U };
 
     hr = m_pMFT->GetInputStatus(0, &dwStatus);
     if (FAILED(hr))
@@ -336,7 +341,7 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         AVPictureType const pictype = m_vc1Header->ParseVC1PictureType(buffer, buflen);
         if (m_bManualReorder)
         {
-            if (pictype == AV_PICTURE_TYPE_I || pictype == AV_PICTURE_TYPE_P)
+            if ((pictype == AV_PICTURE_TYPE_I) || (pictype == AV_PICTURE_TYPE_P))
             {
                 if (m_bReorderBufferValid) {
                     m_timestampQueue.push(m_rtReorderBuffer);
@@ -388,7 +393,7 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     if (rtStart != AV_NOPTS_VALUE)
     {
         pSample->SetSampleTime(rtStart);
-        if (rtStop != AV_NOPTS_VALUE && rtStop > (rtStart - 1)) {
+        if ((rtStop != AV_NOPTS_VALUE) && (rtStop > (rtStart - 1))) {
             pSample->SetSampleDuration(rtStop - rtStart);
 }
     }
@@ -417,11 +422,11 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     return ProcessOutput();
 }
 
-static inline void memcpy_plane(BYTE *dst, const BYTE *src, ptrdiff_t width, ptrdiff_t stride, int height)
+static inline void memcpy_plane(BYTE *dst, const BYTE *src, std::ptrdiff_t width, std::ptrdiff_t stride, int height)
 {
-    for (int i = 0; i < height; ++i)
+    for (int i{ 0 }; i < height; ++i)
     {
-        memcpy(dst, src, width);
+        std::memcpy(dst, src, width);
         dst += stride;
         src += width;
     }
@@ -444,7 +449,7 @@ IMFMediaBuffer *CDecWMV9MFT::GetBuffer(DWORD dwRequiredSize)
     if (buffer)
     {
         // Validate Size
-        if (buffer->size < dwRequiredSize || !buffer->pBuffer)
+        if ((buffer->size < dwRequiredSize) || (!buffer->pBuffer))
         {
             SafeRelease(&buffer->pBuffer);
             hr = MF.CreateAlignedMemoryBuffer(dwRequiredSize, MF_32_BYTE_ALIGNMENT, &buffer->pBuffer);
@@ -491,8 +496,8 @@ void CDecWMV9MFT::ReleaseBuffer(IMFMediaBuffer *pBuffer)
 
 void CDecWMV9MFT::wmv9_buffer_destruct(LAVFrame *pFrame)
 {
-    CDecWMV9MFT *pDec = (CDecWMV9MFT *)pFrame->priv_data;
-    IMFMediaBuffer *pMFBuffer = (IMFMediaBuffer *)pFrame->data[3U];
+    CDecWMV9MFT *pDec = reinterpret_cast<CDecWMV9MFT *>(pFrame->priv_data);
+    IMFMediaBuffer *pMFBuffer = reinterpret_cast<IMFMediaBuffer *>(pFrame->data[3U]);
     pMFBuffer->Unlock();
     pDec->ReleaseBuffer(pMFBuffer);
 }
@@ -500,7 +505,7 @@ void CDecWMV9MFT::wmv9_buffer_destruct(LAVFrame *pFrame)
 STDMETHODIMP CDecWMV9MFT::ProcessOutput()
 {
     HRESULT hr = S_OK;
-    DWORD dwStatus = 0;
+    DWORD dwStatus{ 0U };
 
     MFT_OUTPUT_STREAM_INFO outputInfo = {0};
     m_pMFT->GetOutputStreamInfo(0, &outputInfo);
@@ -536,7 +541,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     SafeRelease(&OutputBuffer.pEvents);
 
     // handle stream format changes
-    if (hr == MF_E_TRANSFORM_STREAM_CHANGE || OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_FORMAT_CHANGE)
+    if ((hr == MF_E_TRANSFORM_STREAM_CHANGE) || (OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_FORMAT_CHANGE))
     {
         SafeRelease(&OutputBuffer.pSample);
         ReleaseBuffer(pMFBuffer);
@@ -551,7 +556,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     }
 
     // the MFT generated no output, discard the sample and return
-    if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT || OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_NO_SAMPLE)
+    if ((hr == MF_E_TRANSFORM_NEED_MORE_INPUT) || (OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_NO_SAMPLE))
     {
         SafeRelease(&OutputBuffer.pSample);
         ReleaseBuffer(pMFBuffer);
@@ -573,17 +578,17 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     IMFMediaType *pMTOut = nullptr;
     m_pMFT->GetOutputCurrentType(0, &pMTOut);
 
-    MFGetAttributeSize(pMTOut, MF_MT_FRAME_SIZE, (UINT32 *)&pFrame->width, (UINT32 *)&pFrame->height);
+    MFGetAttributeSize(pMTOut, MF_MT_FRAME_SIZE, reinterpret_cast<UINT32 *>(&pFrame->width), reinterpret_cast<UINT32 *>(&pFrame->height));
     pFrame->format = m_OutPixFmt;
     pFrame->sw_format = pFrame->format;
 
     AVRational pixel_aspect_ratio = {1, 1};
-    MFGetAttributeRatio(pMTOut, MF_MT_PIXEL_ASPECT_RATIO, (UINT32 *)&pixel_aspect_ratio.num,
-                        (UINT32 *)&pixel_aspect_ratio.den);
+    MFGetAttributeRatio(pMTOut, MF_MT_PIXEL_ASPECT_RATIO, reinterpret_cast<UINT32 *>(&pixel_aspect_ratio.num),
+                        reinterpret_cast<UINT32 *>(&pixel_aspect_ratio.den));
 
     AVRational display_aspect_ratio = {0, 0};
-    av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den, (int64_t)pixel_aspect_ratio.num * pFrame->width,
-              (int64_t)pixel_aspect_ratio.den * pFrame->height, INT_MAX);
+    av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den, static_cast<std::int64_t>(pixel_aspect_ratio.num) * pFrame->width,
+              static_cast<std::int64_t>(pixel_aspect_ratio.den) * pFrame->height, INT_MAX);
     pFrame->aspect_ratio = display_aspect_ratio;
 
     pFrame->interlaced = MFGetAttributeUINT32(OutputBuffer.pSample, MFSampleExtension_Interlaced, FALSE);
@@ -594,7 +599,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
                       ? !MFGetAttributeUINT32(OutputBuffer.pSample, MFSampleExtension_BottomFieldFirst, FALSE)
                       : (fo == DeintFieldOrder_TopFieldFirst);
 
-    if (pFrame->interlaced && !m_bInterlaced) {
+    if ((pFrame->interlaced) && !m_bInterlaced) {
         m_bInterlaced = TRUE;
 }
 
@@ -627,9 +632,9 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
             pFrame->rtStart = m_timestampQueue.front();
             m_timestampQueue.pop();
 
-            LONGLONG llDuration = 0;
+            LONGLONG llDuration{ 0 };
             hr = OutputBuffer.pSample->GetSampleDuration(&llDuration);
-            if (SUCCEEDED(hr) && llDuration > 0)
+            if (SUCCEEDED(hr) && (llDuration > 0))
             {
                 pFrame->rtStop = pFrame->rtStart + llDuration;
             }
@@ -637,15 +642,15 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
     }
     else
     {
-        LONGLONG llTimestamp = 0;
+        LONGLONG llTimestamp{ 0 };
         hr = OutputBuffer.pSample->GetSampleTime(&llTimestamp);
         if (SUCCEEDED(hr))
         {
             pFrame->rtStart = llTimestamp;
 
-            LONGLONG llDuration = 0;
+            LONGLONG llDuration{ 0 };
             hr = OutputBuffer.pSample->GetSampleDuration(&llDuration);
-            if (SUCCEEDED(hr) && llDuration > 0)
+            if (SUCCEEDED(hr) && (llDuration > 0))
             {
                 pFrame->rtStop = pFrame->rtStart + llDuration;
             }
@@ -671,7 +676,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
             SafeRelease(&OutputBuffer.pSample);
             return hr;
         }
-        size_t const ySize = pFrame->width * pFrame->height;
+        std::size_t const ySize = pFrame->width * pFrame->height;
 
         memcpy_plane(pFrame->data[0U], pBuffer, pFrame->width, pFrame->stride[0U], pFrame->height);
         if (m_OutPixFmt == LAVPixFmt_NV12)
@@ -680,7 +685,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
         }
         else if (m_OutPixFmt == LAVPixFmt_YUV420)
         {
-            size_t const uvSize = ySize / 4;
+            std::size_t const uvSize = ySize / 4;
             memcpy_plane(pFrame->data[2U], pBuffer + ySize, pFrame->width / 2, pFrame->stride[2U], pFrame->height / 2);
             memcpy_plane(pFrame->data[1U], pBuffer + ySize + uvSize, pFrame->width / 2, pFrame->stride[1U],
                          pFrame->height / 2);
@@ -704,7 +709,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
             pFrame->stride[0U] = pFrame->width;
             pFrame->stride[1U] = pFrame->stride[2U] = pFrame->width / 2;
         }
-        pFrame->data[3U] = (BYTE *)pMFBuffer;
+        pFrame->data[3U] = reinterpret_cast<BYTE *>(pMFBuffer);
         pFrame->destruct = wmv9_buffer_destruct;
         pFrame->priv_data = this;
     }
@@ -713,9 +718,7 @@ STDMETHODIMP CDecWMV9MFT::ProcessOutput()
 
     SafeRelease(&OutputBuffer.pSample);
 
-    if (OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_INCOMPLETE) {
-        return ProcessOutput();
-}
+    if (OutputBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_INCOMPLETE) { return ProcessOutput(); }
     return hr;
 }
 

@@ -20,9 +20,9 @@
 #pragma once
 
 #include "DeCSS/DeCSSInputPin.h"
+#include "LAVSubtitleProvider.h"
 #include "SubRenderIntf.h"
 
-#include "LAVSubtitleProvider.h"
 
 class CLAVVideo;
 

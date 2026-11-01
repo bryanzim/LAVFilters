@@ -1,7 +1,10 @@
 #include "stdafx.h"
+
 #include "DSMResourceBag.h"
 
 #include <algorithm>
+#include <cstring>
+
 
 CDSMResource::CDSMResource()
     : mime{L"application/octet-stream"}
@@ -14,7 +17,7 @@ CDSMResource::CDSMResource(LPCWSTR name, LPCWSTR desc, LPCWSTR mime, BYTE *pData
     this->desc = desc;
     this->mime = mime;
     data.resize(len);
-    memcpy(data.data(), pData, data.size());
+    std::memcpy(data.data(), pData, data.size());
     this->tag = tag;
 }
 
@@ -43,7 +46,7 @@ CDSMResourceBag::~CDSMResourceBag()
 STDMETHODIMP_(DWORD) CDSMResourceBag::ResGetCount()
 {
     CAutoLock const lock(&m_csResources);
-    return (DWORD)m_resources.size();
+    return static_cast<DWORD>(m_resources.size());
 }
 
 STDMETHODIMP CDSMResourceBag::ResGet(DWORD iIndex, BSTR *ppName, BSTR *ppDesc, BSTR *ppMime, BYTE **ppData,
@@ -51,9 +54,7 @@ STDMETHODIMP CDSMResourceBag::ResGet(DWORD iIndex, BSTR *ppName, BSTR *ppDesc, B
 {
     CAutoLock const lock(&m_csResources);
 
-    if (ppData && !pDataLen) {
-        return E_INVALIDARG;
-}
+    if (ppData && !pDataLen) { return E_INVALIDARG; }
 
     if (iIndex >= m_resources.size()) {
         return E_INVALIDARG;
@@ -64,28 +65,22 @@ STDMETHODIMP CDSMResourceBag::ResGet(DWORD iIndex, BSTR *ppName, BSTR *ppDesc, B
     if (ppName)
     {
         *ppName = SysAllocString(r.name.data());
-        if (*ppName == nullptr) {
-            return E_OUTOFMEMORY;
-}
+        if (*ppName == nullptr) { return E_OUTOFMEMORY; }
     }
     if (ppDesc)
     {
         *ppDesc = SysAllocString(r.desc.data());
-        if (*ppDesc == nullptr) {
-            return E_OUTOFMEMORY;
-}
+        if (*ppDesc == nullptr) { return E_OUTOFMEMORY; }
     }
     if (ppMime)
     {
         *ppMime = SysAllocString(r.mime.data());
-        if (*ppMime == nullptr) {
-            return E_OUTOFMEMORY;
-}
+        if (*ppMime == nullptr) { return E_OUTOFMEMORY; }
     }
     if (ppData)
     {
-        *pDataLen = (DWORD)r.data.size();
-        memcpy(*ppData = (BYTE *)CoTaskMemAlloc(*pDataLen), r.data.data(), *pDataLen);
+        *pDataLen = static_cast<DWORD>(r.data.size());
+        std::memcpy(*ppData = reinterpret_cast<BYTE *>(CoTaskMemAlloc(*pDataLen)), r.data.data(), *pDataLen);
     }
     if (pTag)
     {
@@ -118,12 +113,12 @@ STDMETHODIMP CDSMResourceBag::ResSet(DWORD iIndex, LPCWSTR pName, LPCWSTR pDesc,
         r.mime = pMime;
 }
 
-    if (pData || len == 0)
+    if (pData || (len == 0))
     {
         r.data.resize(len);
         if (pData)
         {
-            memcpy(r.data.data(), pData, r.data.size());
+            std::memcpy(r.data.data(), pData, r.data.size());
         }
     }
 
@@ -137,7 +132,7 @@ STDMETHODIMP CDSMResourceBag::ResAppend(LPCWSTR pName, LPCWSTR pDesc, LPCWSTR pM
 {
     CAutoLock const lock(&m_csResources);
     m_resources.push_back(CDSMResource());
-    return ResSet((DWORD)m_resources.size() - 1, pName, pDesc, pMime, pData, len, tag);
+    return ResSet(static_cast<DWORD>(m_resources.size()) - 1, pName, pDesc, pMime, pData, len, tag);
 }
 
 STDMETHODIMP CDSMResourceBag::ResRemoveAt(DWORD iIndex)

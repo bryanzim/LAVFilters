@@ -18,22 +18,29 @@
  */
 
 #include "stdafx.h"
+
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 
 // 8x8 Bayes ordered dithering table, scaled to the 0-255 range for 16->8 conversion
 // stored as 16-bit unsigned for optimized SIMD access
 // clang-format off
-__declspec(align(16)) const uint16_t dither_8x8_256[8U][8U] = {
-  {   0, 192,  48, 240,  12, 204,  60, 252 },
-  { 128,  64, 176, 112, 140,  76, 188, 124 },
-  {  32, 224,  16, 208,  44, 236,  28, 220 },
-  { 160,  96, 144,  80, 172, 108, 156,  92 },
-  {   8, 200,  56, 248,   4, 196,  52, 244 },
-  { 136,  72, 184, 120, 132,  68, 180, 116 },
-  {  40, 232,  24, 216,  36, 228,  20, 212 },
-  { 168, 104, 152,  88, 164, 100, 148,  84 }
-};
+alignas(16) std::array<std::array<const std::uint16_t, 8U>, 8U> dither_8x8_256{{
+  {{   0, 192,  48, 240,  12, 204,  60, 252 }},
+  {{ 128,  64, 176, 112, 140,  76, 188, 124 }},
+  {{  32, 224,  16, 208,  44, 236,  28, 220 }},
+  {{ 160,  96, 144,  80, 172, 108, 156,  92 }},
+  {{   8, 200,  56, 248,   4, 196,  52, 244 }},
+  {{ 136,  72, 184, 120, 132,  68, 180, 116 }},
+  {{  40, 232,  24, 216,  36, 228,  20, 212 }},
+  {{ 168, 104, 152,  88, 164, 100, 148,  84 }}
+}};
 // clang-format on
 
 DECLARE_CONV_FUNC_IMPL(plane_copy)
@@ -43,20 +50,20 @@ DECLARE_CONV_FUNC_IMPL(plane_copy)
     const int widthBytes = width * desc.codedbytes;
     const int planes = max(desc.planes, 1);
 
-    ptrdiff_t line, plane;
+    std::ptrdiff_t line, plane;
 
     for (plane = 0; plane < planes; ++plane)
     {
         const int planeWidth = widthBytes / desc.planeWidth[plane];
         const int planeHeight = height / desc.planeHeight[plane];
-        const ptrdiff_t srcPlaneStride = srcStride[plane];
-        const ptrdiff_t dstPlaneStride = dstStride[plane];
-        const uint8_t *const srcBuf = src[plane];
-        uint8_t *const dstBuf = dst[plane];
+        const std::ptrdiff_t srcPlaneStride = srcStride[plane];
+        const std::ptrdiff_t dstPlaneStride = dstStride[plane];
+        const std::uint8_t *const srcBuf = src[plane];
+        std::uint8_t *const dstBuf = dst[plane];
 
         for (line = 0; line < planeHeight; ++line)
         {
-            memcpy(dstBuf + line * dstPlaneStride, srcBuf + line * srcPlaneStride, planeWidth);
+            std::memcpy(dstBuf + line * dstPlaneStride, srcBuf + line * srcPlaneStride, planeWidth);
         }
     }
 
@@ -70,18 +77,18 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_sse2)
     const int widthBytes = width * desc.codedbytes;
     const int planes = max(desc.planes, 1);
 
-    ptrdiff_t line, plane;
+    std::ptrdiff_t line, plane;
 
     for (plane = 0; plane < planes; ++plane)
     {
         const int planeWidth = widthBytes / desc.planeWidth[plane];
         const int planeHeight = height / desc.planeHeight[plane];
-        const ptrdiff_t srcPlaneStride = srcStride[plane];
-        const ptrdiff_t dstPlaneStride = dstStride[plane];
-        const uint8_t *const srcBuf = src[plane];
-        uint8_t *const dstBuf = dst[plane];
+        const std::ptrdiff_t srcPlaneStride = srcStride[plane];
+        const std::ptrdiff_t dstPlaneStride = dstStride[plane];
+        const std::uint8_t *const srcBuf = src[plane];
+        std::uint8_t *const dstBuf = dst[plane];
 
-        if ((dstPlaneStride % 16) == 0 && ((intptr_t)dstBuf % 16u) == 0)
+        if (((dstPlaneStride % 16) == 0) && ((reinterpret_cast<std::intptr_t>(dstBuf) % 16u) == 0))
         {
             for (line = 0; line < planeHeight; ++line)
             {
@@ -92,7 +99,7 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_sse2)
         {
             for (line = 0; line < planeHeight; ++line)
             {
-                memcpy(dstBuf + line * dstPlaneStride, srcBuf + line * srcPlaneStride, planeWidth);
+                std::memcpy(dstBuf + line * dstPlaneStride, srcBuf + line * srcPlaneStride, planeWidth);
             }
         }
     }

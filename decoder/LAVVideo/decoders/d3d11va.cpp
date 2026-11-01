@@ -18,12 +18,21 @@
  */
 
 #include "stdafx.h"
+
 #include "d3d11va.h"
-#include "ID3DVideoMemoryConfiguration.h"
+
 #include "dxva2/dxva_common.h"
+#include "ID3DVideoMemoryConfiguration.h"
 #include "moreuuids.h"
 
+#include <array>
+#include <cstdint>
+
+
+#ifdef _WIN32
 #include <d3d11_1.h>
+#endif
+
 
 #define FF_DXVA2_WORKAROUND_NVIDIA_HEVC_420P12 4
 
@@ -54,7 +63,7 @@ HRESULT VerifyD3D11Device(DWORD &dwIndex, DWORD dwDeviceId)
     IDXGIAdapter *pDXGIAdapter = nullptr;
     IDXGIFactory1 *pDXGIFactory = nullptr;
 
-    hr = mCreateDXGIFactory1(IID_IDXGIFactory1, (void **)&pDXGIFactory);
+    hr = mCreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(&pDXGIFactory));
     if (FAILED(hr)) {
         goto done;
 }
@@ -74,7 +83,7 @@ HRESULT VerifyD3D11Device(DWORD &dwIndex, DWORD dwDeviceId)
     SafeRelease(&pDXGIAdapter);
 
     // try to find a device that matches this device id
-    UINT i = 0;
+    UINT i{ 0U };
     while (SUCCEEDED(pDXGIFactory->EnumAdapters(i, &pDXGIAdapter)))
     {
         pDXGIAdapter->GetDesc(&desc);
@@ -85,7 +94,7 @@ HRESULT VerifyD3D11Device(DWORD &dwIndex, DWORD dwDeviceId)
             dwIndex = i;
             goto done;
         }
-        i++;
+        ++i;
     }
 
     // if none is found, fail
@@ -115,8 +124,8 @@ static int s_GetD3D11FeatureLevels(int max_fl, const D3D_FEATURE_LEVEL **out)
 {
     static const int levels_len = countof(s_D3D11Levels);
 
-    int start = 0;
-    for (; start < levels_len; start++)
+    int start{ 0 };
+    for (; start < levels_len; ++start)
     {
         if (s_D3D11Levels[start] <= max_fl) {
             break;
@@ -191,14 +200,14 @@ CDecD3D11::~CDecD3D11(void)
 
 STDMETHODIMP CDecD3D11::DestroyDecoder(bool bFull)
 {
-    for (int i = 0; i < D3D11_QUEUE_SURFACES; ++i)
+    for (int i{ 0 }; i < D3D11_QUEUE_SURFACES; ++i)
     {
         ReleaseFrame(&m_FrameQueue[i]);
     }
 
     if (m_pOutputViews)
     {
-        for (int i = 0; i < m_nOutputViews; ++i)
+        for (int i{ 0 }; i < m_nOutputViews; ++i)
         {
             SafeRelease(&m_pOutputViews[i]);
         }
@@ -289,9 +298,7 @@ STDMETHODIMP CDecD3D11::Check()
 STDMETHODIMP CDecD3D11::InitAllocator(IMemAllocator **ppAlloc)
 {
     HRESULT hr = S_OK;
-    if (m_bReadBackFallback) {
-        return E_NOTIMPL;
-}
+    if (m_bReadBackFallback) { return E_NOTIMPL; }
 
     if (m_pAllocator == nullptr)
     {
@@ -311,7 +318,7 @@ STDMETHODIMP CDecD3D11::InitAllocator(IMemAllocator **ppAlloc)
     }
 
     // return the proper interface
-    return m_pAllocator->QueryInterface(__uuidof(IMemAllocator), (void **)ppAlloc);
+    return m_pAllocator->QueryInterface(__uuidof(IMemAllocator), reinterpret_cast<void **>(ppAlloc));
 }
 
 STDMETHODIMP CDecD3D11::CreateD3D11Device(UINT nDeviceIndex, ID3D11Device **ppDevice, DXGI_ADAPTER_DESC *pDesc)
@@ -321,7 +328,7 @@ STDMETHODIMP CDecD3D11::CreateD3D11Device(UINT nDeviceIndex, ID3D11Device **ppDe
     // create DXGI factory
     IDXGIAdapter *pDXGIAdapter = nullptr;
     IDXGIFactory1 *pDXGIFactory = nullptr;
-    HRESULT hr = dx.mCreateDXGIFactory1(IID_IDXGIFactory1, (void **)&pDXGIFactory);
+    HRESULT hr = dx.mCreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(&pDXGIFactory));
     if (FAILED(hr))
     {
         DbgLog((LOG_ERROR, 10, L"-> DXGIFactory creation failed"));
@@ -444,7 +451,7 @@ STDMETHODIMP CDecD3D11::PostConnect(IPin *pPin)
     UINT nDevice = m_pSettings->GetHWAccelDeviceIndex(HWAccel_D3D11, nullptr);
 
     // in automatic mode use the device the renderer gives us
-    if (nDevice == LAVHWACCEL_DEVICE_DEFAULT && pD3D11DecoderConfiguration)
+    if ((nDevice == LAVHWACCEL_DEVICE_DEFAULT) && pD3D11DecoderConfiguration)
     {
         nDevice = pD3D11DecoderConfiguration->GetD3D11AdapterIndex();
     }
@@ -469,7 +476,7 @@ STDMETHODIMP CDecD3D11::PostConnect(IPin *pPin)
 
     // allocate and fill device context
     m_pDevCtx = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_D3D11VA);
-    AVD3D11VADeviceContext *pDeviceContext = (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
+    AVD3D11VADeviceContext *pDeviceContext = reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
     pDeviceContext->device = pD3D11Device;
 
     // check for texture flags
@@ -539,12 +546,12 @@ STDMETHODIMP CDecD3D11::PostConnect(IPin *pPin)
 
     // verify hardware support
     {
-        int level = 0;
+        int level{ 0 };
         if (m_pAVCtx->codec_id == AV_CODEC_ID_HEVC)
         {
-            int64_t value = 0;
+            std::int64_t value{ 0 };
             if (av_opt_get_int(m_pAVCtx->priv_data, "rext_profile", 0, &value) >= 0) {
-                level = (int)value;
+                level = static_cast<int>(value);
 }
         }
 
@@ -618,9 +625,7 @@ fail:
 
 STDMETHODIMP CDecD3D11::BreakConnect()
 {
-    if (m_bReadBackFallback) {
-        return S_FALSE;
-}
+    if (m_bReadBackFallback) { return S_FALSE; }
 
     // release any resources held by the core
     m_pCallback->ReleaseAllDXVAResources();
@@ -698,7 +703,7 @@ HRESULT CDecD3D11::AdditionaDecoderInit()
 
 STDMETHODIMP CDecD3D11::FillHWContext(AVD3D11VAContext *ctx)
 {
-    AVD3D11VADeviceContext *pDeviceContext = (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
+    AVD3D11VADeviceContext *pDeviceContext = reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
 
     ctx->decoder = m_pDecoder;
     ctx->video_context = pDeviceContext->video_context;
@@ -719,7 +724,7 @@ STDMETHODIMP CDecD3D11::FillHWContext(AVD3D11VAContext *ctx)
 
 STDMETHODIMP_(long) CDecD3D11::GetBufferCount(long *pMaxBuffers)
 {
-    long buffers = 0;
+    long buffers{ 0 };
 
     // Native decoding should use 16 buffers to enable seamless codec changes
     if (!m_bReadBackFallback) {
@@ -727,9 +732,9 @@ STDMETHODIMP_(long) CDecD3D11::GetBufferCount(long *pMaxBuffers)
     } else
     {
         // Buffers based on max ref frames
-        if (m_nCodecId == AV_CODEC_ID_H264 || m_nCodecId == AV_CODEC_ID_HEVC) {
+        if ((m_nCodecId == AV_CODEC_ID_H264) || (m_nCodecId == AV_CODEC_ID_HEVC)) {
             buffers = 16;
-        } else if (m_nCodecId == AV_CODEC_ID_VP9 || m_nCodecId == AV_CODEC_ID_AV1) {
+        } else if ((m_nCodecId == AV_CODEC_ID_VP9) || (m_nCodecId == AV_CODEC_ID_AV1)) {
             buffers = 8;
         } else {
             buffers = 2;
@@ -755,7 +760,7 @@ STDMETHODIMP_(long) CDecD3D11::GetBufferCount(long *pMaxBuffers)
         *pMaxBuffers = 127;
 
         // VC-1 and VP9 decoding has stricter requirements (decoding flickers otherwise)
-        if (m_nCodecId == AV_CODEC_ID_VC1 || m_nCodecId == AV_CODEC_ID_VP9 || m_nCodecId == AV_CODEC_ID_AV1) {
+        if ((m_nCodecId == AV_CODEC_ID_VC1) || (m_nCodecId == AV_CODEC_ID_VP9) || (m_nCodecId == AV_CODEC_ID_AV1)) {
             *pMaxBuffers = 32;
 }
     }
@@ -765,7 +770,7 @@ STDMETHODIMP_(long) CDecD3D11::GetBufferCount(long *pMaxBuffers)
 
 STDMETHODIMP CDecD3D11::FlushDisplayQueue(BOOL bDeliver)
 {
-    for (int i = 0; i < m_DisplayDelay; ++i)
+    for (int i{ 0 }; i < m_DisplayDelay; ++i)
     {
         if (m_FrameQueue[m_FrameQueuePosition])
         {
@@ -817,13 +822,13 @@ HRESULT CDecD3D11::PostDecode()
 
 enum AVPixelFormat CDecD3D11::get_d3d11_format(struct AVCodecContext *s, const enum AVPixelFormat *pix_fmts)
 {
-    CDecD3D11 *pDec = (CDecD3D11 *)s->opaque;
+    CDecD3D11 *pDec = reinterpret_cast<CDecD3D11 *>(s->opaque);
     const enum AVPixelFormat *p;
     for (p = pix_fmts; *p != -1; ++p)
     {
         const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(*p);
 
-        if (!desc || !(desc->flags & AV_PIX_FMT_FLAG_HWACCEL)) {
+        if (!desc || (!(desc->flags & AV_PIX_FMT_FLAG_HWACCEL))) {
             break;
 }
 
@@ -846,7 +851,7 @@ enum AVPixelFormat CDecD3D11::get_d3d11_format(struct AVCodecContext *s, const e
 
 int CDecD3D11::get_d3d11_buffer(struct AVCodecContext *c, AVFrame *frame, int flags)
 {
-    CDecD3D11 *pDec = (CDecD3D11 *)c->opaque;
+    CDecD3D11 *pDec = reinterpret_cast<CDecD3D11 *>(c->opaque);
     HRESULT hr = S_OK;
 
     if (frame->format != AV_PIX_FMT_D3D11)
@@ -863,14 +868,14 @@ int CDecD3D11::get_d3d11_buffer(struct AVCodecContext *c, AVFrame *frame, int fl
         return -1;
     }
 
-    if (pDec->m_bReadBackFallback && pDec->m_pFramesCtx)
+    if ((pDec->m_bReadBackFallback) && (pDec->m_pFramesCtx))
     {
         int const ret = av_hwframe_get_buffer(pDec->m_pFramesCtx, frame, 0);
         frame->width = c->coded_width;
         frame->height = c->coded_height;
         return ret;
     }
-    else if (pDec->m_bReadBackFallback == false && pDec->m_pAllocator)
+    else if ((pDec->m_bReadBackFallback == false) && (pDec->m_pAllocator))
     {
         IMediaSample *pSample = nullptr;
         hr = pDec->m_pAllocator->GetBuffer(&pSample, nullptr, nullptr, 0);
@@ -902,31 +907,25 @@ STDMETHODIMP CDecD3D11::ReInitD3D11Decoder(AVCodecContext *c)
     HRESULT hr = S_OK;
 
     // Don't allow decoder creation during first init
-    if (m_bInInit) {
-        return S_FALSE;
-}
+    if (m_bInInit) { return S_FALSE; }
 
     // sanity check that we have a device
-    if (m_pDevCtx == nullptr) {
-        return E_FAIL;
-}
+    if (m_pDevCtx == nullptr) { return E_FAIL; }
 
     // we need an allocator at this point
-    if (m_bReadBackFallback == false && m_pAllocator == nullptr) {
-        return E_FAIL;
-}
+    if ((m_bReadBackFallback == false) && (m_pAllocator == nullptr)) { return E_FAIL; }
 
     DXGI_FORMAT surfaceFormatToTest = d3d11va_map_sw_to_hw_format(c->sw_pix_fmt);
-    if (surfaceFormatToTest == DXGI_FORMAT_P016 && m_bP016ToP010Fallback) {
+    if ((surfaceFormatToTest == DXGI_FORMAT_P016) && m_bP016ToP010Fallback) {
         surfaceFormatToTest = DXGI_FORMAT_P010;
 }
 
-    if (m_pDecoder == nullptr || m_dwSurfaceWidth != dxva_align_dimensions(c->codec_id, c->coded_width) ||
-        m_dwSurfaceHeight != dxva_align_dimensions(c->codec_id, c->coded_height) ||
-        m_SurfaceFormat != surfaceFormatToTest)
+    if ((m_pDecoder == nullptr) || (m_dwSurfaceWidth != dxva_align_dimensions(c->codec_id, c->coded_width)) ||
+        (m_dwSurfaceHeight != dxva_align_dimensions(c->codec_id, c->coded_height)) ||
+        (m_SurfaceFormat != surfaceFormatToTest))
     {
         AVD3D11VADeviceContext *pDeviceContext =
-            (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
+            reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
         DbgLog((LOG_TRACE, 10, L"No D3D11 Decoder or image dimensions changed -> Re-Allocating resources"));
 
         // if we're not in readback mode, we need to flush all the frames
@@ -981,16 +980,16 @@ STDMETHODIMP CDecD3D11::ReInitD3D11Decoder(AVCodecContext *c)
 STDMETHODIMP CDecD3D11::FindVideoServiceConversion(AVCodecID codec, int profile, int level, DXGI_FORMAT &surface_format,
                                                    GUID *input)
 {
-    AVD3D11VADeviceContext *pDeviceContext = (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
+    AVD3D11VADeviceContext *pDeviceContext = reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
     HRESULT hr = S_OK;
 
     UINT const nProfiles = pDeviceContext->video_device->GetVideoDecoderProfileCount();
-    GUID *guid_list = (GUID *)av_malloc_array(nProfiles, sizeof(*guid_list));
+    GUID *guid_list = reinterpret_cast<GUID *>(av_malloc_array(nProfiles, sizeof(*guid_list)));
 
     m_bP016ToP010Fallback = false;
 
     DbgLog((LOG_TRACE, 10, L"-> Enumerating supported D3D11 modes (count: %d)", nProfiles));
-    for (UINT i = 0; i < nProfiles; ++i)
+    for (UINT i{ 0U }; i < nProfiles; ++i)
     {
         hr = pDeviceContext->video_device->GetVideoDecoderProfile(i, &guid_list[i]);
         if (FAILED(hr))
@@ -1014,15 +1013,15 @@ STDMETHODIMP CDecD3D11::FindVideoServiceConversion(AVCodecID codec, int profile,
     }
 
     /* Iterate over our priority list */
-    for (unsigned i = 0; dxva_modes[i].name; ++i)
+    for (unsigned i{ 0U }; dxva_modes[i].name; ++i)
     {
         const dxva_mode_t *mode = &dxva_modes[i];
         if (!check_dxva_mode_compatibility(mode, codec, profile, level, (surface_format == DXGI_FORMAT_NV12))) {
             continue;
 }
 
-        BOOL supported = FALSE;
-        for (UINT g = 0; !supported && g < nProfiles; ++g)
+        BOOL supported{ FALSE };
+        for (UINT g{ 0U }; !supported && g < nProfiles; ++g)
         {
             supported = IsEqualGUID(*mode->guid, guid_list[g]);
         }
@@ -1033,7 +1032,7 @@ STDMETHODIMP CDecD3D11::FindVideoServiceConversion(AVCodecID codec, int profile,
         DbgLog((LOG_TRACE, 10, L"-> Trying to use '%S'", mode->name));
         hr = pDeviceContext->video_device->CheckVideoDecoderFormat(mode->guid, surface_format, &supported);
         // some high bitdepth decoders only accept P010, despite the memory layout otherwise being identical
-        if (SUCCEEDED(hr) && !supported && surface_format == DXGI_FORMAT_P016)
+        if (SUCCEEDED(hr) && !supported && (surface_format == DXGI_FORMAT_P016))
         {
             hr = pDeviceContext->video_device->CheckVideoDecoderFormat(mode->guid, DXGI_FORMAT_P010, &supported);
 
@@ -1059,10 +1058,10 @@ STDMETHODIMP CDecD3D11::FindVideoServiceConversion(AVCodecID codec, int profile,
 STDMETHODIMP CDecD3D11::FindDecoderConfiguration(const D3D11_VIDEO_DECODER_DESC *desc,
                                                  D3D11_VIDEO_DECODER_CONFIG *pConfig)
 {
-    AVD3D11VADeviceContext *pDeviceContext = (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
+    AVD3D11VADeviceContext *pDeviceContext = reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
     HRESULT hr = S_OK;
 
-    UINT nConfig = 0;
+    UINT nConfig{ 0U };
     hr = pDeviceContext->video_device->GetVideoDecoderConfigCount(desc, &nConfig);
     if (FAILED(hr))
     {
@@ -1070,9 +1069,9 @@ STDMETHODIMP CDecD3D11::FindDecoderConfiguration(const D3D11_VIDEO_DECODER_DESC 
         return E_FAIL;
     }
 
-    int best_score = -1;
+    int best_score{ -1 };
     D3D11_VIDEO_DECODER_CONFIG best_config;
-    for (UINT i = 0; i < nConfig; ++i)
+    for (UINT i{ 0U }; i < nConfig; ++i)
     {
         D3D11_VIDEO_DECODER_CONFIG config = {0};
         hr = pDeviceContext->video_device->GetVideoDecoderConfig(desc, i, &config);
@@ -1085,7 +1084,7 @@ STDMETHODIMP CDecD3D11::FindDecoderConfiguration(const D3D11_VIDEO_DECODER_DESC 
         int score;
         if (config.ConfigBitstreamRaw == 1) {
             score = 1;
-        } else if (m_pAVCtx->codec_id == AV_CODEC_ID_H264 && config.ConfigBitstreamRaw == 2) {
+        } else if ((m_pAVCtx->codec_id == AV_CODEC_ID_H264) && (config.ConfigBitstreamRaw == 2)) {
             score = 2;
         } else if (m_pAVCtx->codec_id == AV_CODEC_ID_VP9) { // hack for broken AMD drivers
             score = 0;
@@ -1115,7 +1114,7 @@ STDMETHODIMP CDecD3D11::FindDecoderConfiguration(const D3D11_VIDEO_DECODER_DESC 
 STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
 {
     HRESULT hr = S_OK;
-    AVD3D11VADeviceContext *pDeviceContext = (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
+    AVD3D11VADeviceContext *pDeviceContext = reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
 
     // release the old decoder, it needs to be re-created
     SafeRelease(&m_pDecoder);
@@ -1125,12 +1124,12 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
     DXGI_FORMAT surface_format = d3d11va_map_sw_to_hw_format(m_pAVCtx->sw_pix_fmt);
 
     // codec sub-level
-    int level = 0;
+    int level{ 0 };
     if (m_pAVCtx->codec_id == AV_CODEC_ID_HEVC)
     {
-        int64_t value = 0;
+        std::int64_t value{ 0 };
         if (av_opt_get_int(m_pAVCtx->priv_data, "rext_profile", 0, &value) >= 0) {
-            level = (int)value;
+            level = static_cast<int>(value);
 }
     }
 
@@ -1163,7 +1162,7 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
     m_dwSurfaceHeight = dxva_align_dimensions(m_pAVCtx->codec_id, m_pAVCtx->coded_height);
     m_SurfaceFormat = surface_format;
 
-    if (m_bReadBackFallback == false && m_pAllocator)
+    if ((m_bReadBackFallback == false) && m_pAllocator)
     {
         ALLOCATOR_PROPERTIES properties;
         hr = m_pAllocator->GetProperties(&properties);
@@ -1190,19 +1189,19 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
     // release any old output views and allocate memory for the new ones
     if (m_pOutputViews)
     {
-        for (int i = 0; i < m_nOutputViews; ++i)
+        for (int i{ 0 }; i < m_nOutputViews; ++i)
         {
             SafeRelease(&m_pOutputViews[i]);
         }
         av_freep(&m_pOutputViews);
     }
 
-    m_pOutputViews = (ID3D11VideoDecoderOutputView **)av_calloc(m_dwSurfaceCount, sizeof(*m_pOutputViews));
+    m_pOutputViews = reinterpret_cast<ID3D11VideoDecoderOutputView **>(av_calloc(m_dwSurfaceCount, sizeof(*m_pOutputViews)));
     m_nOutputViews = m_dwSurfaceCount;
 
     // allocate output views for the frames
-    AVD3D11VAFramesContext *pFramesContext = (AVD3D11VAFramesContext *)((AVHWFramesContext *)m_pFramesCtx->data)->hwctx;
-    for (int i = 0; i < m_nOutputViews; ++i)
+    AVD3D11VAFramesContext *pFramesContext = reinterpret_cast<AVD3D11VAFramesContext *>(((AVHWFramesContext *)m_pFramesCtx->data)->hwctx);
+    for (int i{ 0 }; i < m_nOutputViews; ++i)
     {
         D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC viewDesc = {0};
         viewDesc.DecodeProfile = profileGUID;
@@ -1219,7 +1218,7 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
     }
 
     // flush textures to black
-    if (surface_format == DXGI_FORMAT_NV12 || surface_format == DXGI_FORMAT_P010 || surface_format == DXGI_FORMAT_P016)
+    if ((surface_format == DXGI_FORMAT_NV12) || (surface_format == DXGI_FORMAT_P010) || (surface_format == DXGI_FORMAT_P016))
     {
         D3D11_FEATURE_DATA_D3D11_OPTIONS d3d11Options{};
         pDeviceContext->device->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &d3d11Options,
@@ -1229,16 +1228,16 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
         // Investigation has shown that contrary to the documentation, Intel transforms the color information,
         // instead of treating the values like integral floats, as required.
         ID3D11DeviceContext1 *pDeviceContext1 = nullptr;
-        if (m_AdapterDesc.VendorId != VEND_ID_INTEL && d3d11Options.ClearView &&
-            SUCCEEDED(hr = pDeviceContext->device_context->QueryInterface(&pDeviceContext1)))
+        if ((m_AdapterDesc.VendorId != VEND_ID_INTEL) && d3d11Options.ClearView &&
+            (SUCCEEDED(hr = pDeviceContext->device_context->QueryInterface(&pDeviceContext1))))
         {
-            for (int i = 0; i < m_nOutputViews; ++i)
+            for (int i{ 0 }; i < m_nOutputViews; ++i)
             {
                 // clear the Luma channel to zero and Chroma channel to half
                 // for both P010/P016, the full 16-bit range value needs to be used due to the nature of their memory layout
                 float const fChromaBlack = (surface_format == DXGI_FORMAT_NV12) ? 128.0f : 32768.0f;
-                const FLOAT ClearYUV[4U] = {0.0f, fChromaBlack, fChromaBlack, 0.0f};
-                pDeviceContext1->ClearView(m_pOutputViews[i], ClearYUV, nullptr, 0);
+                std::array<const FLOAT, 4U> ClearYUV{0.0f, fChromaBlack, fChromaBlack, 0.0f};
+                pDeviceContext1->ClearView(m_pOutputViews[i], ClearYUV.data(), nullptr, 0);
             }
             SafeRelease(&pDeviceContext1);
         }
@@ -1269,8 +1268,8 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
                 rtvDesc.Format = (surface_format == DXGI_FORMAT_NV12) ? DXGI_FORMAT_R8_UNORM : DXGI_FORMAT_R16_UNORM;
                 if (SUCCEEDED(hr = pDeviceContext->device->CreateRenderTargetView(pFlushTexture, &rtvDesc, &pRTV)))
                 {
-                    const FLOAT ClearYUV[4U] = { 0.0f };
-                    pDeviceContext->device_context->ClearRenderTargetView(pRTV, ClearYUV);
+                    std::array<const FLOAT, 4U> ClearYUV{ 0.0f };
+                    pDeviceContext->device_context->ClearRenderTargetView(pRTV, ClearYUV.data());
                     SafeRelease(&pRTV);
                 }
 
@@ -1278,13 +1277,13 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
                 rtvDesc.Format = (surface_format == DXGI_FORMAT_NV12) ? DXGI_FORMAT_R8G8_UNORM : DXGI_FORMAT_R16G16_UNORM;
                 if (SUCCEEDED(hr = pDeviceContext->device->CreateRenderTargetView(pFlushTexture, &rtvDesc, &pRTV)))
                 {
-                    const FLOAT ClearYUV[4U] = { 0.5f, 0.5f, 0.0f, 0.0f };
-                    pDeviceContext->device_context->ClearRenderTargetView(pRTV, ClearYUV);
+                    std::array<const FLOAT, 4U> ClearYUV{ 0.5f, 0.5f, 0.0f, 0.0f };
+                    pDeviceContext->device_context->ClearRenderTargetView(pRTV, ClearYUV.data());
                     SafeRelease(&pRTV);
                 }
 
                 // update all surfaces with the flush color
-                for (unsigned i = 0; i < m_dwSurfaceCount; ++i)
+                for (unsigned i{ 0U }; i < m_dwSurfaceCount; ++i)
                 {
                     pDeviceContext->device_context->CopySubresourceRegion(pFramesContext->texture, i, 0, 0, 0,
                                                                           pFlushTexture, 0, nullptr);
@@ -1305,7 +1304,7 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
         return E_FAIL;
     }
 
-    FillHWContext((AVD3D11VAContext *)m_pAVCtx->hwaccel_context);
+    FillHWContext(reinterpret_cast<AVD3D11VAContext *>(m_pAVCtx->hwaccel_context));
 
     return S_OK;
 }
@@ -1344,11 +1343,9 @@ STDMETHODIMP CDecD3D11::AllocateFramesContext(int width, int height, DXGI_FORMAT
 
     // allocate a new frames context for the device context
     *ppFramesCtx = av_hwframe_ctx_alloc(m_pDevCtx);
-    if (*ppFramesCtx == nullptr) {
-        return E_OUTOFMEMORY;
-}
+    if (*ppFramesCtx == nullptr) { return E_OUTOFMEMORY; }
 
-    AVHWFramesContext *pFrames = (AVHWFramesContext *)(*ppFramesCtx)->data;
+    AVHWFramesContext *pFrames = reinterpret_cast<AVHWFramesContext *>((*ppFramesCtx)->data);
     pFrames->format = AV_PIX_FMT_D3D11;
     pFrames->sw_format = s_GetAVD3D11PixelFormat(format);
     pFrames->width = width;
@@ -1379,7 +1376,7 @@ HRESULT CDecD3D11::HandleDXVA2Frame(LAVFrame *pFrame)
 
     ASSERT(pFrame->format == LAVPixFmt_D3D11);
 
-    if (m_bReadBackFallback == false || m_DisplayDelay == 0)
+    if ((m_bReadBackFallback == false) || (m_DisplayDelay == 0))
     {
         DeliverD3D11Frame(pFrame);
     }
@@ -1411,7 +1408,7 @@ HRESULT CDecD3D11::DeliverD3D11Frame(LAVFrame *pFrame)
     }
     else
     {
-        AVFrame *pAVFrame = (AVFrame *)pFrame->priv_data;
+        AVFrame *pAVFrame = reinterpret_cast<AVFrame *>(pFrame->priv_data);
         pFrame->data[0U] = pAVFrame->data[3U];
         pFrame->data[1U] = pFrame->data[2U] = pFrame->data[3U] = nullptr;
 
@@ -1425,7 +1422,7 @@ HRESULT CDecD3D11::DeliverD3D11Frame(LAVFrame *pFrame)
 
 HRESULT CDecD3D11::DeliverD3D11Readback(LAVFrame *pFrame)
 {
-    AVFrame *src = (AVFrame *)pFrame->priv_data;
+    AVFrame *src = reinterpret_cast<AVFrame *>(pFrame->priv_data);
     AVFrame *dst = av_frame_alloc();
 
     int const ret = av_hwframe_transfer_data(dst, src, 0);
@@ -1445,7 +1442,7 @@ HRESULT CDecD3D11::DeliverD3D11Readback(LAVFrame *pFrame)
 
     ASSERT(getFFPixelFormatFromLAV(pFrame->format, pFrame->bpp) == dst->format);
 
-    for (int i = 0; i < 4; ++i)
+    for (int i{ 0 }; i < 4; ++i)
     {
         pFrame->data[i] = dst->data[i];
         pFrame->stride[i] = dst->linesize[i];
@@ -1462,9 +1459,9 @@ struct D3D11DirectPrivate
 
 static bool d3d11_direct_lock(LAVFrame *pFrame, LAVDirectBuffer *pBuffer)
 {
-    D3D11DirectPrivate *c = (D3D11DirectPrivate *)pFrame->priv_data;
+    D3D11DirectPrivate *c = reinterpret_cast<D3D11DirectPrivate *>(pFrame->priv_data);
     AVD3D11VADeviceContext *pDeviceContext =
-        (AVD3D11VADeviceContext *)((AVHWDeviceContext *)c->pDeviceContex->data)->hwctx;
+        reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)c->pDeviceContex->data)->hwctx);
     D3D11_TEXTURE2D_DESC desc;
     D3D11_MAPPED_SUBRESOURCE map;
 
@@ -1486,11 +1483,11 @@ static bool d3d11_direct_lock(LAVFrame *pFrame, LAVDirectBuffer *pBuffer)
     pBuffer->Width = desc.Width;
     pBuffer->Height = desc.Height;
 
-    pBuffer->data[0U] = (BYTE *)map.pData;
+    pBuffer->data[0U] = reinterpret_cast<BYTE *>(map.pData);
     pBuffer->stride[0U] = map.RowPitch;
 
     // semi-packed formats have a second plane
-    if (desc.Format == DXGI_FORMAT_NV12 || desc.Format == DXGI_FORMAT_P010 || desc.Format == DXGI_FORMAT_P016)
+    if ((desc.Format == DXGI_FORMAT_NV12) || (desc.Format == DXGI_FORMAT_P010) || (desc.Format == DXGI_FORMAT_P016))
     {
         pBuffer->data[1U] = pBuffer->data[0U] + desc.Height * map.RowPitch;
         pBuffer->stride[1U] = map.RowPitch;
@@ -1501,9 +1498,9 @@ static bool d3d11_direct_lock(LAVFrame *pFrame, LAVDirectBuffer *pBuffer)
 
 static void d3d11_direct_unlock(LAVFrame *pFrame)
 {
-    D3D11DirectPrivate *c = (D3D11DirectPrivate *)pFrame->priv_data;
+    D3D11DirectPrivate *c = reinterpret_cast<D3D11DirectPrivate *>(pFrame->priv_data);
     AVD3D11VADeviceContext *pDeviceContext =
-        (AVD3D11VADeviceContext *)((AVHWDeviceContext *)c->pDeviceContex->data)->hwctx;
+        reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)c->pDeviceContex->data)->hwctx);
 
     pDeviceContext->device_context->Unmap(c->pStagingTexture, 0);
     pDeviceContext->unlock(pDeviceContext->lock_ctx);
@@ -1511,7 +1508,7 @@ static void d3d11_direct_unlock(LAVFrame *pFrame)
 
 static void d3d11_direct_free(LAVFrame *pFrame)
 {
-    D3D11DirectPrivate *c = (D3D11DirectPrivate *)pFrame->priv_data;
+    D3D11DirectPrivate *c = reinterpret_cast<D3D11DirectPrivate *>(pFrame->priv_data);
     av_buffer_unref(&c->pDeviceContex);
     c->pStagingTexture->Release();
     delete c;
@@ -1519,11 +1516,11 @@ static void d3d11_direct_free(LAVFrame *pFrame)
 
 HRESULT CDecD3D11::DeliverD3D11ReadbackDirect(LAVFrame *pFrame)
 {
-    AVD3D11VADeviceContext *pDeviceContext = (AVD3D11VADeviceContext *)((AVHWDeviceContext *)m_pDevCtx->data)->hwctx;
-    AVFrame *src = (AVFrame *)pFrame->priv_data;
+    AVD3D11VADeviceContext *pDeviceContext = reinterpret_cast<AVD3D11VADeviceContext *>(((AVHWDeviceContext *)m_pDevCtx->data)->hwctx);
+    AVFrame *src = reinterpret_cast<AVFrame *>(pFrame->priv_data);
 
     D3D11_TEXTURE2D_DESC videoTexDesc{};
-    ((ID3D11Texture2D *)src->data[0U])->GetDesc(&videoTexDesc);
+    (reinterpret_cast<ID3D11Texture2D *>(src->data[0U]))->GetDesc(&videoTexDesc);
 
     // validate the properties of the staging texture to match the video texture, re-create if needed
     if (m_pD3D11StagingTexture)
@@ -1531,8 +1528,8 @@ HRESULT CDecD3D11::DeliverD3D11ReadbackDirect(LAVFrame *pFrame)
         D3D11_TEXTURE2D_DESC stagingTexDesc{};
         m_pD3D11StagingTexture->GetDesc(&stagingTexDesc);
 
-        if (stagingTexDesc.Width != videoTexDesc.Width || stagingTexDesc.Height != videoTexDesc.Height ||
-            stagingTexDesc.Format != videoTexDesc.Format) {
+        if ((stagingTexDesc.Width != videoTexDesc.Width) || (stagingTexDesc.Height != videoTexDesc.Height) ||
+            (stagingTexDesc.Format != videoTexDesc.Format)) {
             SafeRelease(&m_pD3D11StagingTexture);
 }
     }
@@ -1558,7 +1555,7 @@ HRESULT CDecD3D11::DeliverD3D11ReadbackDirect(LAVFrame *pFrame)
 
     pDeviceContext->lock(pDeviceContext->lock_ctx);
     pDeviceContext->device_context->CopySubresourceRegion(
-        m_pD3D11StagingTexture, 0, 0, 0, 0, (ID3D11Texture2D *)src->data[0U], (UINT)(intptr_t)src->data[1U], nullptr);
+        m_pD3D11StagingTexture, 0, 0, 0, 0, reinterpret_cast<ID3D11Texture2D *>(src->data[0U]), static_cast<UINT>(reinterpret_cast<std::intptr_t>(src->data[1U])), nullptr);
     pDeviceContext->unlock(pDeviceContext->lock_ctx);
 
     av_frame_free(&src);
@@ -1609,12 +1606,12 @@ STDMETHODIMP CDecD3D11::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixel
 
 STDMETHODIMP_(DWORD) CDecD3D11::GetHWAccelNumDevices()
 {
-    DWORD nDevices = 0;
-    UINT i = 0;
+    DWORD nDevices{ 0U };
+    UINT i{ 0U };
     IDXGIAdapter *pDXGIAdapter = nullptr;
     IDXGIFactory1 *pDXGIFactory = nullptr;
 
-    HRESULT const hr = dx.mCreateDXGIFactory1(IID_IDXGIFactory1, (void **)&pDXGIFactory);
+    HRESULT const hr = dx.mCreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(&pDXGIFactory));
     if (FAILED(hr)) {
         goto fail;
 }
@@ -1626,11 +1623,11 @@ STDMETHODIMP_(DWORD) CDecD3D11::GetHWAccelNumDevices()
         SafeRelease(&pDXGIAdapter);
 
         // stop when we hit the MS software device
-        if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c) {
+        if ((desc.VendorId == 0x1414) && (desc.DeviceId == 0x8c)) {
             break;
 }
 
-        i++;
+        ++i;
     }
 
     nDevices = i;
@@ -1645,7 +1642,7 @@ STDMETHODIMP CDecD3D11::GetHWAccelDeviceInfo(DWORD dwIndex, BSTR *pstrDeviceName
     IDXGIAdapter *pDXGIAdapter = nullptr;
     IDXGIFactory1 *pDXGIFactory = nullptr;
 
-    HRESULT hr = dx.mCreateDXGIFactory1(IID_IDXGIFactory1, (void **)&pDXGIFactory);
+    HRESULT hr = dx.mCreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(&pDXGIFactory));
     if (FAILED(hr)) {
         goto fail;
 }
@@ -1659,7 +1656,7 @@ STDMETHODIMP CDecD3D11::GetHWAccelDeviceInfo(DWORD dwIndex, BSTR *pstrDeviceName
     pDXGIAdapter->GetDesc(&desc);
 
     // stop when we hit the MS software device
-    if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c)
+    if ((desc.VendorId == 0x1414) && (desc.DeviceId == 0x8c))
     {
         hr = E_INVALIDARG;
         goto fail;
@@ -1683,9 +1680,7 @@ STDMETHODIMP CDecD3D11::GetHWAccelActiveDevice(BSTR *pstrDeviceName)
 {
     CheckPointer(pstrDeviceName, E_POINTER);
 
-    if (m_AdapterDesc.Description[0U] == 0) {
-        return E_UNEXPECTED;
-}
+    if (m_AdapterDesc.Description[0U] == 0) { return E_UNEXPECTED; }
 
     *pstrDeviceName = SysAllocString(m_AdapterDesc.Description);
     return S_OK;

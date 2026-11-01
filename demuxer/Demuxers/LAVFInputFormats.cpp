@@ -19,6 +19,9 @@
 
 #include "stdafx.h"
 
+#include <cstring>
+
+
 static const char *RAW_VIDEO = "rawvideo";
 static const char *RAW_VIDEO_DESC = "raw video files";
 
@@ -85,9 +88,9 @@ void lavf_get_iformat_infos(const AVInputFormat *pFormat, const char **pszName, 
 {
     const char *name = pFormat->name;
     const char *desc = pFormat->long_name;
-    for (int i = 0; i < countof(lavf_input_formats); ++i)
+    for (int i{ 0 }; i < countof(lavf_input_formats); ++i)
     {
-        if (strcmp(lavf_input_formats[i].orig_format, name) == 0)
+        if (std::strcmp(lavf_input_formats[i].orig_format, name) == 0)
         {
             name = lavf_input_formats[i].new_format;
             if (lavf_input_formats[i].new_description) {

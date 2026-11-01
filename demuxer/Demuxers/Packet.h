@@ -25,14 +25,14 @@ class Packet
   public:
     static const REFERENCE_TIME INVALID_TIME = _I64_MIN;
 
-    Packet();
+    explicit Packet();
     ~Packet();
 
-    int GetDataSize() const { return m_Packet ? m_Packet->size : 0; }
-    BYTE *GetData() { return m_Packet ? m_Packet->data : nullptr; }
+    [[nodiscard]] constexpr int GetDataSize() const noexcept { return m_Packet ? m_Packet->size : 0; }
+    [[nodiscard]] constexpr BYTE *GetData() const noexcept { return m_Packet ? m_Packet->data : nullptr; }
 
-    int GetNumSideData() const { return m_Packet ? m_Packet->side_data_elems : 0; }
-    AVPacketSideData *GetSideData() { return m_Packet ? m_Packet->side_data : nullptr; }
+    [[nodiscard]] constexpr int GetNumSideData() const noexcept { return m_Packet ? m_Packet->side_data_elems : 0; }
+    [[nodiscard]] constexpr AVPacketSideData *GetSideData() noexcept { return m_Packet ? m_Packet->side_data : nullptr; }
 
     int SetDataSize(int len);
     int SetData(const void *ptr, int len);
@@ -47,10 +47,10 @@ class Packet
     bool CopyProperties(const Packet *src);
 
   public:
-    DWORD StreamId = 0;
-    BOOL bDiscontinuity = FALSE;
-    BOOL bSyncPoint = FALSE;
-    LONGLONG bPosition = -1;
+    DWORD StreamId{ 0U };
+    BOOL bDiscontinuity{ FALSE };
+    BOOL bSyncPoint{ FALSE };
+    LONGLONG bPosition{ -1 };
 
     REFERENCE_TIME rtStart = INVALID_TIME;
     REFERENCE_TIME rtStop = INVALID_TIME;
@@ -66,7 +66,7 @@ class Packet
 #define LAV_PACKET_H264_ANNEXB 0x0008
 #define LAV_PACKET_SRT 0x0010
 #define LAV_PACKET_PLANAR_PCM 0x0020
-    DWORD dwFlags = 0;
+    DWORD dwFlags{ 0U };
 
   private:
     AVPacket *m_Packet = nullptr;

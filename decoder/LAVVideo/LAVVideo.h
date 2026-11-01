@@ -19,24 +19,22 @@
 
 #pragma once
 
-#include "decoders/ILAVDecoder.h"
+#include "BaseTrayIcon.h"
+#include "CCOutputPin.h"
 #include "DecodeManager.h"
+#include "decoders/ILAVDecoder.h"
+#include "FloatingAverage.h"
 #include "ILAVPinInfo.h"
-
+#include "IMediaSideData.h"
+#include "ISpecifyPropertyPages2.h"
 #include "LAVPixFmtConverter.h"
 #include "LAVVideoSettings.h"
-#include "FloatingAverage.h"
-
-#include "ISpecifyPropertyPages2.h"
-#include "SynchronizedQueue.h"
-
 #include "subtitles/LAVSubtitleConsumer.h"
 #include "subtitles/LAVVideoSubtitleInputPin.h"
+#include "SynchronizedQueue.h"
 
-#include "CCOutputPin.h"
+#include <array>
 
-#include "BaseTrayIcon.h"
-#include "IMediaSideData.h"
 
 extern "C"
 {
@@ -189,9 +187,7 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     STDMETHODIMP_(LPWSTR) GetFileExtension();
     STDMETHODIMP_(BOOL) FilterInGraph(PIN_DIRECTION dir, const GUID &clsid)
     {
-        if (dir == PINDIR_INPUT) {
-            return FilterInGraphSafe(m_pInput, clsid);
-        } else {
+        if (dir == PINDIR_INPUT) { return FilterInGraphSafe(m_pInput, clsid); } else {
             return FilterInGraphSafe(m_pOutput, clsid);
 }
     }
@@ -285,40 +281,40 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
 
     CDecodeManager m_Decoder;
 
-    REFERENCE_TIME m_rtPrevStart = 0;
-    REFERENCE_TIME m_rtPrevStop = 0;
+    REFERENCE_TIME m_rtPrevStart{ 0 };
+    REFERENCE_TIME m_rtPrevStop{ 0 };
     REFERENCE_TIME m_rtAvgTimePerFrame = AV_NOPTS_VALUE;
 
-    BOOL m_bForceInputAR = FALSE;
-    BOOL m_bSendMediaType = FALSE;
-    BOOL m_bFlushing = FALSE;
-    BOOL m_bForceFormatNegotiation = FALSE;
+    BOOL m_bForceInputAR{ FALSE };
+    BOOL m_bSendMediaType{ FALSE };
+    BOOL m_bFlushing{ FALSE };
+    BOOL m_bForceFormatNegotiation{ FALSE };
 
     HRESULT m_hrDeliver = S_OK;
 
     CLAVPixFmtConverter m_PixFmtConverter;
     std::wstring m_strExtension;
 
-    BOOL m_bDXVAExtFormatSupport = TRUE;
+    BOOL m_bDXVAExtFormatSupport{ TRUE };
     DWORD m_bMadVR = -1;
     DWORD m_bJRVR = -1;
     DWORD m_bOverlayMixer = -1;
-    DWORD m_dwDecodeFlags = 0;
+    DWORD m_dwDecodeFlags{ 0U };
 
-    BOOL m_bInDVDMenu = FALSE;
+    BOOL m_bInDVDMenu{ FALSE };
 
     AVFilterGraph *m_pFilterGraph = nullptr;
     AVFilterContext *m_pFilterBufferSrc = nullptr;
     AVFilterContext *m_pFilterBufferSink = nullptr;
 
     LAVPixelFormat m_filterPixFmt = LAVPixFmt_None;
-    int m_filterWidth = 0;
-    int m_filterHeight = 0;
+    int m_filterWidth{ 0 };
+    int m_filterHeight{ 0 };
     LAVFrame m_FilterPrevFrame;
 
-    BOOL m_LAVPinInfoValid = FALSE;
+    BOOL m_LAVPinInfoValid{ FALSE };
     LAVPinInfo m_LAVPinInfo;
-    int m_X264Build = -1;
+    int m_X264Build{ -1 };
 
     struct
     {
@@ -335,18 +331,18 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
 
     AM_SimpleRateChange m_DVDRate = AM_SimpleRateChange{AV_NOPTS_VALUE, 10000};
 
-    BOOL m_bRuntimeConfig = FALSE;
+    BOOL m_bRuntimeConfig{ FALSE };
     struct VideoSettings
     {
         BOOL TrayIcon;
         DWORD StreamAR;
         DWORD NumThreads;
-        BOOL bFormats[Codec_VideoNB];
+        std::array<BOOL, Codec_VideoNB> bFormats{};
         BOOL bMSWMV9DMO;
-        BOOL bPixFmts[LAVOutPixFmt_NB];
+        std::array<BOOL, LAVOutPixFmt_NB> bPixFmts{};
         DWORD RGBRange;
         DWORD HWAccel;
-        BOOL bHWFormats[HWCodec_NB];
+        std::array<BOOL, HWCodec_NB> bHWFormats{};
         DWORD HWAccelResFlags;
         BOOL HWAccelCUVIDXVA;
         DWORD HWDeintMode;

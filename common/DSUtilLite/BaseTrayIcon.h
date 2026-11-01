@@ -19,7 +19,11 @@
 
 #pragma once
 
+#ifdef _WIN32
 #include <ShellAPI.h>
+#endif
+
+#include <array>
 
 class CBaseTrayIcon
 {
@@ -53,13 +57,13 @@ class CBaseTrayIcon
   private:
     CAMEvent m_evSetupFinished{TRUE};
 
-    HANDLE m_hThread = nullptr;
-    HWND m_hWnd = nullptr;
-    BOOL m_bPropPageOpen = FALSE;
+    HANDLE m_hThread{ nullptr };
+    HWND m_hWnd{ nullptr };
+    BOOL m_bPropPageOpen{ FALSE };
 
-    WCHAR m_wszClassName[64U];
+    std::array<WCHAR, 64U> m_wszClassName{};
     const WCHAR *m_wszName = nullptr;
-    int m_resIcon = 0;
+    int m_resIcon{ 0 };
 
     NOTIFYICONDATA m_NotifyIconData;
 };

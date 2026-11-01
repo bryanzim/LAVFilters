@@ -18,13 +18,23 @@
  */
 
 #include "stdafx.h"
-#include "LAVVideo.h"
+
 #include "Media.h"
 
-#include <MMReg.h>
-#include <Mfidl.h>
-
+#include "LAVVideo.h"
 #include "moreuuids.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+
+#ifdef _WIN32
+#include <Mfidl.h>
+#include <MMReg.h>
+#endif
+
 
 typedef struct
 {
@@ -684,7 +694,7 @@ const UINT CLAVVideo::sudPinTypesOutCount = countof(CLAVVideo::sudPinTypesOut);
 // Crawl the lavc_video_codecs array for the proper codec
 AVCodecID FindCodecId(const CMediaType *mt)
 {
-    for (int i = 0; i < countof(lavc_video_codecs); ++i)
+    for (int i{ 0 }; i < countof(lavc_video_codecs); ++i)
     {
         if (mt->subtype == *lavc_video_codecs[i].clsMinorType)
         {
@@ -786,14 +796,14 @@ const codec_config_t *get_codec_config(LAVVideoCodec codec)
 
 int flip_plane(BYTE *buffer, int stride, int height)
 {
-  BYTE *line_buffer = (BYTE *)av_malloc(stride);
+  BYTE *line_buffer = reinterpret_cast<BYTE *>(av_malloc(stride));
   BYTE *cur_front   = buffer;
   BYTE *cur_back    = buffer + (stride * (height - 1));
   height /= 2;
-  for (int i = 0; i < height; ++i) {
-    memcpy(line_buffer, cur_front, stride);
-    memcpy(cur_front, cur_back, stride);
-    memcpy(cur_back, line_buffer, stride);
+  for (int i{ 0 }; i < height; ++i) {
+    std::memcpy(line_buffer, cur_front, stride);
+    std::memcpy(cur_front, cur_back, stride);
+    std::memcpy(cur_back, line_buffer, stride);
     cur_front += stride;
     cur_back -= stride;
   }
@@ -956,13 +966,13 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
   sd->application_version = ff->application_version;
 
   sd->num_windows = ff->num_windows;
-  for (int i = 0; i < ff->num_windows; ++i)
+  for (int i{ 0 }; i < ff->num_windows; ++i)
   {
-    sd->windows[i].upper_left_corner_x = (int)av_q2d(ff->params[i].window_upper_left_corner_x) * (width - 1);
-    sd->windows[i].upper_left_corner_y = (int)av_q2d(ff->params[i].window_upper_left_corner_y) * (height - 1);
+    sd->windows[i].upper_left_corner_x = static_cast<int>(av_q2d(ff->params[i].window_upper_left_corner_x)) * (width - 1);
+    sd->windows[i].upper_left_corner_y = static_cast<int>(av_q2d(ff->params[i].window_upper_left_corner_y)) * (height - 1);
 
-    sd->windows[i].lower_right_corner_x = (int)av_q2d(ff->params[i].window_lower_right_corner_x) * (width - 1);
-    sd->windows[i].lower_right_corner_y = (int)av_q2d(ff->params[i].window_lower_right_corner_y) * (height - 1);
+    sd->windows[i].lower_right_corner_x = static_cast<int>(av_q2d(ff->params[i].window_lower_right_corner_x)) * (width - 1);
+    sd->windows[i].lower_right_corner_y = static_cast<int>(av_q2d(ff->params[i].window_lower_right_corner_y)) * (height - 1);
 
     sd->windows[i].center_of_ellipse_x = ff->params[i].center_of_ellipse_x;
     sd->windows[i].center_of_ellipse_y = ff->params[i].center_of_ellipse_y;
@@ -974,14 +984,14 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
 
     sd->windows[i].overlap_process_option = ff->params[i].overlap_process_option;
 
-    for (int k = 0; k < 3; ++k) {
+    for (int k{ 0 }; k < 3; ++k) {
       sd->windows[i].maxscl[k] = av_q2d(ff->params[i].maxscl[k]);
 }
 
     sd->windows[i].average_maxrgb = av_q2d(ff->params[i].average_maxrgb);
 
     sd->windows[i].num_distribution_maxrgb_percentiles = ff->params[i].num_distribution_maxrgb_percentiles;
-    for (int k = 0; k < ff->params[i].num_distribution_maxrgb_percentiles; ++k)
+    for (int k{ 0 }; k < ff->params[i].num_distribution_maxrgb_percentiles; ++k)
     {
       sd->windows[i].distribution_maxrgb_percentiles[k].percentage = ff->params[i].distribution_maxrgb[k].percentage;
       sd->windows[i].distribution_maxrgb_percentiles[k].percentile = av_q2d(ff->params[i].distribution_maxrgb[k].percentile);
@@ -996,7 +1006,7 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
       sd->windows[i].knee_point_y = av_q2d(ff->params[i].knee_point_y);
 
       sd->windows[i].num_bezier_curve_anchors = ff->params[i].num_bezier_curve_anchors;
-      for (int k = 0; k < ff->params[i].num_bezier_curve_anchors; ++k) {
+      for (int k{ 0 }; k < ff->params[i].num_bezier_curve_anchors; ++k) {
         sd->windows[i].bezier_curve_anchors[k] = av_q2d(ff->params[i].bezier_curve_anchors[k]);
 }
     }
@@ -1012,8 +1022,8 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
   sd->targeted_system_display_actual_peak_luminance_flag = ff->targeted_system_display_actual_peak_luminance_flag;
   sd->num_rows_targeted_system_display_actual_peak_luminance = ff->num_rows_targeted_system_display_actual_peak_luminance;
   sd->num_cols_targeted_system_display_actual_peak_luminance = ff->num_cols_targeted_system_display_actual_peak_luminance;
-  for (int i = 0; i < ff->num_rows_targeted_system_display_actual_peak_luminance; ++i) {
-    for (int j = 0; j < ff->num_cols_targeted_system_display_actual_peak_luminance; ++j) {
+  for (int i{ 0 }; i < ff->num_rows_targeted_system_display_actual_peak_luminance; ++i) {
+    for (int j{ 0 }; j < ff->num_cols_targeted_system_display_actual_peak_luminance; ++j) {
       sd->targeted_system_display_actual_peak_luminance[i][j] = av_q2d(ff->targeted_system_display_actual_peak_luminance[i][j]);
 }
 }
@@ -1021,8 +1031,8 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
   sd->mastering_display_actual_peak_luminance_flag = ff->mastering_display_actual_peak_luminance_flag;
   sd->num_rows_mastering_display_actual_peak_luminance = ff->num_rows_mastering_display_actual_peak_luminance;
   sd->num_cols_mastering_display_actual_peak_luminance = ff->num_cols_mastering_display_actual_peak_luminance;
-  for (int i = 0; i < ff->num_rows_mastering_display_actual_peak_luminance; ++i) {
-    for (int j = 0; j < ff->num_cols_mastering_display_actual_peak_luminance; ++j) {
+  for (int i{ 0 }; i < ff->num_rows_mastering_display_actual_peak_luminance; ++i) {
+    for (int j{ 0 }; j < ff->num_cols_mastering_display_actual_peak_luminance; ++j) {
       sd->mastering_display_actual_peak_luminance[i][j] = av_q2d(ff->mastering_display_actual_peak_luminance[i][j]);
 }
 }
@@ -1058,13 +1068,13 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
     RPU_MAP(mapping_color_space);
     RPU_MAP(mapping_chroma_format_idc);
 
-    for (int i = 0; i < 3; ++i)
+    for (int i{ 0 }; i < 3; ++i)
     {
         sd->Mapping.curves[i].num_pivots = mapping->curves[i].num_pivots;
-        for (int j = 0; j < AV_DOVI_MAX_PIECES + 1; ++j) {
+        for (int j{ 0 }; j < AV_DOVI_MAX_PIECES + 1; ++j) {
             sd->Mapping.curves[i].pivots[j] = mapping->curves[i].pivots[j];
 }
-        for (int j = 0; j < AV_DOVI_MAX_PIECES; ++j)
+        for (int j{ 0 }; j < AV_DOVI_MAX_PIECES; ++j)
         {
             sd->Mapping.curves[i].mapping_idc[j] = mapping->curves[i].mapping_idc[j];
 
@@ -1077,8 +1087,8 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
             // mmr
             sd->Mapping.curves[i].mmr_order[j] = mapping->curves[i].mmr_order[j];
             sd->Mapping.curves[i].mmr_constant[j] = mapping->curves[i].mmr_constant[j];
-            for (int k = 0; k < 3; ++k) {
-                for (int l = 0; l < 7; ++l) {
+            for (int k{ 0 }; k < 3; ++k) {
+                for (int l{ 0 }; l < 7; ++l) {
                     sd->Mapping.curves[i].mmr_coef[j][k][l] = mapping->curves[i].mmr_coef[j][k][l];
 }
 }
@@ -1089,7 +1099,7 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
     RPU_MAP(num_x_partitions);
     RPU_MAP(num_y_partitions);
 
-    for (int i = 0; i < 3; ++i)
+    for (int i{ 0 }; i < 3; ++i)
     {
         sd->Mapping.nlq[i].nlq_offset = mapping->nlq[i].nlq_offset;
         sd->Mapping.nlq[i].vdr_in_max = mapping->nlq[i].vdr_in_max;
@@ -1100,13 +1110,13 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
     RPU_COLOR(dm_metadata_id);
     RPU_COLOR(scene_refresh_flag);
 
-    for (int i = 0; i < 9; ++i)
+    for (int i{ 0 }; i < 9; ++i)
     {
         sd->ColorMetadata.ycc_to_rgb_matrix[i] = av_q2d(color->ycc_to_rgb_matrix[i]);
         sd->ColorMetadata.rgb_to_lms_matrix[i] = av_q2d(color->rgb_to_lms_matrix[i]);
     }
 
-    for (int i = 0; i < 3; ++i)
+    for (int i{ 0 }; i < 3; ++i)
     {
         sd->ColorMetadata.ycc_to_rgb_offset[i] = av_q2d(color->ycc_to_rgb_offset[i]);
     }
@@ -1127,8 +1137,8 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
 #undef RPU_MAP
 #undef RPU_COLOR
 
-    int LAVExtIdx = 0;
-    for (int i = 0; i < ff->num_ext_blocks; ++i)
+    int LAVExtIdx{ 0 };
+    for (int i{ 0 }; i < ff->num_ext_blocks; ++i)
     {
         AVDOVIDmData *ext = av_dovi_get_ext(ff, i);
         auto lavext = &sd->Extensions[LAVExtIdx];
@@ -1181,7 +1191,7 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
             lavext->Level8.ms_weight = ext->l8.ms_weight;
             lavext->Level8.target_mid_contrast = ext->l8.target_mid_contrast;
             lavext->Level8.clip_trim = ext->l8.clip_trim;
-            for (int j = 0; j < 6; ++j) {
+            for (int j{ 0 }; j < 6; ++j) {
                 lavext->Level8.saturation_vector_field[j] = ext->l8.saturation_vector_field[j];
                 lavext->Level8.hue_vector_field[j] = ext->l8.hue_vector_field[j];
             }
@@ -1227,7 +1237,7 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
 
         /* if the block is valid/recognized, go to the next one */
         if (lavext->level > 0) {
-            LAVExtIdx++;
+            ++LAVExtIdx;
 }
 
         /* only 32 blocks are allowed, sanity check here */
@@ -1237,13 +1247,13 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
     }
 }
 
-extern "C" const uint8_t *avpriv_find_start_code(const uint8_t *p, const uint8_t *end, uint32_t *state);
+extern "C" const std::uint8_t *avpriv_find_start_code(const std::uint8_t *p, const std::uint8_t *end, std::uint32_t *state);
 
-int CheckForSequenceMarkers(AVCodecID codec, const uint8_t *buf, long len, uint32_t *state, const uint8_t **pos)
+int CheckForSequenceMarkers(AVCodecID codec, const std::uint8_t *buf, long len, std::uint32_t *state, const std::uint8_t **pos)
 {
-  int status = 0;
-  if (buf && len > 0) {
-    const uint8_t *p = buf, *end = buf + len;
+  int status{ 0 };
+  if (buf && (len > 0)) {
+    const std::uint8_t *p = buf, *end = buf + len;
     if (codec == AV_CODEC_ID_MPEG2VIDEO) {
       while (p < end) {
         p = avpriv_find_start_code(p, end, state);
@@ -1264,18 +1274,16 @@ int CheckForSequenceMarkers(AVCodecID codec, const uint8_t *buf, long len, uint3
   return status;
 }
 
-int sws_scale2(struct SwsContext *c, const uint8_t *const srcSlice[], const ptrdiff_t srcStride[], int srcSliceY, int srcSliceH, uint8_t *const dst[], const ptrdiff_t dstStride[])
+int sws_scale2(struct SwsContext *c, const std::uint8_t *const srcSlice[], const std::ptrdiff_t srcStride[], int srcSliceY, int srcSliceH, std::uint8_t *const dst[], const std::ptrdiff_t dstStride[])
 {
-  if (!c) {
-    return -1;
-}
+  if (!c) { return -1; }
 
-  int srcStride2[4U];
-  int dstStride2[4U];
+  std::array<int, 4U> srcStride2{};
+  std::array<int, 4U> dstStride2{};
 
-  for (int i = 0; i < 4; ++i) {
-    srcStride2[i] = (int)srcStride[i];
-    dstStride2[i] = (int)dstStride[i];
+  for (int i{ 0 }; i < 4; ++i) {
+    srcStride2[i] = static_cast<int>(srcStride[i]);
+    dstStride2[i] = static_cast<int>(dstStride[i]);
   }
-  return sws_scale(c, srcSlice, srcStride2, srcSliceY, srcSliceH, dst, dstStride2);
+  return sws_scale(c, srcSlice, srcStride2.data(), srcSliceY, srcSliceH, dst, dstStride2.data());
 }

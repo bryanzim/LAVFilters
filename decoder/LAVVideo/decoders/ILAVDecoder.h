@@ -19,8 +19,12 @@
 
 #pragma once
 
-#include "LAVVideoSettings.h"
 #include "ILAVPinInfo.h"
+#include "LAVVideoSettings.h"
+
+#include <array>
+#include <cstddef>
+
 
 /**
  * List of internally used pixel formats
@@ -75,8 +79,8 @@ typedef struct LAVPixFmtDesc
 {
     int codedbytes;     ///< coded byte per pixel in one plane (for packed and multibyte formats)
     int planes;         ///< number of planes
-    int planeWidth[4U];  ///< log2 width factor
-    int planeHeight[4U]; ///< log2 height factor
+    std::array<int, 4U> planeWidth{}; ///< log2 width factor
+    std::array<int, 4U> planeHeight{}; ///< log2 height factor
 } LAVPixFmtDesc;
 
 /**
@@ -92,7 +96,7 @@ AVPixelFormat getFFPixelFormatFromLAV(LAVPixelFormat pixFmt, int bpp);
 typedef struct LAVDirectBuffer
 {
     BYTE *data[4U];       ///< pointer to the picture planes
-    ptrdiff_t stride[4U]; ///< stride of the planes (in bytes)
+    std::array<std::ptrdiff_t, 4U> stride{}; ///< stride of the planes (in bytes)
 
     UINT Width, Height;  ///< width/height of the locked texture
 } LAVDirectBuffer;
@@ -101,7 +105,7 @@ typedef struct LAVFrameSideData
 {
     GUID guidType; ///< type of the side data
     BYTE *data;    ///< side data
-    size_t size;   ///< size
+    std::size_t size;   ///< size
 } LAVFrameSideData;
 
 /**
@@ -123,7 +127,7 @@ typedef struct LAVFrame
 
     BYTE *data[4U];       ///< pointer to the picture planes
     BYTE *stereo[4U];     ///< pointer to the second view picture planes
-    ptrdiff_t stride[4U]; ///< stride of the planes (in bytes)
+    std::array<std::ptrdiff_t, 4U> stride{}; ///< stride of the planes (in bytes)
 
     LAVPixelFormat format; ///< pixel format of the frame
     LAVPixelFormat sw_format;
@@ -174,7 +178,7 @@ typedef struct LAVFrame
  * @param stride stride to use (in pixel). If 0, a stride will be computed to fill usual alignment rules
  * @return HRESULT
  */
-HRESULT AllocLAVFrameBuffers(LAVFrame *pFrame, ptrdiff_t stride = 0);
+HRESULT AllocLAVFrameBuffers(LAVFrame *pFrame, std::ptrdiff_t stride = 0);
 
 /**
  * Destruct a LAV Frame, freeing its data pointers
@@ -196,12 +200,12 @@ HRESULT CopyLAVFrameInPlace(LAVFrame *pFrame);
 /**
  * Add Side Data to the frame and return a pointer to it
  */
-BYTE *AddLAVFrameSideData(LAVFrame *pFrame, GUID guidType, size_t size);
+BYTE *AddLAVFrameSideData(LAVFrame *pFrame, GUID guidType, std::size_t size);
 
 /**
  * Get a side data entry from the frame by its type
  */
-BYTE *GetLAVFrameSideData(LAVFrame *pFrame, GUID guidType, size_t *pSize);
+BYTE *GetLAVFrameSideData(LAVFrame *pFrame, GUID guidType, std::size_t *pSize);
 
 /**
  * Validate that the frame has the correct number of allocated buffers

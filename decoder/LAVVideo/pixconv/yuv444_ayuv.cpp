@@ -19,10 +19,14 @@
 
 #include "stdafx.h"
 
-#include <emmintrin.h>
-
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
+
+#include <emmintrin.h>
+
+#include <cstddef>
+#include <cstdint>
+
 
 #define PIXCONV_INTERLEAVE_AYUV(regY, regU, regV, regA, regOut1, regOut2) \
     regY = _mm_unpacklo_epi8(regY, regA);     /* YAYAYAYA */              \
@@ -34,14 +38,14 @@
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv)
 {
-    const uint8_t *y = (const uint8_t *)src[0U];
-    const uint8_t *u = (const uint8_t *)src[1U];
-    const uint8_t *v = (const uint8_t *)src[2U];
+    const std::uint8_t *y = reinterpret_cast<const std::uint8_t *>(src[0U]);
+    const std::uint8_t *u = reinterpret_cast<const std::uint8_t *>(src[1U]);
+    const std::uint8_t *v = reinterpret_cast<const std::uint8_t *>(src[2U]);
 
-    const ptrdiff_t inStride = srcStride[0U];
-    const ptrdiff_t outStride = dstStride[0U];
+    const std::ptrdiff_t inStride = srcStride[0U];
+    const std::ptrdiff_t outStride = dstStride[0U];
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6;
 
@@ -51,7 +55,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv)
 
     for (line = 0; line < height; ++line)
     {
-        __m128i *dst128 = (__m128i *)(dst[0U] + line * outStride);
+        __m128i *dst128 = reinterpret_cast<__m128i *>((dst[0U] + line * outStride));
 
         for (i = 0; i < width; i += 16)
         {
@@ -92,20 +96,20 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv)
 
 DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
 {
-    const uint16_t *y = (const uint16_t *)src[0U];
-    const uint16_t *u = (const uint16_t *)src[1U];
-    const uint16_t *v = (const uint16_t *)src[2U];
+    const std::uint16_t *y = reinterpret_cast<const std::uint16_t *>(src[0U]);
+    const std::uint16_t *u = reinterpret_cast<const std::uint16_t *>(src[1U]);
+    const std::uint16_t *v = reinterpret_cast<const std::uint16_t *>(src[2U]);
 
-    const ptrdiff_t inStride = srcStride[0U] >> 1;
-    const ptrdiff_t outStride = dstStride[0U];
+    const std::ptrdiff_t inStride = srcStride[0U] >> 1;
+    const std::ptrdiff_t outStride = dstStride[0U];
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers = GetRandomDitherCoeffs(height, 3, 8, 0);
+    const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 3, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
 }
 
-    ptrdiff_t line, i;
+    std::ptrdiff_t line, i;
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 
@@ -118,9 +122,9 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm4 = _mm_load_si128((const __m128i *)(dithers + (line * 24) + 0));
-            xmm5 = _mm_load_si128((const __m128i *)(dithers + (line * 24) + 8));
-            xmm6 = _mm_load_si128((const __m128i *)(dithers + (line * 24) + 16));
+            xmm4 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line * 24) + 0)));
+            xmm5 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line * 24) + 8)));
+            xmm6 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line * 24) + 16)));
         }
         else
         {
@@ -128,7 +132,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
             xmm4 = xmm5 = xmm6;
         }
 
-        __m128i *dst128 = (__m128i *)(dst[0U] + line * outStride);
+        __m128i *dst128 = reinterpret_cast<__m128i *>((dst[0U] + line * outStride));
 
         for (i = 0; i < width; i += 8)
         {

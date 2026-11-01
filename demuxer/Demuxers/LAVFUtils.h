@@ -43,7 +43,7 @@ inline int get_bits_per_sample(AVCodecParameters *par, bool bRaw = false)
         bits = par->bits_per_coded_sample;
         if (!bits || bRaw)
         {
-            if ((par->format == AV_SAMPLE_FMT_S32 || par->format == AV_SAMPLE_FMT_S32P) && par->bits_per_raw_sample)
+            if ((par->format == AV_SAMPLE_FMT_S32 || par->format == AV_SAMPLE_FMT_S32P) && (par->bits_per_raw_sample))
             {
                 bits = par->bits_per_raw_sample;
             }

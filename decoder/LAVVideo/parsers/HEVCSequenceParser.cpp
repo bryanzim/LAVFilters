@@ -18,9 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "HEVCSequenceParser.h"
 
 #include "H264Nalu.h"
+
+#include <cstddef>
+
 
 #define HEVC_NAL_VPS 32
 #define HEVC_NAL_SPS 33
@@ -36,7 +40,7 @@ CHEVCSequenceParser::~CHEVCSequenceParser()
 {
 }
 
-HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int nal_size)
+HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, std::size_t buflen, int nal_size)
 {
     CH265Nalu nalu;
     nalu.SetBuffer(buffer, buflen, nal_size);
@@ -44,7 +48,7 @@ HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
     while (nalu.ReadNext())
     {
         const BYTE *data = nalu.GetDataBuffer() + 2;
-        const size_t len = nalu.GetDataLength() - 2;
+        const std::size_t len = nalu.GetDataLength() - 2;
         if (nalu.GetType() == HEVC_NAL_SPS)
         {
             CH264NALUnescape unescapedNAL(data, len);
@@ -56,7 +60,7 @@ HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, size_t buflen, int na
     return S_OK;
 }
 
-HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
+HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
 {
     CByteParser parser(buffer, buflen);
     int i;
@@ -82,7 +86,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     for (i = 0; i < 32; ++i)
     {
         int const flag = parser.BitRead(1);
-        if (sps.profile == 0 && i > 0 && flag) {
+        if ((sps.profile == 0) && (i > 0) && flag) {
             sps.profile = i;
 }
     }
@@ -106,9 +110,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     parser.BitSkip(1);             // general_reserved_zero_bit
     sps.level = parser.BitRead(8); // general_level_idc
 
-    if (max_sub_layers > 7) {
-        return E_FAIL;
-}
+    if (max_sub_layers > 7) { return E_FAIL; }
 
     for (i = 0; i < max_sub_layers; ++i)
     {
@@ -183,8 +185,8 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
     // scaling list
     if (parser.BitRead(1)) { // scaling_list_enabled_flag
       if (parser.BitRead(1)) { // sps_scaling_list_data_present_flag
-        for (int sizeId = 0; sizeId < 4; ++sizeId) {
-          for (int matrixId = 0; matrixId < 6; matrixId += ((sizeId == 3) ? 3 : 1)) {
+        for (int sizeId{ 0 }; sizeId < 4; ++sizeId) {
+          for (int matrixId{ 0 }; matrixId < 6; matrixId += ((sizeId == 3) ? 3 : 1)) {
             if (!parser.BitRead(1)) { // scaling_list_pred_mode_flag
               parser.UExpGolombRead(); // scaling_list_pred_matrix_id_delta
             }
@@ -217,7 +219,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
 
     // st_ref_pic_set
     for (i = 0; i < num_short_term_ref_pic_set; ++i) {
-      if (i > 0 && parser.BitRead(1)) { // inter_ref_pic_set_prediction_flag
+      if ((i > 0) && parser.BitRead(1)) { // inter_ref_pic_set_prediction_flag
         if (i == num_short_term_ref_pic_set) // only in slice header?
           parser.UExpGolombRead(); // delta_idx_minus1
 
@@ -306,7 +308,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
         if (parser.BitRead(1)) { // vui_hrd_parameters_present_flag
           int nal_hrd_parameters_present = parser.BitRead(1);
           int vcl_hrd_parameters_present = parser.BitRead(1);
-          int sub_hrd_parameters_present = 0;
+          int sub_hrd_parameters_present{ 0 };
 
           if (nal_hrd_parameters_present || vcl_hrd_parameters_present) {
             sub_hrd_parameters_present = parser.BitRead(1);
@@ -338,7 +340,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
             else
               low_delay_hrd = parser.BitRead(1);
 
-            int cpb_count = 0;
+            int cpb_count{ 0 };
             if (!low_delay_hrd)
               cpb_count = parser.UExpGolombRead();
 
@@ -375,7 +377,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
       }
     }
 
-    int sps_range_extension_present = 0;
+    int sps_range_extension_present{ 0 };
     if (parser.BitRead(1)) { // sps_extension_present_flag
       sps_range_extension_present = parser.BitRead(1);
       parser.BitSkip(1); // sps_multilayer_extension_flag

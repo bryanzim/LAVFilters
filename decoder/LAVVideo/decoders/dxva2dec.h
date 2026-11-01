@@ -18,8 +18,13 @@
  */
 
 #pragma once
-#include "DecBase.h"
 #include "avcodec.h"
+#include "DecBase.h"
+
+#include <array>
+#include <cstdint>
+
+
 #include "libavcodec/dxva2.h"
 
 #define DXVA2_MAX_SURFACES 64
@@ -33,7 +38,7 @@ typedef struct
     int index;
     bool used;
     LPDIRECT3DSURFACE9 d3d;
-    uint64_t age;
+    std::uint64_t age;
 } d3d_surface_t;
 
 class CDXVA2SurfaceAllocator;
@@ -41,7 +46,7 @@ class CDXVA2SurfaceAllocator;
 class CDecDXVA2 : public CDecAvcodec
 {
   public:
-    CDecDXVA2(void);
+    explicit CDecDXVA2();
     virtual ~CDecDXVA2(void);
 
     // ILAVDecoder
@@ -81,7 +86,7 @@ class CDecDXVA2 : public CDecAvcodec
     HRESULT PostDecode();
     HRESULT HandleDXVA2Frame(LAVFrame *pFrame);
     HRESULT DeliverDXVA2Frame(LAVFrame *pFrame);
-    BOOL IsHardwareAccelerator() { return TRUE; }
+    [[nodiscard]] BOOL IsHardwareAccelerator() noexcept { return TRUE; }
 
     bool CopyFrame(LAVFrame *pFrame);
     bool DeliverDirect(LAVFrame *pFrame);
@@ -112,15 +117,15 @@ class CDecDXVA2 : public CDecAvcodec
 
     static enum AVPixelFormat get_dxva2_format(struct AVCodecContext *s, const enum AVPixelFormat *pix_fmts);
     static int get_dxva2_buffer(struct AVCodecContext *c, AVFrame *pic, int flags);
-    static void free_dxva2_buffer(void *opaque, uint8_t *data);
+    static void free_dxva2_buffer(void *opaque, std::uint8_t *data);
 
     STDMETHODIMP FlushDisplayQueue(BOOL bDeliver);
     STDMETHODIMP FlushFromAllocator();
 
   private:
     friend class CDXVA2SurfaceAllocator;
-    BOOL m_bNative = FALSE;
-    BOOL m_bDirect = FALSE;
+    BOOL m_bNative{ FALSE };
+    BOOL m_bDirect{ FALSE };
     CDXVA2SurfaceAllocator *m_pDXVA2Allocator = nullptr;
 
     struct
@@ -135,31 +140,31 @@ class CDecDXVA2 : public CDecAvcodec
     IDirect3D9 *m_pD3D = nullptr;
     IDirect3DDevice9 *m_pD3DDev = nullptr;
     IDirect3DDeviceManager9 *m_pD3DDevMngr = nullptr;
-    UINT m_pD3DResetToken = 0;
+    UINT m_pD3DResetToken{ 0U };
     HANDLE m_hDevice = INVALID_HANDLE_VALUE;
 
     IDirectXVideoDecoderService *m_pDXVADecoderService = nullptr;
     IDirectXVideoDecoder *m_pDecoder = nullptr;
     DXVA2_ConfigPictureDecode m_DXVAVideoDecoderConfig;
 
-    int m_NumSurfaces = 0;
-    d3d_surface_t m_pSurfaces[DXVA2_MAX_SURFACES];
-    uint64_t m_CurrentSurfaceAge = 1;
+    int m_NumSurfaces{ 0 };
+    std::array<d3d_surface_t, DXVA2_MAX_SURFACES> m_pSurfaces{};
+    std::uint64_t m_CurrentSurfaceAge{ 1U };
 
-    LPDIRECT3DSURFACE9 m_pRawSurface[DXVA2_MAX_SURFACES];
+    std::array<LPDIRECT3DSURFACE9, DXVA2_MAX_SURFACES> m_pRawSurface{};
 
-    BOOL m_bFailHWDecode = FALSE;
+    BOOL m_bFailHWDecode{ FALSE };
 
     LAVFrame *m_FrameQueue[DXVA2_QUEUE_SURFACES];
-    int m_FrameQueuePosition = 0;
+    int m_FrameQueuePosition{ 0 };
 
     AVPixelFormat m_DecoderPixelFormat = AV_PIX_FMT_NONE;
-    DWORD m_dwSurfaceWidth = 0;
-    DWORD m_dwSurfaceHeight = 0;
+    DWORD m_dwSurfaceWidth{ 0U };
+    DWORD m_dwSurfaceHeight{ 0U };
     D3DFORMAT m_eSurfaceFormat = D3DFMT_UNKNOWN;
-    DWORD m_dwVendorId = 0;
-    DWORD m_dwDeviceId = 0;
-    char m_cDeviceName[512U] = {0};
+    DWORD m_dwVendorId{ 0U };
+    DWORD m_dwDeviceId{ 0U };
+    std::array<char, 512U> m_cDeviceName{0};
     GUID m_guidDecoderDevice = GUID_NULL;
     int m_DisplayDelay = DXVA2_QUEUE_SURFACES;
 

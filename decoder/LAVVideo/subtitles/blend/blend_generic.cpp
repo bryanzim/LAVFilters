@@ -18,7 +18,12 @@
  */
 
 #include "stdafx.h"
+
 #include "../LAVSubtitleConsumer.h"
+
+#include <cstddef>
+#include <cstdint>
+
 
 #define FAST_DIV255(x) ((((x) + 128) * 257) >> 16)
 
@@ -29,16 +34,16 @@ DECLARE_BLEND_FUNC_IMPL(blend_rgb_c)
     BYTE *rgbOut = video[0U];
     const BYTE *subIn = subData[0U];
 
-    const ptrdiff_t outStride = videoStride[0U];
-    const ptrdiff_t inStride = subStride[0U];
+    const std::ptrdiff_t outStride = videoStride[0U];
+    const std::ptrdiff_t inStride = subStride[0U];
 
-    const ptrdiff_t dstep = (pixFmt == LAVPixFmt_RGB24) ? 3 : 4;
+    const std::ptrdiff_t dstep = (pixFmt == LAVPixFmt_RGB24) ? 3 : 4;
 
-    for (int y = 0; y < size.cy; ++y)
+    for (int y{ 0 }; y < size.cy; ++y)
     {
         BYTE *dstLine = rgbOut + ((y + position.y) * outStride) + (position.x * dstep);
         const BYTE *srcLine = subIn + (y * inStride);
-        for (int x = 0; x < size.cx; ++x)
+        for (int x{ 0 }; x < size.cx; ++x)
         {
             const BYTE a = srcLine[3U];
             switch (a)
@@ -78,10 +83,10 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
     const BYTE *subV = subData[2U];
     const BYTE *subA = subData[3U];
 
-    const ptrdiff_t outStride = videoStride[0U];
-    const ptrdiff_t outStrideUV = videoStride[1U];
-    const ptrdiff_t inStride = subStride[0U];
-    const ptrdiff_t inStrideUV = subStride[1U];
+    const std::ptrdiff_t outStride = videoStride[0U];
+    const std::ptrdiff_t outStrideUV = videoStride[1U];
+    const std::ptrdiff_t inStride = subStride[0U];
+    const std::ptrdiff_t inStrideUV = subStride[1U];
 
     int line, col;
     int w = size.cx, h = size.cy;
@@ -94,7 +99,7 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
 
     for (line = 0; line < h; ++line)
     {
-        pixT *dstY = (pixT *)(y + ((line + yPos) * outStride)) + xPos;
+        pixT *dstY = reinterpret_cast<pixT *>((y + ((line + yPos) * outStride))) + xPos;
         const BYTE *srcY = subY + (line * inStride);
         const BYTE *srcA = subA + (line * inStride);
         for (col = 0; col < w; ++col)
@@ -121,20 +126,20 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
 
     for (line = 0; line < h; ++line)
     {
-        pixT *dstUV = (pixT *)(u + (line + yPos) * outStrideUV) + (xPos << 1);
+        pixT *dstUV = reinterpret_cast<pixT *>((u + (line + yPos) * outStrideUV)) + (xPos << 1);
 
-        pixT *dstU = (pixT *)(u + (line + yPos) * outStrideUV) + xPos;
+        pixT *dstU = reinterpret_cast<pixT *>((u + (line + yPos) * outStrideUV)) + xPos;
         const BYTE *srcU = subU + line * inStrideUV;
 
-        pixT *dstV = (pixT *)(v + (line + yPos) * outStrideUV) + xPos;
+        pixT *dstV = reinterpret_cast<pixT *>((v + (line + yPos) * outStrideUV)) + xPos;
         const BYTE *srcV = subV + line * inStrideUV;
 
-        const BYTE *srcA = subA + (line * inStride * (ptrdiff_t(1) << hsub));
+        const BYTE *srcA = subA + (line * inStride * (std::ptrdiff_t(1) << hsub));
         for (col = 0; col < w; ++col)
         {
             // Average Alpha
             int alpha;
-            if (hsub && vsub && col + 1 < w && line + 1 < h)
+            if (hsub && vsub && (col + 1 < w) && (line + 1 < h))
             {
                 alpha = (srcA[0U] + srcA[inStride] + srcA[1U] + srcA[inStride + 1]) >> 2;
             }
@@ -180,14 +185,14 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
                     break;
                 }
             }
-            srcA += ptrdiff_t(1) << vsub;
+            srcA += std::ptrdiff_t(1) << vsub;
         }
     }
 
     return S_OK;
 }
 
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint8_t, 1> BLEND_FUNC_PARAMS;
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint8_t, 0> BLEND_FUNC_PARAMS;
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint16_t, 0> BLEND_FUNC_PARAMS;
-template HRESULT CLAVSubtitleConsumer::blend_yuv_c<uint16_t, 1> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint8_t, 1> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint8_t, 0> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint16_t, 0> BLEND_FUNC_PARAMS;
+template HRESULT CLAVSubtitleConsumer::blend_yuv_c<std::uint16_t, 1> BLEND_FUNC_PARAMS;

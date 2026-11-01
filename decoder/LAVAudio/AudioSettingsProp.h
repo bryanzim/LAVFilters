@@ -19,9 +19,12 @@
 
 #pragma once
 
-#include "LAVAudioSettings.h"
 #include "BaseDSPropPage.h"
+#include "LAVAudioSettings.h"
 #include "Media.h"
+
+#include <array>
+
 
 // {2D8F1801-A70D-48F4-B76B-7F5AE022AB54}
 DEFINE_GUID(CLSID_LAVAudioSettingsProp, 0x2d8f1801, 0xa70d, 0x48f4, 0xb7, 0x6b, 0x7f, 0x5a, 0xe0, 0x22, 0xab, 0x54);
@@ -65,7 +68,7 @@ class CLAVAudioSettingsProp : public CBaseDSPropPage
     BOOL m_bDRCEnabled;
     int m_iDRCLevel;
 
-    bool m_bBitstreaming[Bitstream_NB];
+    std::array<bool, Bitstream_NB> m_bBitstreaming{};
     BOOL m_bDTSHDFraming;
     BOOL m_bBitstreamingFallback;
     BOOL m_bAutoAVSync;
@@ -73,7 +76,7 @@ class CLAVAudioSettingsProp : public CBaseDSPropPage
     BOOL m_bOutput51Legacy;
     BOOL m_bExpandMono;
     BOOL m_bExpand61;
-    bool m_bSampleFormats[SampleFormat_NB];
+    std::array<bool, SampleFormat_NB> m_bSampleFormats{};
     BOOL m_bDither;
     BOOL m_bAudioDelay;
     int m_iAudioDelay;
@@ -143,7 +146,7 @@ class CLAVAudioFormatsProp : public CBaseDSPropPage
   private:
     ILAVAudioSettings *m_pAudioSettings = nullptr;
 
-    bool m_bFormats[Codec_AudioNB];
+    std::array<bool, Codec_AudioNB> m_bFormats{};
 };
 
 class CLAVAudioStatusProp : public CBaseDSPropPage
@@ -163,5 +166,5 @@ class CLAVAudioStatusProp : public CBaseDSPropPage
 
   private:
     ILAVAudioStatus *m_pAudioStatus = nullptr;
-    int m_nChannels = 0;
+    int m_nChannels{ 0 };
 };

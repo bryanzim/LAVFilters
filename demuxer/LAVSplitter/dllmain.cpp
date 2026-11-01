@@ -27,17 +27,24 @@
 
 #include "stdafx.h"
 
-// Initialize the GUIDs
+#ifdef _WIN32
 #include <InitGuid.h>
-
-#include <qnetwork.h>
-#include "LAVSplitter.h"
+#endif
 #include "moreuuids.h"
 
-#include "registry.h"
 #include "IGraphRebuildDelegate.h"
-#include "IMediaSideDataFFmpeg.h"
 #include "ILAVDynamicAllocator.h"
+#include "IMediaSideDataFFmpeg.h"
+#include "LAVSplitter.h"
+#include "registry.h"
+
+
+#ifdef _WIN32
+#include <qnetwork.h>
+#endif
+
+// Initialize the GUIDs
+
 
 // The GUID we use to register the splitter media types
 DEFINE_GUID(MEDIATYPE_LAVSplitter, 0x9c53931c, 0x7d5a, 0x4a75, 0xb2, 0x6f, 0x4e, 0x51, 0x65, 0x4d, 0xb2, 0xc0);
@@ -139,7 +146,7 @@ void CALLBACK OpenConfiguration(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, i
     HRESULT hr = S_OK;
     CUnknown *pInstance = CreateInstance<CLAVSplitter>(nullptr, &hr);
     IBaseFilter *pFilter = nullptr;
-    pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, (void **)&pFilter);
+    pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, reinterpret_cast<void **>(&pFilter));
     if (pFilter)
     {
         pFilter->AddRef();

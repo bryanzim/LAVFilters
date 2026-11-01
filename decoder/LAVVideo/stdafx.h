@@ -27,17 +27,21 @@
     "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #include "common_defines.h"
+#include "streams.h"
+#include "DShowUtil.h"
+#include "growarray.h"
+#include "SubRenderIntf.h"
 
-// include headers
+#ifdef _WIN32
 #include <Windows.h>
-#include <Commctrl.h>
-
 #include <atlbase.h>
 #include <atlconv.h>
-
+#include <Commctrl.h>
 #include <d3d9.h>
-#include <dxva2api.h>
 #include <dvdmedia.h>
+#include <dxva2api.h>
+#endif
+
 
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -45,22 +49,16 @@ extern "C"
 {
 #define __STDC_CONSTANT_MACROS
 #include "libavcodec/avcodec.h"
-#include "libswscale/swscale.h"
 #include "libavfilter/avfilter.h"
 #include "libavfilter/buffersink.h"
 #include "libavfilter/buffersrc.h"
 #include "libavutil/cpu.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
+#include "libavutil/pixdesc.h"
+#include "libswscale/swscale.h"
 }
 #pragma warning(pop)
 
-#include "streams.h"
-
-#include "DShowUtil.h"
-#include "growarray.h"
-
-#include "SubRenderIntf.h"
 
 #define REF_SECOND_MULT 10000000LL

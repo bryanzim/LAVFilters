@@ -27,28 +27,29 @@
     "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #include "common_defines.h"
+#include "streams.h"
+#include "DShowUtil.h"
+#include "growarray.h"
 
-// include headers
+#ifdef _WIN32
 #include <Windows.h>
-#include <Commctrl.h>
-
 #include <atlbase.h>
 #include <atlconv.h>
+#include <Commctrl.h>
+#endif
+
 
 #pragma warning(push)
 #pragma warning(disable : 4244)
 extern "C"
 {
 #define __STDC_CONSTANT_MACROS
-#include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
-#include "libavutil/opt.h"
+#include "libavformat/avformat.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/opt.h"
 #include "libswresample/swresample.h"
 }
 #pragma warning(pop)
 
-#include "streams.h"
 
-#include "DShowUtil.h"
-#include "growarray.h"

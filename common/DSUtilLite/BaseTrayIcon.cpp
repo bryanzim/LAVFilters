@@ -18,13 +18,22 @@
  */
 
 #include "stdafx.h"
-#include "DShowUtil.h"
-#include "BaseTrayIcon.h"
-#include "BaseDSPropPage.h"
 
-#include <time.h>
+#include "BaseTrayIcon.h"
+
+#include "BaseDSPropPage.h"
+#include "DShowUtil.h"
+
+#include <array>
+#include <cstring>
+#include <ctime>
+
+
+#ifdef _WIN32
 #include <process.h>
 #include <Shlwapi.h>
+#endif
+
 
 #define TRAYICON 0x1f0
 #define MSG_TRAYICON WM_USER + 1
@@ -38,13 +47,13 @@ static const WCHAR *noTrayProcesses[] = {L"dllhost.exe", L"explorer.exe", L"ReCl
 
 BOOL CBaseTrayIcon::ProcessBlackList()
 {
-    WCHAR fileName[1024U];
-    GetModuleFileName(nullptr, fileName, 1024);
-    WCHAR *processName = PathFindFileName(fileName);
+    std::array<WCHAR, 1024U> fileName{};
+    GetModuleFileName(nullptr, fileName.data(), 1024);
+    WCHAR *processName = PathFindFileName(fileName.data());
 
-    for (int i = 0; i < countof(noTrayProcesses); ++i)
+    for (int i{ 0 }; i < countof(noTrayProcesses); ++i)
     {
-        if (_wcsicmp(processName, noTrayProcesses[i]) == 0) {
+        if (::_wcsicmp(processName, noTrayProcesses[i]) == 0) {
             return TRUE;
 }
     }
@@ -56,7 +65,7 @@ CBaseTrayIcon::CBaseTrayIcon(IBaseFilter *pFilter, const WCHAR *wszName, int res
     , m_wszName{wszName}
     , m_resIcon{resIcon}
 {
-    memset(&m_NotifyIconData, 0, sizeof(m_NotifyIconData));
+    std::memset(&m_NotifyIconData, 0, sizeof(m_NotifyIconData));
     m_evSetupFinished.Reset();
     StartMessageThread();
 }
@@ -89,7 +98,7 @@ unsigned int WINAPI CBaseTrayIcon::InitialThreadProc(LPVOID pv)
 {
     HRESULT const hrCo = CoInitialize(nullptr);
 
-    CBaseTrayIcon *pTrayIcon = (CBaseTrayIcon *)pv;
+    CBaseTrayIcon *pTrayIcon = reinterpret_cast<CBaseTrayIcon *>(pv);
     unsigned int const ret = pTrayIcon->TrayMessageThread();
 
     if (SUCCEEDED(hrCo)) {
@@ -117,7 +126,7 @@ DWORD CBaseTrayIcon::TrayMessageThread()
     {
         DbgLog((LOG_TRACE, 10, L"CBaseTrayIcon::ThreadProc(): Failed to create message window"));
         m_evSetupFinished.Set();
-        UnregisterClass(m_wszClassName, g_hInst);
+        UnregisterClass(m_wszClassName.data(), g_hInst);
         return 1;
     }
     ASSERT(m_hWnd);
@@ -144,20 +153,20 @@ DWORD CBaseTrayIcon::TrayMessageThread()
     }
 
     // Unregister the window class we used
-    UnregisterClass(m_wszClassName, g_hInst);
+    UnregisterClass(m_wszClassName.data(), g_hInst);
 
     return 0;
 }
 
 HRESULT CBaseTrayIcon::RegisterWindowClass()
 {
-    swprintf_s(m_wszClassName, countof(m_wszClassName), L"LAVTrayIconClass%d", GetCurrentThreadId());
+    ::swprintf_s(m_wszClassName.data(), m_wszClassName.size(),  L"LAVTrayIconClass%d", GetCurrentThreadId());
 
     WNDCLASSEX wx = {};
     wx.cbSize = sizeof(WNDCLASSEX);
     wx.lpfnWndProc = WindowProc;
     wx.hInstance = g_hInst;
-    wx.lpszClassName = m_wszClassName;
+    wx.lpszClassName = m_wszClassName.data();
     ATOM const wndClass = RegisterClassEx(&wx);
 
     return !wndClass ? E_FAIL : S_OK;
@@ -165,7 +174,7 @@ HRESULT CBaseTrayIcon::RegisterWindowClass()
 
 HRESULT CBaseTrayIcon::CreateMessageWindow()
 {
-    m_hWnd = CreateWindowEx(0, m_wszClassName, L"LAV Tray Message Window", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
+    m_hWnd = CreateWindowEx(0, m_wszClassName.data(), L"LAV Tray Message Window", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
                             nullptr, nullptr);
     SetWindowLongPtr(m_hWnd, GWLP_USERDATA, LONG_PTR(this));
     return m_hWnd == nullptr ? E_FAIL : S_OK;
@@ -173,7 +182,7 @@ HRESULT CBaseTrayIcon::CreateMessageWindow()
 
 HRESULT CBaseTrayIcon::CreateTrayIconData()
 {
-    memset(&m_NotifyIconData, 0, sizeof(m_NotifyIconData));
+    std::memset(&m_NotifyIconData, 0, sizeof(m_NotifyIconData));
     m_NotifyIconData.cbSize = sizeof(m_NotifyIconData);
     m_NotifyIconData.hWnd = m_hWnd;
     m_NotifyIconData.uID = TRAYICON;
@@ -181,7 +190,7 @@ HRESULT CBaseTrayIcon::CreateTrayIconData()
     m_NotifyIconData.hIcon = (HICON)LoadImage(g_hInst, MAKEINTRESOURCE(m_resIcon), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
     m_NotifyIconData.uCallbackMessage = MSG_TRAYICON;
     m_NotifyIconData.uVersion = NOTIFYICON_VERSION;
-    wcscpy_s(m_NotifyIconData.szTip, m_wszName);
+    ::wcscpy_s(m_NotifyIconData.szTip, m_wszName);
 
     return S_OK;
 }
@@ -212,7 +221,7 @@ static BOOL CALLBACK enumWindowCallback(HWND hwnd, LPARAM lparam)
 
 LRESULT CALLBACK CBaseTrayIcon::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    CBaseTrayIcon *icon = (CBaseTrayIcon *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    CBaseTrayIcon *icon = reinterpret_cast<CBaseTrayIcon *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
     switch (uMsg)
     {
     case WM_DESTROY:

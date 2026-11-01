@@ -3,6 +3,9 @@
 
 #include <emmintrin.h>
 
+#include <array>
+
+
 __declspec(align(16)) static __m128i cur_seed;
 
 void srand_sse(unsigned int seed)
@@ -18,15 +21,15 @@ inline void rand_sse(int *result)
     __declspec(align(16)) __m128i mod_mask;
     __declspec(align(16)) __m128i sra_mask;
     __declspec(align(16)) __m128i sseresult;
-    __declspec(align(16)) static const unsigned int mult[4U] = {214013, 17405, 214013, 69069};
-    __declspec(align(16)) static const unsigned int gadd[4U] = {2531011, 10395331, 13737667, 1};
-    __declspec(align(16)) static const unsigned int mask[4U] = {0xFFFFFFFF, 0, 0xFFFFFFFF, 0};
-    __declspec(align(16)) static const unsigned int masklo[4U] = {0x00007FFF, 0x00007FFF, 0x00007FFF, 0x00007FFF};
+    alignas(16) static std::array<const unsigned int, 4U> mult{214013, 17405, 214013, 69069};
+    alignas(16) static std::array<const unsigned int, 4U> gadd{2531011, 10395331, 13737667, 1};
+    alignas(16) static std::array<const unsigned int, 4U> mask{0xFFFFFFFF, 0, 0xFFFFFFFF, 0};
+    alignas(16) static std::array<const unsigned int, 4U> masklo{0x00007FFF, 0x00007FFF, 0x00007FFF, 0x00007FFF};
 
-    adder = _mm_load_si128((__m128i *)gadd);
-    multiplier = _mm_load_si128((__m128i *)mult);
-    mod_mask = _mm_load_si128((__m128i *)mask);
-    sra_mask = _mm_load_si128((__m128i *)masklo);
+    adder = _mm_load_si128(reinterpret_cast<const __m128i *>(gadd.data()));
+    multiplier = _mm_load_si128(reinterpret_cast<const __m128i *>(mult.data()));
+    mod_mask = _mm_load_si128(reinterpret_cast<const __m128i *>(mask.data()));
+    sra_mask = _mm_load_si128(reinterpret_cast<const __m128i *>(masklo.data()));
     cur_seed_split = _mm_shuffle_epi32(cur_seed, _MM_SHUFFLE(2, 3, 0, 1));
 
     cur_seed = _mm_mul_epu32(cur_seed, multiplier);
@@ -41,7 +44,7 @@ inline void rand_sse(int *result)
 
     sseresult = _mm_srai_epi32(cur_seed, 16);
     sseresult = _mm_and_si128(sseresult, sra_mask);
-    _mm_storeu_si128((__m128i *)result, sseresult);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(result), sseresult);
 
     return;
 }

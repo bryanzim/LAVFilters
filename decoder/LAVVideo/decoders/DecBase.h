@@ -19,13 +19,16 @@
 
 #pragma once
 
-#include "ILAVDecoder.h"
 #include "DeCSS/DeCSSInputPin.h"
+#include "ILAVDecoder.h"
+
+#include <cstdint>
+
 
 class CDecBase : public ILAVDecoder
 {
   public:
-    CDecBase(void) {}
+    explicit CDecBase() {}
     virtual ~CDecBase(void) {}
 
     STDMETHOD(Init)() PURE;
@@ -78,7 +81,7 @@ class CDecBase : public ILAVDecoder
         {
             rtStart = rtStop = AV_NOPTS_VALUE;
         }
-        else if (hr == VFW_S_NO_STOP_TIME || rtStop - 1 <= rtStart)
+        else if ((hr == VFW_S_NO_STOP_TIME) || (rtStop - 1 <= rtStart))
         {
             rtStop = AV_NOPTS_VALUE;
         }
@@ -100,17 +103,17 @@ class CDecBase : public ILAVDecoder
     STDMETHODIMP Flush()
     {
         m_rtTimestampBuffer = 0;
-        m_MpegParserState = (uint32_t)-1;
+        m_MpegParserState = static_cast<std::uint32_t>(-1);
         return S_OK;
     };
 
   protected:
     // Convenience wrapper around m_pCallback
-    inline HRESULT Deliver(LAVFrame *pFrame) { return m_pCallback->Deliver(pFrame); }
+    [[nodiscard]] inline HRESULT Deliver(LAVFrame *pFrame) { return m_pCallback->Deliver(pFrame); }
 
-    inline HRESULT AllocateFrame(LAVFrame **ppFrame) { return m_pCallback->AllocateFrame(ppFrame); }
+    [[nodiscard]] inline HRESULT AllocateFrame(LAVFrame **ppFrame) { return m_pCallback->AllocateFrame(ppFrame); }
 
-    inline HRESULT ReleaseFrame(LAVFrame **ppFrame) { return m_pCallback->ReleaseFrame(ppFrame); }
+    [[nodiscard]] inline HRESULT ReleaseFrame(LAVFrame **ppFrame) { return m_pCallback->ReleaseFrame(ppFrame); }
 
   protected:
     ILAVVideoSettings *m_pSettings = nullptr;
@@ -118,5 +121,5 @@ class CDecBase : public ILAVDecoder
 
     REFERENCE_TIME m_rtTimestampBuffer = AV_NOPTS_VALUE;
 
-    uint32_t m_MpegParserState = (uint32_t)-1;
+    std::uint32_t m_MpegParserState = static_cast<std::uint32_t>(-1);
 };

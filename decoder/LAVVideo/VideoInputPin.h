@@ -20,8 +20,8 @@
 #pragma once
 
 #include "DeCSS/DeCSSInputPin.h"
-#include "LAVVideo.h"
 #include "IPinSegmentEx.h"
+#include "LAVVideo.h"
 
 class CVideoInputPin
     : public CDeCSSTransformInputPin
@@ -53,14 +53,14 @@ class CVideoInputPin
         return m_ratechange;
     }
 
-    BOOL HasDynamicAllocator() { return m_bDynamicAllocator; }
+    [[nodiscard]] constexpr BOOL HasDynamicAllocator() noexcept { return m_bDynamicAllocator; }
 
   private:
     CLAVVideo *m_pLAVVideo = nullptr;
     CCritSec m_csRateLock;
 
-    int m_CorrectTS = 0;
+    int m_CorrectTS{ 0 };
     AM_SimpleRateChange m_ratechange = AM_SimpleRateChange{AV_NOPTS_VALUE, 10000};
 
-    BOOL m_bDynamicAllocator = FALSE;
+    BOOL m_bDynamicAllocator{ FALSE };
 };

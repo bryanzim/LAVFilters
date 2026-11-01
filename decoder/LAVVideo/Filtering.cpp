@@ -18,32 +18,38 @@
  */
 
 #include "stdafx.h"
+
 #include "LAVVideo.h"
 
-static void lav_free_lavframe(void *opaque, uint8_t *data)
+#include <array>
+#include <cstdint>
+#include <cstring>
+
+
+static void lav_free_lavframe(void *opaque, std::uint8_t *data)
 {
-    LAVFrame *frame = (LAVFrame *)opaque;
+    LAVFrame *frame = reinterpret_cast<LAVFrame *>(opaque);
     FreeLAVFrameBuffers(frame);
     SAFE_CO_FREE(opaque);
 }
 
-static void lav_unref_frame(void *opaque, uint8_t *data)
+static void lav_unref_frame(void *opaque, std::uint8_t *data)
 {
-    AVBufferRef *buf = (AVBufferRef *)opaque;
+    AVBufferRef *buf = reinterpret_cast<AVBufferRef *>(opaque);
     av_buffer_unref(&buf);
 }
 
 static void avfilter_free_lav_buffer(LAVFrame *pFrame)
 {
-    av_frame_free((AVFrame **)&pFrame->priv_data);
+    av_frame_free(reinterpret_cast<AVFrame **>(&pFrame->priv_data));
 }
 
 HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 {
-    int ret = 0;
+    int ret{ 0 };
     BOOL const bFlush = pFrame->flags & LAV_FRAME_FLAG_FLUSH;
-    if (m_Decoder.IsInterlaced(FALSE) && m_settings.DeintMode != DeintMode_Disable &&
-        m_settings.SWDeintMode != SWDeintMode_None &&
+    if (m_Decoder.IsInterlaced(FALSE) && (m_settings.DeintMode != DeintMode_Disable) &&
+        (m_settings.SWDeintMode != SWDeintMode_None) &&
         ((bFlush && m_pFilterGraph) || pFrame->format == LAVPixFmt_YUV420 || pFrame->format == LAVPixFmt_YUV422 ||
          pFrame->format == LAVPixFmt_NV12))
     {
@@ -66,7 +72,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             m_filterWidth = pFrame->width;
             m_filterHeight = pFrame->height;
 
-            char args[512U];
+            std::array<char, 512U> args{};
 
             const AVFilter *buffersrc = avfilter_get_by_name("buffer");
             const AVFilter *buffersink = avfilter_get_by_name("buffersink");
@@ -80,14 +86,14 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
             // 0/0 is not a valid value for avfilter, make sure it doesn't happen
             AVRational aspect_ratio = pFrame->aspect_ratio;
-            if (aspect_ratio.num == 0 || aspect_ratio.den == 0) {
+            if ((aspect_ratio.num == 0) || (aspect_ratio.den == 0)) {
                 aspect_ratio = {0, 1};
 }
 
-            _snprintf_s(args, sizeof(args), "video_size=%dx%d:pix_fmt=%s:time_base=1/10000000:pixel_aspect=%d/%d",
+            _snprintf_s(args.data(), args.size(), sizeof(args), "video_size=%dx%d:pix_fmt=%s:time_base=1/10000000:pixel_aspect=%d/%d",
                         pFrame->width, pFrame->height, av_get_pix_fmt_name(ff_pixfmt), pFrame->aspect_ratio.num,
                         pFrame->aspect_ratio.den);
-            ret = avfilter_graph_create_filter(&m_pFilterBufferSrc, buffersrc, "in", args, nullptr, m_pFilterGraph);
+            ret = avfilter_graph_create_filter(&m_pFilterBufferSrc, buffersrc, "in", args.data(), nullptr, m_pFilterGraph);
             if (ret < 0)
             {
                 DbgLog((LOG_TRACE, 10, L"::Filter()(init) Creating the input buffer filter failed with code %d", ret));
@@ -95,9 +101,9 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
                 goto deliver;
             }
 
-            _snprintf_s(args, sizeof(args), "pixel_formats=%s",
+            _snprintf_s(args.data(), args.size(), sizeof(args), "pixel_formats=%s",
                         (ff_pixfmt == AV_PIX_FMT_NV12) ? "nv12,yuv420p" : av_get_pix_fmt_name(ff_pixfmt));
-            ret = avfilter_graph_create_filter(&m_pFilterBufferSink, buffersink, "out", args, nullptr, m_pFilterGraph);
+            ret = avfilter_graph_create_filter(&m_pFilterBufferSink, buffersink, "out", args.data(), nullptr, m_pFilterGraph);
             if (ret < 0)
             {
                 DbgLog((LOG_TRACE, 10, L"::Filter()(init) Creating the buffer sink filter failed with code %d", ret));
@@ -119,21 +125,21 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             inputs->next = nullptr;
 
             if (m_settings.SWDeintMode == SWDeintMode_YADIF) {
-                _snprintf_s(args, sizeof(args), "yadif=mode=%s:parity=auto:deint=interlaced",
+                _snprintf_s(args.data(), args.size(), sizeof(args), "yadif=mode=%s:parity=auto:deint=interlaced",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "send_field" : "send_frame");
             } else if (m_settings.SWDeintMode == SWDeintMode_W3FDIF_Simple) {
-                _snprintf_s(args, sizeof(args), "w3fdif=filter=simple:deint=interlaced:mode=%s:parity=auto",
+                _snprintf_s(args.data(), args.size(), sizeof(args), "w3fdif=filter=simple:deint=interlaced:mode=%s:parity=auto",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "field" : "frame");
             } else if (m_settings.SWDeintMode == SWDeintMode_W3FDIF_Complex) {
-                _snprintf_s(args, sizeof(args), "w3fdif=filter=complex:deint=interlaced:mode=%s:parity=auto",
+                _snprintf_s(args.data(), args.size(), sizeof(args), "w3fdif=filter=complex:deint=interlaced:mode=%s:parity=auto",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "field" : "frame");
             } else if (m_settings.SWDeintMode == SWDeintMode_BWDIF) {
-                _snprintf_s(args, sizeof(args), "bwdif=mode=%s:parity=auto:deint=interlaced",
+                _snprintf_s(args.data(), args.size(), sizeof(args), "bwdif=mode=%s:parity=auto:deint=interlaced",
                             (m_settings.SWDeintOutput == DeintOutput_FramePerField) ? "send_field" : "send_frame");
             } else
                 ASSERT(0);
 
-            if ((ret = avfilter_graph_parse_ptr(m_pFilterGraph, args, &inputs, &outputs, nullptr)) < 0)
+            if ((ret = avfilter_graph_parse_ptr(m_pFilterGraph, args.data(), &inputs, &outputs, nullptr)) < 0)
             {
                 DbgLog((LOG_TRACE, 10, L"::Filter()(init) Parsing the graph failed with code %d", ret));
                 avfilter_graph_free(&m_pFilterGraph);
@@ -171,10 +177,10 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
         {
             in_frame = av_frame_alloc();
 
-            for (int i = 0; i < 4; ++i)
+            for (int i{ 0 }; i < 4; ++i)
             {
                 in_frame->data[i] = pFrame->data[i];
-                in_frame->linesize[i] = (int)pFrame->stride[i];
+                in_frame->linesize[i] = static_cast<int>(pFrame->stride[i]);
             }
 
             in_frame->width = pFrame->width;
@@ -191,7 +197,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
                 const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)in_frame->format);
                 int const planes = (in_frame->format == AV_PIX_FMT_NV12) ? 2 : desc->nb_components;
 
-                for (int i = 0; i < planes; ++i)
+                for (int i{ 0 }; i < planes; ++i)
                 {
                     int const h_shift = (i == 1 || i == 2) ? desc->log2_chroma_h : 0;
                     int const plane_size = (in_frame->height >> h_shift) * in_frame->linesize[i];
@@ -204,7 +210,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             }
 
             m_FilterPrevFrame = *pFrame;
-            memset(m_FilterPrevFrame.data, 0, sizeof(m_FilterPrevFrame.data));
+            std::memset(m_FilterPrevFrame.data, 0, sizeof(m_FilterPrevFrame.data));
             m_FilterPrevFrame.destruct = nullptr;
         }
         else
@@ -263,7 +269,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 }
             }
 
-            for (int i = 0; i < 4; ++i)
+            for (int i{ 0 }; i < 4; ++i)
             {
                 outFrame->data[i] = out_frame->data[i];
                 outFrame->stride[i] = out_frame->linesize[i];
@@ -271,7 +277,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
             outFrame->destruct = avfilter_free_lav_buffer;
             outFrame->priv_data = av_frame_alloc();
-            av_frame_move_ref((AVFrame *)outFrame->priv_data, out_frame);
+            av_frame_move_ref(reinterpret_cast<AVFrame *>(outFrame->priv_data), out_frame);
 
             hrDeliver = DeliverToRenderer(outFrame);
         }

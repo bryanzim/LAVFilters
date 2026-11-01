@@ -19,13 +19,16 @@
 
 #pragma once
 
-#include "SubRenderOptionsImpl.h"
-#include "LAVSubtitleFrame.h"
-
 #include "../decoders/ILAVDecoder.h"
+#include "LAVSubtitleFrame.h"
+#include "SubRenderOptionsImpl.h"
+
+#include <cstddef>
+#include <cstdint>
+
 
 #define BLEND_FUNC_PARAMS                                                                                \
-    (BYTE * video[4U], ptrdiff_t videoStride[4U], RECT vidRect, BYTE * subData[4U], ptrdiff_t subStride[4U], \
+    (BYTE * video[4U], std::ptrdiff_t videoStride[4U], RECT vidRect, BYTE * subData[4U], std::ptrdiff_t subStride[4U], \
      POINT position, SIZE size, LAVPixelFormat pixFmt, int bpp)
 
 #define DECLARE_BLEND_FUNC(name) HRESULT name BLEND_FUNC_PARAMS
@@ -47,7 +50,7 @@ class CLAVSubtitleConsumer
     , public CUnknown
 {
   public:
-    CLAVSubtitleConsumer(CLAVVideo *pLAVVideo);
+    explicit CLAVSubtitleConsumer(CLAVVideo *pLAVVideo);
     virtual ~CLAVSubtitleConsumer(void);
     DECLARE_IUNKNOWN;
     STDMETHODIMP NonDelegatingQueryInterface(REFIID riid, void **ppv);
@@ -82,7 +85,7 @@ class CLAVSubtitleConsumer
         return S_OK;
     }
 
-    BOOL HasProvider() const { return m_pProvider != nullptr; }
+    [[nodiscard]] constexpr BOOL HasProvider() const noexcept { return m_pProvider != nullptr; }
 
     void SetVideoSize(LONG w, LONG h)
     {
@@ -92,12 +95,12 @@ class CLAVSubtitleConsumer
 
   private:
     STDMETHODIMP ProcessSubtitleBitmap(LAVPixelFormat pixFmt, int bpp, RECT videoRect, BYTE *videoData[4U],
-                                       ptrdiff_t videoStride[4U], RECT subRect, POINT subPosition, SIZE subSize,
-                                       const uint8_t *rgbData, ptrdiff_t pitch);
+                                       std::ptrdiff_t videoStride[4U], RECT subRect, POINT subPosition, SIZE subSize,
+                                       const std::uint8_t *rgbData, std::ptrdiff_t pitch);
 
     STDMETHODIMP SelectBlendFunction();
     typedef HRESULT(CLAVSubtitleConsumer::*BlendFn) BLEND_FUNC_PARAMS;
-    BlendFn blend = nullptr;
+    BlendFn blend{ nullptr };
 
     DECLARE_BLEND_FUNC(blend_rgb_c);
     template <class pixT, int nv12> DECLARE_BLEND_FUNC(blend_yuv_c);

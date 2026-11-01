@@ -18,9 +18,14 @@
  */
 
 #include "stdafx.h"
+
 #include "CCOutputPin.h"
 
 #include "LAVVideo.h"
+
+#include <cstddef>
+#include <cstring>
+
 
 CCCOutputPin::CCCOutputPin(TCHAR *pObjectName, CLAVVideo *pFilter, CCritSec *pcsFilter, HRESULT *phr, LPWSTR pName)
     : CBaseOutputPin(pObjectName, pFilter, pcsFilter, phr, pName)
@@ -56,16 +61,14 @@ HRESULT CCCOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTI
     HRESULT hr = S_OK;
 
     pProperties->cBuffers = max(pProperties->cBuffers, 1);
-    pProperties->cbBuffer = max((ULONG)pProperties->cbBuffer, 4096);
+    pProperties->cbBuffer = max(static_cast<ULONG>(pProperties->cbBuffer), 4096);
 
     // Sanity checks
     ALLOCATOR_PROPERTIES Actual;
     if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) {
         return hr;
 }
-    if (Actual.cbBuffer < pProperties->cbBuffer) {
-        return E_FAIL;
-}
+    if (Actual.cbBuffer < pProperties->cbBuffer) { return E_FAIL; }
     ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
     return S_OK;
@@ -73,24 +76,20 @@ HRESULT CCCOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTI
 
 HRESULT CCCOutputPin::CheckMediaType(const CMediaType *pmt)
 {
-    if (*pmt == m_CCmt) {
-        return S_OK;
-}
+    if (*pmt == m_CCmt) { return S_OK; }
 
     return E_INVALIDARG;
 }
 
 HRESULT CCCOutputPin::GetMediaType(int iPosition, CMediaType *pmt)
 {
-    if (iPosition < 0 || iPosition > 0) {
-        return E_INVALIDARG;
-}
+    if ((iPosition < 0) || (iPosition > 0)) { return E_INVALIDARG; }
     *pmt = m_CCmt;
 
     return S_OK;
 }
 
-STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_TIME rtTime)
+STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, std::size_t size, REFERENCE_TIME rtTime)
 {
     HRESULT hr;
     IMediaSample *pSample = nullptr;
@@ -101,12 +100,12 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_T
 
     // Resize buffer if it is too small
     // This can cause a playback hick-up, we should avoid this if possible by setting a big enough buffer size
-    if (size > (size_t)pSample->GetSize())
+    if (size > static_cast<std::size_t>(pSample->GetSize()))
     {
         SafeRelease(&pSample);
         CHECK_HR(hr = m_pAllocator->GetProperties(&props));
         // Give us 2 times the requested size, so we don't resize every time
-        props.cbBuffer = (long)(size * 2);
+        props.cbBuffer = static_cast<long>((size * 2));
         if (props.cBuffers > 1)
         {
             CHECK_HR(hr = __super::DeliverBeginFlush());
@@ -119,14 +118,14 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, size_t size, REFERENCE_T
     }
 
     // Fill the sample
-    if (FAILED(hr = pSample->GetPointer(&pData)) || !pData) {
+    if ((FAILED(hr = pSample->GetPointer(&pData))) || !pData) {
         goto done;
 }
 
-    memcpy(pData, pDataIn, size);
+    std::memcpy(pData, pDataIn, size);
 
     // set properties
-    CHECK_HR(hr = pSample->SetActualDataLength((long)size));
+    CHECK_HR(hr = pSample->SetActualDataLength(static_cast<long>(size)));
     CHECK_HR(hr = pSample->SetTime(rtTime != AV_NOPTS_VALUE ? &rtTime : nullptr,
                                    rtTime != AV_NOPTS_VALUE ? &rtTime : nullptr));
     CHECK_HR(hr = pSample->SetMediaTime(nullptr, nullptr));

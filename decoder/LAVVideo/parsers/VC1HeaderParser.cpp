@@ -18,7 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "VC1HeaderParser.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 
 #pragma warning(push)
 #pragma warning(disable : 4101)
@@ -69,13 +75,11 @@ enum FrameCodingMode
 /** Find VC-1 marker in buffer
  * @return position where next marker starts or end of buffer if no marker found
  */
-static inline const uint8_t *find_next_marker(const uint8_t *src, const uint8_t *end)
+static inline const std::uint8_t *find_next_marker(const std::uint8_t *src, const std::uint8_t *end)
 {
-    uint32_t mrk = 0xFFFFFFFF;
+    std::uint32_t mrk{ 0xFFFFFFFFU };
 
-    if (end - src < 4) {
-        return end;
-}
+    if (end - src < 4) { return end; }
     while (src < end)
     {
         mrk = (mrk << 8) | *src++;
@@ -86,7 +90,7 @@ static inline const uint8_t *find_next_marker(const uint8_t *src, const uint8_t 
     return end;
 }
 
-static inline int vc1_unescape_buffer(const uint8_t *src, int size, uint8_t *dst)
+static inline int vc1_unescape_buffer(const std::uint8_t *src, int size, std::uint8_t *dst)
 {
     int dsize = 0, i;
 
@@ -99,11 +103,11 @@ static inline int vc1_unescape_buffer(const uint8_t *src, int size, uint8_t *dst
     }
     for (i = 0; i < size; i++, src++)
     {
-        if (src[0U] == 3 && i >= 2 && !src[-1] && !src[-2] && i < size - 1 && src[1U] < 4)
+        if ((src[0U] == 3) && (i >= 2) && !src[-1] && !src[-2] && (i < size - 1) && (src[1U] < 4))
         {
             dst[dsize++] = src[1U];
-            src++;
-            i++;
+            ++src;
+            ++i;
         }
         else {
             dst[dsize++] = *src;
@@ -112,9 +116,9 @@ static inline int vc1_unescape_buffer(const uint8_t *src, int size, uint8_t *dst
     return dsize;
 }
 
-CVC1HeaderParser::CVC1HeaderParser(const BYTE *pData, size_t length, AVCodecID codec)
+CVC1HeaderParser::CVC1HeaderParser(const BYTE *pData, std::size_t length, AVCodecID codec)
 {
-    memset(&hdr, 0, sizeof(hdr));
+    std::memset(&hdr, 0, sizeof(hdr));
     ParseVC1Header(pData, length, codec);
 }
 
@@ -122,7 +126,7 @@ CVC1HeaderParser::~CVC1HeaderParser(void)
 {
 }
 
-void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecID codec)
+void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, std::size_t length, AVCodecID codec)
 {
     GetBitContext gb;
     if (codec == AV_CODEC_ID_VC1)
@@ -131,14 +135,14 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecI
             return;
 }
 
-        const uint8_t *start = pData;
-        const uint8_t *end = start + length;
-        const uint8_t *next = nullptr;
+        const std::uint8_t *start = pData;
+        const std::uint8_t *end = start + length;
+        const std::uint8_t *next = nullptr;
 
         int size, buf2_size;
-        uint8_t *buf2;
+        std::uint8_t *buf2;
 
-        buf2 = (uint8_t *)av_mallocz(length + AV_INPUT_BUFFER_PADDING_SIZE);
+        buf2 = reinterpret_cast<std::uint8_t *>(av_mallocz(length + AV_INPUT_BUFFER_PADDING_SIZE));
 
         start = find_next_marker(start, end);
         next = start;
@@ -146,7 +150,7 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecI
         for (; next < end; start = next)
         {
             next = find_next_marker(start + 4, end);
-            size = (int)(next - start - 4);
+            size = static_cast<int>((next - start - 4));
             if (size <= 0) {
                 continue;
 }
@@ -166,7 +170,7 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, size_t length, AVCodecI
         if (length < 4) {
             return;
 }
-        init_get_bits8(&gb, pData, (int)length);
+        init_get_bits8(&gb, pData, static_cast<int>(length));
         VC1ParseSequenceHeader(&gb);
     }
 }
@@ -204,7 +208,7 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
             if (get_bits1(gb)) {
                 ar = get_bits(gb, 4);
 }
-            if (ar && ar < 14)
+            if (ar && (ar < 14))
             {
                 hdr.ar = ff_vc1_pixel_aspect[ar];
             }
@@ -217,7 +221,7 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
             }
             else
             {
-                av_reduce(&hdr.ar.num, &hdr.ar.den, (int64_t)hdr.height * w, (int64_t)hdr.width * h, INT_MAX);
+                av_reduce(&hdr.ar.num, &hdr.ar.den, static_cast<std::int64_t>(hdr.height) * w, static_cast<std::int64_t>(hdr.width) * h, INT_MAX);
             }
         }
 
@@ -249,10 +253,10 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
     }
 }
 
-AVPictureType CVC1HeaderParser::ParseVC1PictureType(const uint8_t *buf, int buflen)
+AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int buflen)
 {
     AVPictureType pictype = AV_PICTURE_TYPE_NONE;
-    int skipped = 0;
+    int skipped{ 0 };
     const BYTE *framestart = buf;
     if (IS_MARKER(AV_RB32(buf)))
     {
@@ -272,7 +276,7 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const uint8_t *buf, int bufl
     if (framestart)
     {
         GetBitContext gb;
-        init_get_bits8(&gb, framestart, (int)(buflen - (framestart - buf)));
+        init_get_bits8(&gb, framestart, static_cast<int>((buflen - (framestart - buf))));
         if (hdr.profile == PROFILE_ADVANCED)
         {
             int fcm = PROGRESSIVE;

@@ -22,13 +22,17 @@
 #include <emmintrin.h>
 #include <smmintrin.h>
 
+#include <cstddef>
+#include <cstdint>
+
+
 // Load the dithering coefficients for this line
 // reg   - register to load coefficients into
 // line  - index of line to process (0 based)
 // bits  - number of bits to dither (for 10 -> 8, set to 2)
 #define PIXCONV_LOAD_DITHER_COEFFS(reg, line, bits, name) \
-    const uint16_t *name = dither_8x8_256[(line) % 8];    \
-    reg = _mm_load_si128((const __m128i *)name);          \
+    const std::uint16_t *name = dither_8x8_256[(line) % 8].data();    \
+    reg = _mm_load_si128(reinterpret_cast<const __m128i *>(name));          \
     reg = _mm_srli_epi16(reg, 8 - bits); /* shift to the required dithering strength */
 
 // Load 8 16-bit pixels into a register, using aligned memory access
@@ -36,7 +40,7 @@
 // src   - memory pointer of the source
 // bpp   - bit depth of the pixels
 #define PIXCONV_LOAD_PIXEL16(reg, src, bpp)                            \
-    reg = _mm_load_si128((const __m128i *)(src)); /* load (aligned) */ \
+    reg = _mm_load_si128(reinterpret_cast<const __m128i *>((src))); /* load (aligned) */ \
     reg = _mm_slli_epi16(reg, 16 - bpp);          /* shift to 16-bit */
 
 // Load 2x8 16-bit pixels into registers, using aligned memory access
@@ -48,8 +52,8 @@
 #define PIXCONV_LOAD_PIXEL16X2(reg1, reg2, src1, src2, bpp) \
     {                                                       \
         const __m128i shift = _mm_cvtsi32_si128(16 - bpp);  \
-        reg1 = _mm_load_si128((const __m128i *)(src1));     \
-        reg2 = _mm_load_si128((const __m128i *)(src2));     \
+        reg1 = _mm_load_si128(reinterpret_cast<const __m128i *>((src1)));     \
+        reg2 = _mm_load_si128(reinterpret_cast<const __m128i *>((src2)));     \
         reg1 = _mm_sll_epi16(reg1, shift);                  \
         reg2 = _mm_sll_epi16(reg2, shift);                  \
     }
@@ -121,10 +125,10 @@
 // len - size in bytes
 #define PIXCONV_MEMCPY_ALIGNED(dst, src, len)              \
     {                                                      \
-        const uint8_t *const srcLinePtr = (src);           \
-        uint8_t *const dstLinePtr = (dst);                 \
+        const std::uint8_t *const srcLinePtr = (src);           \
+        std::uint8_t *const dstLinePtr = (dst);                 \
         __m128i r1, r2, r3, r4;                            \
-        ptrdiff_t i;                                       \
+        std::ptrdiff_t i;                                       \
         for (i = 0; i < (len - 63); i += 64)               \
         {                                                  \
             PIXCONV_LOAD_ALIGNED(r1, srcLinePtr + i + 0)   \
@@ -152,12 +156,12 @@
 // len  - size in bytes
 #define PIXCONV_MEMCPY_ALIGNED_TWO(dst1, src1, dst2, src2, len) \
     {                                                           \
-        const uint8_t *const src1LinePtr = (src1);              \
-        const uint8_t *const src2LinePtr = (src2);              \
-        uint8_t *const dst1LinePtr = (dst1);                    \
-        uint8_t *const dst2LinePtr = (dst2);                    \
+        const std::uint8_t *const src1LinePtr = (src1);              \
+        const std::uint8_t *const src2LinePtr = (src2);              \
+        std::uint8_t *const dst1LinePtr = (dst1);                    \
+        std::uint8_t *const dst2LinePtr = (dst2);                    \
         __m128i r1, r2, r3, r4, r5, r6, r7, r8;                 \
-        ptrdiff_t i;                                            \
+        std::ptrdiff_t i;                                            \
         for (i = 0; i < (len - 63); i += 64)                    \
         {                                                       \
             PIXCONV_LOAD_ALIGNED(r1, src1LinePtr + i + 0);      \

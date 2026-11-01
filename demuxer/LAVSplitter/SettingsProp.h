@@ -22,6 +22,9 @@
 #include "BaseDSPropPage.h"
 #include "LAVSplitterSettingsInternal.h"
 
+#include <array>
+
+
 // GUID: a19de2f2-2f74-4927-8436-61129d26c141
 DEFINE_GUID(CLSID_LAVSplitterSettingsProp, 0xa19de2f2, 0x2f74, 0x4927, 0x84, 0x36, 0x61, 0x12, 0x9d, 0x26, 0xc1, 0x41);
 
@@ -82,10 +85,10 @@ class CLAVSplitterSettingsProp : public CBaseDSPropPage
     BOOL m_TrayIcon;
 
     LAVSubtitleMode m_selectedSubMode;
-    WCHAR m_subLangBuffer[LANG_BUFFER_SIZE];
-    WCHAR m_advSubBuffer[LANG_BUFFER_SIZE];
+    std::array<WCHAR, LANG_BUFFER_SIZE> m_subLangBuffer{};
+    std::array<WCHAR, LANG_BUFFER_SIZE> m_advSubBuffer{};
 
-    WCHAR stringBuffer[256U];
+    std::array<WCHAR, 256U> stringBuffer{};
 };
 
 class CLAVSplitterFormatsProp : public CBaseDSPropPage
@@ -116,5 +119,5 @@ class CLAVSplitterFormatsProp : public CBaseDSPropPage
     std::set<FormatInfo> m_Formats;
     BOOL *m_bFormats = nullptr;
 
-    WCHAR stringBuffer[256U];
+    std::array<WCHAR, 256U> stringBuffer{};
 };

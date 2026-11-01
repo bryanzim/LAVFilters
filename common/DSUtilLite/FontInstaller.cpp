@@ -20,7 +20,11 @@
  */
 
 #include "stdafx.h"
+
 #include "FontInstaller.h"
+
+#include <cstdint>
+
 
 CFontInstaller::CFontInstaller()
     : pAddFontMemResourceEx{nullptr}
@@ -61,38 +65,38 @@ static bool IsPlausibleSfntFont(const void *pData, UINT len)
 {
     // Reject a truncated or oversized table directory before GDI parses the font.
     auto const *data = static_cast<const BYTE *>(pData);
-    if (data == nullptr || len < 12 || len > 16U * 1024U * 1024U)
+    if ((data == nullptr) || (len < 12) || (len > 16U * 1024U * 1024U))
     {
         return false;
     }
 
-    uint32_t const scaler = (static_cast<uint32_t>(data[0]) << 24) | (static_cast<uint32_t>(data[1]) << 16) |
-                            (static_cast<uint32_t>(data[2]) << 8) | data[3];
+    std::uint32_t const scaler = (static_cast<std::uint32_t>(data[0]) << 24) | (static_cast<std::uint32_t>(data[1]) << 16) |
+                            (static_cast<std::uint32_t>(data[2]) << 8) | data[3];
     // 0x00010000, 'true', 'OTTO', 'typ1'
-    if (scaler != 0x00010000U && scaler != 0x74727565U && scaler != 0x4F54544FU && scaler != 0x74797031U)
+    if ((scaler != 0x00010000U) && (scaler != 0x74727565U) && (scaler != 0x4F54544FU) && (scaler != 0x74797031U))
     {
         return false;
     }
 
-    uint16_t const numTables = static_cast<uint16_t>((data[4] << 8) | data[5]);
-    if (numTables == 0 || numTables > 64)
+    std::uint16_t const numTables = static_cast<std::uint16_t>((data[4] << 8) | data[5]);
+    if ((numTables == 0) || (numTables > 64))
     {
         return false;
     }
-    uint64_t const directoryBytes = 12ull + static_cast<uint64_t>(numTables) * 16ull;
+    std::uint64_t const directoryBytes = 12ull + static_cast<std::uint64_t>(numTables) * 16ull;
     if (directoryBytes > len)
     {
         return false;
     }
 
-    for (uint16_t i = 0; i < numTables; ++i)
+    for (std::uint16_t i{ 0U }; i < numTables; ++i)
     {
         auto const *rec = data + 12 + static_cast<UINT>(i) * 16U;
-        uint32_t const offset = (static_cast<uint32_t>(rec[8]) << 24) | (static_cast<uint32_t>(rec[9]) << 16) |
-                                (static_cast<uint32_t>(rec[10]) << 8) | rec[11];
-        uint32_t const length = (static_cast<uint32_t>(rec[12]) << 24) | (static_cast<uint32_t>(rec[13]) << 16) |
-                                (static_cast<uint32_t>(rec[14]) << 8) | rec[15];
-        if (length > len || offset > len - length)
+        std::uint32_t const offset = (static_cast<std::uint32_t>(rec[8]) << 24) | (static_cast<std::uint32_t>(rec[9]) << 16) |
+                                (static_cast<std::uint32_t>(rec[10]) << 8) | rec[11];
+        std::uint32_t const length = (static_cast<std::uint32_t>(rec[12]) << 24) | (static_cast<std::uint32_t>(rec[13]) << 16) |
+                                (static_cast<std::uint32_t>(rec[14]) << 8) | rec[15];
+        if ((length > len) || (offset > len - length))
         {
             return false;
         }
@@ -107,9 +111,9 @@ bool CFontInstaller::InstallFontMemory(const void *pData, UINT len)
         return false;
     }
 
-    DWORD nFonts = 0;
+    DWORD nFonts{ 0U };
     HANDLE hFont = pAddFontMemResourceEx((PVOID)pData, len, nullptr, &nFonts);
-    if (hFont && nFonts > 0)
+    if (hFont && (nFonts > 0))
     {
         m_fonts.push_back(hFont);
     }

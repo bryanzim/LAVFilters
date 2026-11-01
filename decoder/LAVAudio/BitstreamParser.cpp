@@ -18,7 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "BitstreamParser.h"
+
+#include "parser/dts.h"
+
+#include <cstring>
+
 
 #pragma warning(push)
 #pragma warning(disable : 4101)
@@ -30,17 +36,16 @@ extern "C"
 }
 #pragma warning(pop)
 
-#include "parser/dts.h"
 
 CBitstreamParser::CBitstreamParser()
 {
-    init_dts_parser((DTSParserContext **)&m_pParserContext);
+    init_dts_parser(reinterpret_cast<DTSParserContext **>(&m_pParserContext));
     Reset();
 }
 
 CBitstreamParser::~CBitstreamParser()
 {
-    close_dts_parser((DTSParserContext **)&m_pParserContext);
+    close_dts_parser(reinterpret_cast<DTSParserContext **>(&m_pParserContext));
 }
 
 void CBitstreamParser::Reset()
@@ -50,7 +55,7 @@ void CBitstreamParser::Reset()
     m_dwSampleRate = 0;
     m_dwSamples = 0;
     m_bDTSHD = FALSE;
-    memset(&m_DTSHeader, 0, sizeof(m_DTSHeader));
+    std::memset(&m_DTSHeader, 0, sizeof(m_DTSHeader));
 }
 
 HRESULT CBitstreamParser::Parse(AVCodecID codec, BYTE *pBuffer, DWORD dwSize)
@@ -67,10 +72,8 @@ HRESULT CBitstreamParser::Parse(AVCodecID codec, BYTE *pBuffer, DWORD dwSize)
 
 HRESULT CBitstreamParser::ParseDTS(BYTE *pBuffer, DWORD dwSize)
 {
-    int const ret = parse_dts_header((DTSParserContext *)m_pParserContext, &m_DTSHeader, pBuffer, (unsigned)dwSize);
-    if (ret < 0) {
-        return E_FAIL;
-}
+    int const ret = parse_dts_header(reinterpret_cast<DTSParserContext *>(m_pParserContext), &m_DTSHeader, pBuffer, static_cast<unsigned>(dwSize));
+    if (ret < 0) { return E_FAIL; }
 
     m_bDTSHD = m_bDTSHD || m_DTSHeader.IsHD;
 

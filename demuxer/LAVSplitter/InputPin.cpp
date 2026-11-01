@@ -18,9 +18,14 @@
  */
 
 #include "stdafx.h"
+
 #include "InputPin.h"
 
 #include "LAVSplitter.h"
+
+#include <cstdint>
+#include <cstring>
+
 
 #define READ_BUFFER_SIZE 131072
 
@@ -61,7 +66,7 @@ HRESULT CLAVInputPin::CheckConnect(IPin *pPin)
     }
 
     IAsyncReader *pReader = nullptr;
-    if (FAILED(hr = pPin->QueryInterface(&pReader)) || pReader == nullptr)
+    if ((FAILED(hr = pPin->QueryInterface(&pReader))) || (pReader == nullptr))
     {
         return E_FAIL;
     }
@@ -108,7 +113,7 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
     }
 
     CheckPointer(pPin, E_POINTER);
-    if (FAILED(hr = pPin->QueryInterface(&m_pAsyncReader)) || m_pAsyncReader == nullptr)
+    if ((FAILED(hr = pPin->QueryInterface(&m_pAsyncReader))) || (m_pAsyncReader == nullptr))
     {
         return E_FAIL;
     }
@@ -121,7 +126,7 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
 }
 
     PIN_INFO pinInfo = {nullptr};
-    if (SUCCEEDED(pPin->QueryPinInfo(&pinInfo)) && pinInfo.pFilter)
+    if ((SUCCEEDED(pPin->QueryPinInfo(&pinInfo))) && pinInfo.pFilter)
     {
         CLSID clsidFilter = GUID_NULL;
         if (SUCCEEDED(pinInfo.pFilter->GetClassID(&clsidFilter)))
@@ -146,7 +151,7 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
     return S_OK;
 }
 
-static bool ReadWasCanceled(const CLAVInputPin *pin)
+bool CLAVInputPin::ReadWasCanceled(const CLAVInputPin *pin)
 {
     return InterlockedCompareExchange(const_cast<LONG *>(&pin->m_lReadCanceled), 0, 0) != 0;
 }
@@ -190,7 +195,7 @@ void CLAVInputPin::ResumePendingRead()
     pConnected->Release();
 }
 
-int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
+int CLAVInputPin::Read(void *opaque, std::uint8_t *buf, int buf_size)
 {
     CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
     CAutoLock const lock(pin);
@@ -201,7 +206,7 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 
     // The URL source doesn't properly signal EOF in all cases, so make sure no stale data is in the buffer
     if (pin->m_bURLSource) {
-        memset(buf, 0, buf_size);
+        std::memset(buf, 0, buf_size);
 }
 
     HRESULT hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, buf_size, buf);
@@ -215,14 +220,14 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
     }
 
     // The URL source can return S_OK even on incomplete reads, so run the length logic by it at all times
-    if (hr == S_OK && pin->m_bURLSource)
+    if ((hr == S_OK) && (pin->m_bURLSource))
     {
         LONGLONG total = 0, available = 0;
         int read = buf_size;
-        if (S_OK == pin->m_pAsyncReader->Length(&total, &available) && total >= pin->m_llPos &&
-            total <= (pin->m_llPos + buf_size))
+        if ((S_OK == pin->m_pAsyncReader->Length(&total, &available)) && (total >= pin->m_llPos) &&
+            (total <= (pin->m_llPos + buf_size)))
         {
-            read = (int)(total - pin->m_llPos);
+            read = static_cast<int>((total - pin->m_llPos));
             DbgLog((LOG_TRACE, 10, L"At EOF, pos: %I64d, size: %I64d, remainder: %d", pin->m_llPos, total, read));
         }
         pin->m_llPos += read;
@@ -232,11 +237,11 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
     if (hr == S_FALSE)
     {
         LONGLONG total = 0, available = 0;
-        int read = 0;
-        if (S_OK == pin->m_pAsyncReader->Length(&total, &available) && total >= pin->m_llPos &&
-            total <= (pin->m_llPos + buf_size))
+        int read{ 0 };
+        if ((S_OK == pin->m_pAsyncReader->Length(&total, &available)) && (total >= pin->m_llPos) &&
+            (total <= (pin->m_llPos + buf_size)))
         {
-            read = (int)(total - pin->m_llPos);
+            read = static_cast<int>((total - pin->m_llPos));
             DbgLog((LOG_TRACE, 10, L"At EOF, pos: %I64d, size: %I64d, remainder: %d", pin->m_llPos, total, read));
         }
         else
@@ -249,7 +254,7 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
                     return AVERROR_EXIT;
                 }
                 hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, 1, buf + read);
-            } while (hr == S_OK && (++read) < buf_size);
+            } while ((hr == S_OK) && ((++read) < buf_size));
             DbgLog((LOG_TRACE, 10, L"-> Read %d bytes", read));
         }
         pin->m_llPos += read;
@@ -259,13 +264,13 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
     return buf_size;
 }
 
-int64_t CLAVInputPin::Seek(void *opaque, int64_t offset, int whence)
+std::int64_t CLAVInputPin::Seek(void *opaque, std::int64_t offset, int whence)
 {
     CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
     CAutoLock const lock(pin);
 
-    LONGLONG total = 0;
-    LONGLONG available = 0;
+    LONGLONG total{ 0 };
+    LONGLONG available{ 0 };
     pin->m_pAsyncReader->Length(&total, &available);
 
     if (whence == SEEK_SET)
@@ -304,13 +309,13 @@ HRESULT CLAVInputPin::GetAVIOContext(AVIOContext **ppContext)
 
     if (!m_pAVIOContext)
     {
-        uint8_t *buffer = (uint8_t *)av_mallocz(READ_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);
+        std::uint8_t *buffer = reinterpret_cast<std::uint8_t *>(av_mallocz(READ_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE));
         m_pAVIOContext = avio_alloc_context(buffer, READ_BUFFER_SIZE, 0, this, Read, nullptr, Seek);
 
-        LONGLONG total = 0;
-        LONGLONG available = 0;
+        LONGLONG total{ 0 };
+        LONGLONG available{ 0 };
         HRESULT const hr = m_pAsyncReader->Length(&total, &available);
-        if (FAILED(hr) || total == 0)
+        if (FAILED(hr) || (total == 0))
         {
             DbgLog((LOG_TRACE, 10, L"CLAVInputPin::GetAVIOContext(): getting file length failed, disabling seeking"));
             m_pAVIOContext->seekable = 0;

@@ -20,9 +20,14 @@
  */
 
 #include "stdafx.h"
+
 #include "H264Nalu.h"
 
-void CH264Nalu::SetBuffer(const BYTE *pBuffer, size_t nSize, int nNALSize)
+#include <cstddef>
+#include <cstring>
+
+
+void CH264Nalu::SetBuffer(const BYTE *pBuffer, std::size_t nSize, int nNALSize)
 {
     m_pBuffer = pBuffer;
     m_nSize = nSize;
@@ -34,7 +39,7 @@ void CH264Nalu::SetBuffer(const BYTE *pBuffer, size_t nSize, int nNALSize)
     m_nNALDataPos = 0;
 
     // In AnnexB, the buffer is not guaranteed to start on a NAL boundary
-    if (nNALSize == 0 && nSize > 0) {
+    if ((nNALSize == 0) && (nSize > 0)) {
         MoveToNextAnnexBStartcode();
 }
 }
@@ -45,11 +50,11 @@ bool CH264Nalu::MoveToNextAnnexBStartcode()
         goto notfound;
 }
 
-    size_t const nBuffEnd = m_nSize - 4;
+    std::size_t const nBuffEnd = m_nSize - 4;
 
-    for (size_t i = m_nCurPos; i <= nBuffEnd; ++i)
+    for (std::size_t i = m_nCurPos; i <= nBuffEnd; ++i)
     {
-        if ((*((DWORD *)(m_pBuffer + i)) & 0x00FFFFFF) == 0x00010000)
+        if ((*(const_cast<DWORD *>(reinterpret_cast<const DWORD *>((m_pBuffer + i)))) & 0x00FFFFFF) == 0x00010000)
         {
             // Found next AnnexB NAL
             m_nCurPos = i;
@@ -76,22 +81,18 @@ bool CH264Nalu::MoveToNextRTPStartcode()
 
 bool CH264Nalu::ReadNext()
 {
-    if (m_nCurPos >= m_nSize) {
-        return false;
-}
+    if (m_nCurPos >= m_nSize) { return false; }
 
     if ((m_nNALSize != 0) && (m_nCurPos == m_nNextRTP))
     {
-        if (m_nCurPos + m_nNALSize >= m_nSize) {
-            return false;
-}
+        if (m_nCurPos + m_nNALSize >= m_nSize) { return false; }
         // RTP Nalu type : (XX XX) XX XX NAL..., with XX XX XX XX or XX XX equal to NAL size
         m_nNALStartPos = m_nCurPos;
         m_nNALDataPos = m_nCurPos + m_nNALSize;
 
         // Read Length code from the buffer
-        unsigned nTemp = 0;
-        for (int i = 0; i < m_nNALSize; ++i) {
+        unsigned nTemp{ 0U };
+        for (int i{ 0 }; i < m_nNALSize; ++i) {
             nTemp = (nTemp << 8) + m_pBuffer[m_nCurPos++];
 }
 
@@ -101,8 +102,8 @@ bool CH264Nalu::ReadNext()
     else
     {
         // Remove trailing bits
-        while (m_pBuffer[m_nCurPos] == 0x00 && ((*((DWORD *)(m_pBuffer + m_nCurPos)) & 0x00FFFFFF) != 0x00010000)) {
-            m_nCurPos++;
+        while ((m_pBuffer[m_nCurPos] == 0x00) && ((*(const_cast<DWORD *>(reinterpret_cast<const DWORD *>((m_pBuffer + m_nCurPos)))) & 0x00FFFFFF) != 0x00010000)) {
+            ++m_nCurPos;
 }
 
         // AnnexB Nalu : 00 00 01 NAL...
@@ -130,10 +131,10 @@ bool CH265Nalu::ReadNext()
     return false;
 }
 
-CH264NALUnescape::CH264NALUnescape(const BYTE *src, size_t nSize)
+CH264NALUnescape::CH264NALUnescape(const BYTE *src, std::size_t nSize)
 {
-    m_pBuffer = (BYTE *)_aligned_malloc(nSize + 16, 16);
-    memset(m_pBuffer, 0, nSize + 16);
+    m_pBuffer = reinterpret_cast<BYTE *>(_aligned_malloc(nSize + 16, 16));
+    std::memset(m_pBuffer, 0, nSize + 16);
 
     unsigned si = 0, di = 0;
     BYTE *dst = m_pBuffer;
@@ -145,7 +146,7 @@ CH264NALUnescape::CH264NALUnescape(const BYTE *src, size_t nSize)
             dst[di++] = src[si++];
             dst[di++] = src[si++];
         }
-        else if (src[si] == 0 && src[si + 1] == 0 && src[si + 2] != 0)
+        else if ((src[si] == 0) && (src[si + 1] == 0) && (src[si + 2] != 0))
         {
             if (src[si + 2] == 3)
             { // escape

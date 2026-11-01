@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "SubRenderOptionsImpl.h"
 #include "LAVSubtitleFrame.h"
+#include "SubRenderOptionsImpl.h"
 
 class CLAVVideo;
 
@@ -45,7 +45,7 @@ class CLAVSubtitleProviderControlThread
     , protected CCritSec
 {
   public:
-    CLAVSubtitleProviderControlThread();
+    explicit CLAVSubtitleProviderControlThread();
     ~CLAVSubtitleProviderControlThread();
 
     void SetConsumer2(ISubRenderConsumer2 *pConsumer2);
@@ -101,7 +101,7 @@ class CLAVSubtitleProvider
         CNTRL_EXIT,
         CNTRL_FLUSH
     };
-    HRESULT ControlCmd(DWORD cmd) { return m_ControlThread->CallWorker(cmd); }
+    [[nodiscard]] HRESULT ControlCmd(DWORD cmd) { return m_ControlThread->CallWorker(cmd); }
 
   private:
     friend class CLAVSubtitleProviderControlThread;
@@ -117,8 +117,8 @@ class CLAVSubtitleProvider
 
     REFERENCE_TIME m_rtLastFrame = AV_NOPTS_VALUE;
     REFERENCE_TIME m_rtStartCache = AV_NOPTS_VALUE;
-    ULONGLONG m_SubPicId = 0;
-    BOOL m_bComposit = TRUE;
+    ULONGLONG m_SubPicId{ 0U };
+    BOOL m_bComposit{ TRUE };
 
     AVPacket *m_pSubtitlePacket = nullptr;
 

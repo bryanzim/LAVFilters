@@ -30,7 +30,7 @@ class CDeCSSPinHelper : public IKsPropertySet
     CMediaType m_mt;
 
   public:
-    CDeCSSPinHelper();
+    explicit CDeCSSPinHelper();
 
     void Decrypt(IMediaSample *pSample);
     void StripPacket(BYTE *&p, long &len);

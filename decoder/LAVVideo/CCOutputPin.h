@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 class CLAVVideo;
 
 class CCCOutputPin : public CBaseOutputPin
@@ -40,7 +42,7 @@ class CCCOutputPin : public CBaseOutputPin
     virtual HRESULT DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTIES *ppropInputRequest);
 
     // CCOutputPin
-    STDMETHODIMP DeliverCCData(BYTE *pData, size_t size, REFERENCE_TIME rtTime);
+    STDMETHODIMP DeliverCCData(BYTE *pData, std::size_t size, REFERENCE_TIME rtTime);
 
   private:
     CMediaType m_CCmt;

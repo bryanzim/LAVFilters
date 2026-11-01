@@ -19,14 +19,18 @@
 
 #pragma once
 
-#include "LAVAudioSettings.h"
-#include "FloatingAverage.h"
-#include "Media.h"
+#include "BaseTrayIcon.h"
 #include "BitstreamParser.h"
+#include "FloatingAverage.h"
+#include "ISpecifyPropertyPages2.h"
+#include "LAVAudioSettings.h"
+#include "Media.h"
 #include "PostProcessor.h"
 
-#include "ISpecifyPropertyPages2.h"
-#include "BaseTrayIcon.h"
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
 
 //////////////////// Configuration //////////////////////////
 
@@ -63,14 +67,14 @@ struct BufferDetails
 {
     GrowableArray<BYTE> *bBuffer = nullptr;          // PCM Buffer
     LAVAudioSampleFormat sfFormat = SampleFormat_16; // Sample Format
-    WORD wBitsPerSample = 0;                         // Bits per sample
-    DWORD dwSamplesPerSec = 0;                       // Samples per second
-    unsigned nSamples = 0;   // Samples in the buffer (every sample is sizeof(sfFormat) * nChannels in the buffer)
+    WORD wBitsPerSample{ 0U };                         // Bits per sample
+    DWORD dwSamplesPerSec{ 0U };                       // Samples per second
+    unsigned nSamples{ 0U };   // Samples in the buffer (every sample is sizeof(sfFormat) * nChannels in the buffer)
     AVChannelLayout layout{};
     REFERENCE_TIME rtStart = AV_NOPTS_VALUE; // Start Time of the buffer
-    BOOL bPlanar = FALSE;                    // Planar (not used)
+    BOOL bPlanar{ FALSE };                    // Planar (not used)
 
-    BufferDetails() { bBuffer = new GrowableArray<BYTE>(); };
+    explicit BufferDetails() { bBuffer = new GrowableArray<BYTE>(); };
     ~BufferDetails()
     {
         delete bBuffer;
@@ -215,7 +219,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
 
     void CreateBDLPCMHeader(BYTE *pBuf, const WAVEFORMATEX_HDMV_LPCM *wfex_lpcm) const;
     void CreateDVDLPCMHeader(BYTE *pBuf, const WAVEFORMATEX *wfex) const;
-    HRESULT ParseRealAudioHeader(const BYTE *extra, const size_t extralen);
+    HRESULT ParseRealAudioHeader(const BYTE *extra, const std::size_t extralen);
     HRESULT ResyncMPEGAudio();
 
     void UpdateVolumeStats(const BufferDetails &buffer);
@@ -223,7 +227,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     BOOL IsBitstreaming(AVCodecID codec);
     HRESULT InitBitstreaming();
     HRESULT ShutdownBitstreaming();
-    static int BSWriteBuffer(void *opaque, const uint8_t *buf, int buf_size);
+    static int BSWriteBuffer(void *opaque, const std::uint8_t *buf, int buf_size);
 
     HRESULT CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe);
     HRESULT UpdateBitstreamContext();
@@ -264,9 +268,9 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     AVCodecParserContext *m_pParser = nullptr;
     AVFrame *m_pFrame = nullptr;
 
-    BOOL m_bFlushing = FALSE;
-    BOOL m_bDiscontinuity = FALSE;
-    REFERENCE_TIME m_rtStart = 0;
+    BOOL m_bFlushing{ FALSE };
+    BOOL m_bDiscontinuity{ FALSE };
+    REFERENCE_TIME m_rtStart{ 0 };
     double m_dStartOffset = 0.0;
     double m_dRate = 1.0;
 
@@ -275,7 +279,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     REFERENCE_TIME m_rtStartInputCache = AV_NOPTS_VALUE; // rtStart of the last input package
     REFERENCE_TIME m_rtStopInputCache = AV_NOPTS_VALUE;  // rtStop of the last input package
     REFERENCE_TIME m_rtBitstreamCache = AV_NOPTS_VALUE;  // Bitstreaming time cache
-    BOOL m_bUpdateTimeCache = TRUE;
+    BOOL m_bUpdateTimeCache{ TRUE };
 
     GrowableArray<BYTE> m_buff; // Input Buffer
     LAVAudioSampleFormat m_DecodeFormat = SampleFormat_16;
@@ -286,8 +290,8 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     SwrContext *m_swrContext = nullptr;
     LAVAudioSampleFormat m_sfRemixFormat = SampleFormat_None;
     AVChannelLayout m_chRemixLayout{};
-    BOOL m_bAVResampleFailed = FALSE;
-    BOOL m_bMixingSettingsChanged = FALSE;
+    BOOL m_bAVResampleFailed{ FALSE };
+    BOOL m_bMixingSettingsChanged{ FALSE };
 
     // Settings
     struct AudioSettings
@@ -295,8 +299,8 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
         BOOL TrayIcon;
         BOOL DRCEnabled;
         int DRCLevel;
-        BOOL bFormats[Codec_AudioNB];
-        BOOL bBitstream[Bitstream_NB];
+        std::array<BOOL, Codec_AudioNB> bFormats{};
+        std::array<BOOL, Bitstream_NB> bBitstream{};
         BOOL DTSHDFraming;
         BOOL bBitstreamingFallback;
         BOOL AutoAVSync;
@@ -305,7 +309,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
         BOOL OutputStandardLayout;
         BOOL Output51Legacy;
         BOOL AllowRawSPDIF;
-        BOOL bSampleFormats[SampleFormat_NB];
+        std::array<BOOL, SampleFormat_NB> bSampleFormats{};
         BOOL SampleConvertDither;
         BOOL AudioDelayEnabled;
         int AudioDelay;
@@ -320,29 +324,29 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
 
         BOOL SuppressFormatChanges;
     } m_settings;
-    BOOL m_bRuntimeConfig = FALSE;
+    BOOL m_bRuntimeConfig{ FALSE };
 
-    BOOL m_bVolumeStats = FALSE;          // Volume Stats gathering enabled
+    BOOL m_bVolumeStats{ FALSE };          // Volume Stats gathering enabled
     FloatingAverage<float> m_faVolume[MAX_VOLUME_STAT_CHANNEL]; // Floating Average for volume (8 channels)
 
-    BOOL m_bQueueResync = FALSE;
-    BOOL m_bResyncTimestamp = FALSE;
-    BOOL m_bNeedSyncpoint = FALSE;
-    BOOL m_bJustFlushed = TRUE;
+    BOOL m_bQueueResync{ FALSE };
+    BOOL m_bResyncTimestamp{ FALSE };
+    BOOL m_bNeedSyncpoint{ FALSE };
+    BOOL m_bJustFlushed{ TRUE };
     BufferDetails m_OutputQueue;
 
     AVIOContext *m_avioBitstream = nullptr;
     AVFormatContext *m_avBSContext = nullptr;
     GrowableArray<BYTE> m_bsOutput;
-    BOOL m_bBitStreamingSettingsChanged = FALSE;
-    BOOL m_bBitstreamOverride[Bitstream_NB] = {FALSE};
+    BOOL m_bBitStreamingSettingsChanged{ FALSE };
+    std::array<BOOL, Bitstream_NB> m_bBitstreamOverride{FALSE};
 
     DTSBitstreamMode m_DTSBitstreamMode = DTS_Core;
-    BOOL m_bForceDTSCore = FALSE;
+    BOOL m_bForceDTSCore{ FALSE };
     CBitstreamParser m_bsParser;
-    BOOL m_bFindDTSInPCM = FALSE;
-    BOOL m_bDVDPlayback = FALSE;
-    BOOL m_bMPEGAudioResync = FALSE;
+    BOOL m_bFindDTSInPCM{ FALSE };
+    BOOL m_bDVDPlayback{ FALSE };
+    BOOL m_bMPEGAudioResync{ FALSE };
 
     FloatingAverage<REFERENCE_TIME> m_faJitter{50};
     REFERENCE_TIME m_JitterLimit = MAX_JITTER_DESYNC;
@@ -350,7 +354,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     AVChannelLayout m_DecodeLayout{};
     AVChannelLayout m_DecodeLayoutSanified{};
     AVChannelLayout m_MixingInputLayout{};
-    BOOL m_bChannelMappingRequired = FALSE;
+    BOOL m_bChannelMappingRequired{ FALSE };
 
     AVChannelLayout m_SuppressLayout{};
 
@@ -363,22 +367,22 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     // TrueHD Bitstreaming
     struct
     {
-        bool init = false;
-        int ratebits = 0;
-        uint16_t output_timing = 0;
-        BOOL output_timing_valid = FALSE;
+        bool init{ false };
+        int ratebits{ 0 };
+        std::uint16_t output_timing{ 0U };
+        BOOL output_timing_valid{ FALSE };
 
-        uint16_t prev_frametime = 0;
-        BOOL prev_frametime_valid = FALSE;
+        std::uint16_t prev_frametime{ 0U };
+        BOOL prev_frametime_valid{ FALSE };
 
-        uint32_t mat_framesize = 0;
-        uint32_t prev_mat_framesize = 0;
+        std::uint32_t mat_framesize{ 0U };
+        std::uint32_t prev_mat_framesize{ 0U };
 
-        DWORD padding = 0;
-        DWORD nSamples = 0;
-        int nSamplesOffset = 0;
+        DWORD padding{ 0U };
+        DWORD nSamples{ 0U };
+        int nSamplesOffset{ 0 };
 
-        int nOutputTimeOffset = 0;
+        int nOutputTimeOffset{ 0 };
     } m_TrueHDMATState;
 
     struct

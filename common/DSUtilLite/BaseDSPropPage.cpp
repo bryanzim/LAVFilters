@@ -18,7 +18,9 @@
  */
 
 #include "stdafx.h"
+
 #include "BaseDSPropPage.h"
+
 
 CBaseDSPropPage::CBaseDSPropPage(LPCTSTR pName, __inout_opt LPUNKNOWN pUnk, int DialogId, int TitleId)
     : CBasePropertyPage(pName, pUnk, DialogId, TitleId)
@@ -62,7 +64,7 @@ void CBaseDSPropPage::ListView_AddCol(HWND hlv, int &ncol, int w, const wchar_t 
     lvc.cx = w;
     lvc.fmt = right ? LVCFMT_RIGHT : LVCFMT_LEFT;
     ListView_InsertColumn(hlv, ncol, &lvc);
-    ncol++;
+    ++ncol;
 }
 
 HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter, HWND hwndOwner)

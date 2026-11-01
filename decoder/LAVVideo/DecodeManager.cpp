@@ -17,18 +17,27 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #include "stdafx.h"
+
 #include "DecodeManager.h"
 
 #include "LAVVideo.h"
 
+#include <array>
+#include <cstdint>
+#include <cwchar>
+
+
+#ifdef _WIN32
 #include <Shlwapi.h>
+#endif
+
 
 CDecodeManager::CDecodeManager(CLAVVideo *pLAVVideo)
     : m_pLAVVideo{pLAVVideo}
 {
-    WCHAR fileName[1024U];
-    GetModuleFileName(nullptr, fileName, 1024);
-    m_processName = PathFindFileName(fileName);
+    std::array<WCHAR, 1024U> fileName{};
+    GetModuleFileName(nullptr, fileName.data(), 1024);
+    m_processName = PathFindFileName(fileName.data());
 }
 
 CDecodeManager::~CDecodeManager(void)
@@ -83,26 +92,22 @@ STDMETHODIMP CDecodeManager::CreateSideDataCache(const MediaSideDataFFMpeg* pSid
 {
     FreeSideDataCache();
 
-    if (pSideData && pSideData->side_data_elems > 0)
+    if (pSideData && (pSideData->side_data_elems > 0))
     {
-        m_SideDataCache.side_data = (AVPacketSideData *)av_calloc(pSideData->side_data_elems, sizeof(*m_SideDataCache.side_data));
-        if (m_SideDataCache.side_data == nullptr) {
-            return E_OUTOFMEMORY;
-}
+        m_SideDataCache.side_data = reinterpret_cast<AVPacketSideData *>(av_calloc(pSideData->side_data_elems, sizeof(*m_SideDataCache.side_data)));
+        if (m_SideDataCache.side_data == nullptr) { return E_OUTOFMEMORY; }
 
-        for (int i = 0; i < pSideData->side_data_elems; ++i)
+        for (int i{ 0 }; i < pSideData->side_data_elems; ++i)
         {
             const AVPacketSideData *src_sd = &pSideData->side_data[i];
             AVPacketSideData *dst_sd = &m_SideDataCache.side_data[i];
 
-            dst_sd->data = (uint8_t *)av_memdup(src_sd->data, src_sd->size);
-            if (!dst_sd->data) {
-                return E_OUTOFMEMORY;
-}
+            dst_sd->data = reinterpret_cast<std::uint8_t *>(av_memdup(src_sd->data, src_sd->size));
+            if (!dst_sd->data) { return E_OUTOFMEMORY; }
 
             dst_sd->type = src_sd->type;
             dst_sd->size = src_sd->size;
-            m_SideDataCache.side_data_elems++;
+            ++m_SideDataCache.side_data_elems;
         }
     }
 
@@ -121,11 +126,11 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
     DbgLog(
         (LOG_TRACE, 10, L"CDecodeThread::CreateDecoder(): Creating new decoder for codec %S", avcodec_get_name(codec)));
     HRESULT hr = S_OK;
-    BOOL bWMV9 = FALSE;
+    BOOL bWMV9{ FALSE };
 
-    BOOL bHWDecBlackList = _wcsicmp(m_processName.c_str(), L"dllhost.exe") == 0 ||
-                           _wcsicmp(m_processName.c_str(), L"explorer.exe") == 0 ||
-                           _wcsicmp(m_processName.c_str(), L"ReClockHelper.dll") == 0;
+    BOOL bHWDecBlackList = ::_wcsicmp(m_processName.c_str(), L"dllhost.exe") == 0 ||
+                           ::_wcsicmp(m_processName.c_str(), L"explorer.exe") == 0 ||
+                           ::_wcsicmp(m_processName.c_str(), L"ReClockHelper.dll") == 0;
     DbgLog((LOG_TRACE, 10, L"-> Process is %s, blacklist: %d", m_processName.c_str(), bHWDecBlackList));
 
     BITMAPINFOHEADER *pBMI = nullptr;
@@ -150,7 +155,7 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
     }
     SAFE_DELETE(m_pDecoder);
 
-    if (!bHWDecBlackList && hwAccel != HWAccel_None && !m_bHWDecoderFailed && HWFORMAT_ENABLED && HWRESOLUTION_ENABLED)
+    if (!bHWDecBlackList && (hwAccel != HWAccel_None) && !m_bHWDecoderFailed && HWFORMAT_ENABLED && HWRESOLUTION_ENABLED)
     {
         DbgLog((LOG_TRACE, 10, L"-> Trying Hardware Codec %d", hwAccel));
         m_pDecoder = CreateHWAccelDecoder(hwAccel);
@@ -163,7 +168,7 @@ softwaredec:
     {
         DbgLog((LOG_TRACE, 10, L"-> No HW Codec, using Software"));
         m_bHWDecoder = FALSE;
-        if (m_pLAVVideo->GetUseMSWMV9Decoder() && (codec == AV_CODEC_ID_VC1 || codec == AV_CODEC_ID_WMV3) &&
+        if ((m_pLAVVideo->GetUseMSWMV9Decoder()) && (codec == AV_CODEC_ID_VC1 || codec == AV_CODEC_ID_WMV3) &&
             !m_bWMV9Failed)
         {
             m_pDecoder = CreateDecoderWMV9MFT();
@@ -224,9 +229,7 @@ STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
     CAutoLock const decoderLock(this);
     HRESULT hr = S_OK;
 
-    if (!m_pDecoder) {
-        return E_UNEXPECTED;
-}
+    if (!m_pDecoder) { return E_UNEXPECTED; }
 
     hr = m_pDecoder->Decode(pSample);
 
@@ -239,8 +242,8 @@ STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
         m_bHWDecoderFailed = TRUE;
 
         // If we're disabling DXVA2 Native decoding, we need to release resources now
-        if (wcscmp(m_pDecoder->GetDecoderName(), L"dxva2n") == 0 ||
-            wcscmp(m_pDecoder->GetDecoderName(), L"d3d11 native") == 0)
+        if ((std::wcscmp(m_pDecoder->GetDecoderName(), L"dxva2n") == 0) ||
+            (std::wcscmp(m_pDecoder->GetDecoderName(), L"d3d11 native") == 0))
         {
             m_pLAVVideo->ReleaseAllDXVAResources();
             m_pLAVVideo->GetOutputPin()->GetConnected()->BeginFlush();
@@ -266,9 +269,7 @@ STDMETHODIMP CDecodeManager::Flush()
 {
     CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder) {
-        return E_UNEXPECTED;
-}
+    if (!m_pDecoder) { return E_UNEXPECTED; }
 
     return m_pDecoder->Flush();
 }
@@ -277,9 +278,7 @@ STDMETHODIMP CDecodeManager::EndOfStream()
 {
     CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder) {
-        return E_UNEXPECTED;
-}
+    if (!m_pDecoder) { return E_UNEXPECTED; }
 
     return m_pDecoder->EndOfStream();
 }
@@ -288,9 +287,7 @@ STDMETHODIMP CDecodeManager::InitAllocator(IMemAllocator **ppAlloc)
 {
     CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder) {
-        return E_UNEXPECTED;
-}
+    if (!m_pDecoder) { return E_UNEXPECTED; }
 
     return m_pDecoder->InitAllocator(ppAlloc);
 }
@@ -316,9 +313,7 @@ STDMETHODIMP CDecodeManager::BreakConnect()
 {
     CAutoLock const decoderLock(this);
 
-    if (!m_pDecoder) {
-        return E_UNEXPECTED;
-}
+    if (!m_pDecoder) { return E_UNEXPECTED; }
 
     return m_pDecoder->BreakConnect();
 }

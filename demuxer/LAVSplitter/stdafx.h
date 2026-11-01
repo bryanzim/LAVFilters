@@ -27,10 +27,15 @@
     "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #include "common_defines.h"
+#include "streams.h"
+#include "DShowUtil.h"
+#include "resource.h"
 
-// include headers
+#ifdef _WIN32
 #include <Windows.h>
 #include <Commctrl.h>
+#endif
+
 
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -38,12 +43,9 @@ extern "C"
 {
 #define __STDC_CONSTANT_MACROS
 #include "libavformat/avformat.h"
-#include "libbluray/bluray.h"
 #include "libavutil/intreadwrite.h"
+#include "libbluray/bluray.h"
 }
 #pragma warning(pop)
 
-#include "streams.h"
-#include "DShowUtil.h"
 
-#include "resource.h"

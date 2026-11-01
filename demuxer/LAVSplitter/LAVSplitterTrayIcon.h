@@ -32,6 +32,6 @@ class CLAVSplitterTrayIcon : public CBaseTrayIcon
     HRESULT ProcessMenuCommand(HMENU hMenu, int cmd);
 
   private:
-    int m_NumStreams = 0;
-    int m_NumChapters = 0;
+    int m_NumStreams{ 0 };
+    int m_NumChapters{ 0 };
 };

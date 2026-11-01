@@ -20,15 +20,23 @@
 
 #include "stdafx.h"
 
-#include <dvdmedia.h>
-#include <ks.h>
-#include <ksmedia.h>
-
 #include "DeCSSInputPin.h"
+
+#include "../DShowUtil.h"
 #include "CSSauth.h"
 #include "CSSscramble.h"
 
-#include "../DShowUtil.h"
+#include <array>
+#include <cstddef>
+#include <cstring>
+
+
+#ifdef _WIN32
+#include <dvdmedia.h>
+#include <ks.h>
+#include <ksmedia.h>
+#endif
+
 
 //
 // CDeCSSPinHelper
@@ -37,10 +45,10 @@
 CDeCSSPinHelper::CDeCSSPinHelper()
 {
     m_varient = -1;
-    memset(m_Challenge, 0, sizeof(m_Challenge));
-    memset(m_KeyCheck, 0, sizeof(m_KeyCheck));
-    memset(m_DiscKey, 0, sizeof(m_DiscKey));
-    memset(m_TitleKey, 0, sizeof(m_TitleKey));
+    std::memset(m_Challenge, 0, sizeof(m_Challenge));
+    std::memset(m_KeyCheck, 0, sizeof(m_KeyCheck));
+    std::memset(m_DiscKey, 0, sizeof(m_DiscKey));
+    std::memset(m_TitleKey, 0, sizeof(m_TitleKey));
 }
 
 void CDeCSSPinHelper::Decrypt(IMediaSample *pSample)
@@ -48,23 +56,23 @@ void CDeCSSPinHelper::Decrypt(IMediaSample *pSample)
     long const len = pSample->GetActualDataLength();
 
     BYTE *p = nullptr;
-    if (SUCCEEDED(pSample->GetPointer(&p)) && len > 0)
+    if ((SUCCEEDED(pSample->GetPointer(&p))) && (len > 0))
     {
-        if (m_mt.majortype == MEDIATYPE_DVD_ENCRYPTED_PACK && len == 2048 && (p[0x14] & 0x30))
+        if ((m_mt.majortype == MEDIATYPE_DVD_ENCRYPTED_PACK) && (len == 2048) && (p[0x14] & 0x30))
         {
             CSSdescramble(p, m_TitleKey);
             p[0x14] &= ~0x30;
 
             IMediaSample2 *pMS2 = nullptr;
-            if (SUCCEEDED(pSample->QueryInterface(&pMS2)) && pMS2)
+            if ((SUCCEEDED(pSample->QueryInterface(&pMS2))) && pMS2)
             {
                 AM_SAMPLE2_PROPERTIES props;
-                memset(&props, 0, sizeof(props));
-                if (SUCCEEDED(pMS2->GetProperties(sizeof(props), (BYTE *)&props)) &&
+                std::memset(&props, 0, sizeof(props));
+                if ((SUCCEEDED(pMS2->GetProperties(sizeof(props), reinterpret_cast<BYTE *>(&props)))) &&
                     (props.dwTypeSpecificFlags & AM_UseNewCSSKey))
                 {
                     props.dwTypeSpecificFlags &= ~AM_UseNewCSSKey;
-                    pMS2->SetProperties(sizeof(props), (BYTE *)&props);
+                    pMS2->SetProperties(sizeof(props), reinterpret_cast<BYTE *>(&props));
                 }
                 pMS2->Release();
             }
@@ -79,9 +87,9 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
 
     auto drop = [&]() { len = 0; };
 
-    if (majortype == MEDIATYPE_MPEG2_PACK || majortype == MEDIATYPE_DVD_ENCRYPTED_PACK)
+    if ((majortype == MEDIATYPE_MPEG2_PACK) || (majortype == MEDIATYPE_DVD_ENCRYPTED_PACK))
     {
-        if (len >= 4 && *(DWORD *)p == 0xba010000)
+        if ((len >= 4) && (*reinterpret_cast<DWORD *>(p) == 0xba010000))
         { // MEDIATYPE_*_PACK
             if (len < 14)
             {
@@ -104,7 +112,7 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
 
     if (majortype == MEDIATYPE_MPEG2_PES)
     {
-        if (len >= 4 && *(DWORD *)p == 0xbb010000)
+        if ((len >= 4) && (*reinterpret_cast<DWORD *>(p) == 0xbb010000))
         {
             if (len < 6)
             {
@@ -114,7 +122,7 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
             len -= 4;
             p += 4;
             int const hdrlen = ((p[0U] << 8) | p[1U]) + 2;
-            if (hdrlen < 2 || len < hdrlen)
+            if ((hdrlen < 2) || (len < hdrlen))
             {
                 drop();
                 return;
@@ -123,10 +131,10 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
             p += hdrlen;
         }
 
-        if (len >= 4 && ((*(DWORD *)p & 0xf0ffffff) == 0xe0010000 || (*(DWORD *)p & 0xe0ffffff) == 0xc0010000 ||
-                        (*(DWORD *)p & 0xbdffffff) == 0xbd010000))
+        if ((len >= 4) && ((*reinterpret_cast<DWORD *>(p) & 0xf0ffffff) == 0xe0010000 || (*reinterpret_cast<DWORD *>(p) & 0xe0ffffff) == 0xc0010000 ||
+                        (*reinterpret_cast<DWORD *>(p) & 0xbdffffff) == 0xbd010000))
         { // PES
-            bool const ps1 = (*(DWORD *)p & 0xbdffffff) == 0xbd010000;
+            bool const ps1 = (*reinterpret_cast<DWORD *>(p) & 0xbdffffff) == 0xbd010000;
 
             len -= 4;
             p += 4;
@@ -135,12 +143,12 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
                 drop();
                 return;
             }
-            size_t expected = ((p[0U] << 8) | p[1U]);
+            std::size_t expected = ((p[0U] << 8) | p[1U]);
             len -= 2;
             p += 2;
             BYTE *p0 = p;
 
-            for (int i = 0; i < 16 && len > 0 && *p == 0xff; ++i, --len, ++p)
+            for (int i{ 0 }; i < 16 && len > 0 && *p == 0xff; ++i, --len, ++p)
             {
                 ;
             }
@@ -186,7 +194,7 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
                     }
                 }
 
-                if ((*p & 0x30) == 0x30 || (*p & 0x30) == 0x20)
+                if (((*p & 0x30) == 0x30) || ((*p & 0x30) == 0x20))
                 {
                     bool const pts = (*p & 0x20) != 0;
                     bool const dts = (*p & 0x10) != 0;
@@ -215,8 +223,8 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
                         drop();
                         return;
                     }
-                    len--;
-                    p++;
+                    --len;
+                    ++p;
                 }
             }
 
@@ -227,8 +235,8 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
                     drop();
                     return;
                 }
-                len--;
-                p++;
+                --len;
+                ++p;
                 if (subtype == MEDIASUBTYPE_DVD_LPCM_AUDIO)
                 {
                     if (len < 6)
@@ -239,8 +247,8 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
                     len -= 6;
                     p += 6;
                 }
-                else if (subtype == MEDIASUBTYPE_DOLBY_AC3 || subtype == FOURCCMap(0x2000) ||
-                         subtype == MEDIASUBTYPE_DTS || subtype == FOURCCMap(0x2001))
+                else if ((subtype == MEDIASUBTYPE_DOLBY_AC3) || (subtype == FOURCCMap(0x2000)) ||
+                         (subtype == MEDIASUBTYPE_DTS) || (subtype == FOURCCMap(0x2001)))
                 {
                     if (len < 3)
                     {
@@ -254,7 +262,7 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
 
             if (expected > 0)
             {
-                size_t const consumed = static_cast<size_t>(p - p0);
+                std::size_t const consumed = static_cast<std::size_t>(p - p0);
                 if (consumed > expected)
                 {
                     len = 0;
@@ -290,8 +298,8 @@ STDMETHODIMP CDeCSSPinHelper::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     case AM_PROPERTY_COPY_MACROVISION: break;
     case AM_PROPERTY_DVDCOPY_CHLG_KEY: { // 3. auth: receive drive nonce word, also store and encrypt the buskey made up
                                          // of the two nonce words
-        AM_DVDCOPY_CHLGKEY *pChlgKey = (AM_DVDCOPY_CHLGKEY *)pPropertyData;
-        for (int i = 0; i < 10; ++i)
+        AM_DVDCOPY_CHLGKEY *pChlgKey = reinterpret_cast<AM_DVDCOPY_CHLGKEY *>(pPropertyData);
+        for (int i{ 0 }; i < 10; ++i)
         {
             m_Challenge[i] = pChlgKey->ChlgKey[9 - i];
         }
@@ -303,36 +311,36 @@ STDMETHODIMP CDeCSSPinHelper::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     break;
     case AM_PROPERTY_DVDCOPY_DISC_KEY: { // 5. receive the disckey
         AM_DVDCOPY_DISCKEY *pDiscKey =
-            (AM_DVDCOPY_DISCKEY *)pPropertyData; // pDiscKey->DiscKey holds the disckey encrypted with itself and the
+            reinterpret_cast<AM_DVDCOPY_DISCKEY *>(pPropertyData); // pDiscKey->DiscKey holds the disckey encrypted with itself and the
                                                  // 408 disckeys encrypted with the playerkeys
 
-        bool fSuccess = false;
+        bool fSuccess{ false };
 
-        for (int j = 0; j < g_nPlayerKeys; ++j)
+        for (int j{ 0 }; j < g_nPlayerKeys; ++j)
         {
-            for (int k = 1; k < 409; ++k)
+            for (int k{ 1 }; k < 409; ++k)
             {
-                BYTE DiscKey[6U];
-                for (int i = 0; i < 5; ++i)
+                std::array<BYTE, 6U> DiscKey{};
+                for (int i{ 0 }; i < 5; ++i)
                 {
                     DiscKey[i] = pDiscKey->DiscKey[k * 5 + i] ^ m_KeyCheck[4 - i];
                 }
                 DiscKey[5U] = 0;
 
-                CSSdisckey(DiscKey, g_PlayerKeys[j]);
+                CSSdisckey(DiscKey.data(), g_PlayerKeys[j]);
 
-                BYTE Hash[6U];
-                for (int i = 0; i < 5; ++i)
+                std::array<BYTE, 6U> Hash{};
+                for (int i{ 0 }; i < 5; ++i)
                 {
                     Hash[i] = pDiscKey->DiscKey[i] ^ m_KeyCheck[4 - i];
                 }
                 Hash[5U] = 0;
 
-                CSSdisckey(Hash, DiscKey);
+                CSSdisckey(Hash.data(), DiscKey.data());
 
-                if (!memcmp(Hash, DiscKey, 6))
+                if (!std::memcmp(Hash.data(), DiscKey.data(), 6))
                 {
-                    memcpy(m_DiscKey, DiscKey, 6);
+                    std::memcpy(m_DiscKey, DiscKey.data(), 6);
                     j = g_nPlayerKeys;
                     fSuccess = true;
                     break;
@@ -348,19 +356,19 @@ STDMETHODIMP CDeCSSPinHelper::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     break;
     case AM_PROPERTY_DVDCOPY_DVD_KEY1: { // 2. auth: receive our drive-encrypted nonce word and decrypt it for
                                          // verification
-        AM_DVDCOPY_BUSKEY *pKey1 = (AM_DVDCOPY_BUSKEY *)pPropertyData;
-        for (int i = 0; i < 5; ++i)
+        AM_DVDCOPY_BUSKEY *pKey1 = reinterpret_cast<AM_DVDCOPY_BUSKEY *>(pPropertyData);
+        for (int i{ 0 }; i < 5; ++i)
         {
             m_Key[i] = pKey1->BusKey[4 - i];
         }
 
         m_varient = -1;
 
-        for (int i = 31; i >= 0; i--)
+        for (int i{ 31 }; i >= 0; --i)
         {
             CSSkey1(i, m_Challenge, m_KeyCheck);
 
-            if (memcmp(m_KeyCheck, &m_Key[0U], 5) == 0)
+            if (std::memcmp(m_KeyCheck, &m_Key[0U], 5) == 0)
             {
                 m_varient = i;
             }
@@ -370,8 +378,8 @@ STDMETHODIMP CDeCSSPinHelper::Set(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     case AM_PROPERTY_DVDCOPY_REGION: break;
     case AM_PROPERTY_DVDCOPY_SET_COPY_STATE: break;
     case AM_PROPERTY_DVDCOPY_TITLE_KEY: { // 6. receive the title key and decrypt it with the disc key
-        AM_DVDCOPY_TITLEKEY *pTitleKey = (AM_DVDCOPY_TITLEKEY *)pPropertyData;
-        for (int i = 0; i < 5; ++i)
+        AM_DVDCOPY_TITLEKEY *pTitleKey = reinterpret_cast<AM_DVDCOPY_TITLEKEY *>(pPropertyData);
+        for (int i{ 0 }; i < 5; ++i)
         {
             m_TitleKey[i] = pTitleKey->TitleKey[i] ^ m_KeyCheck[4 - i];
         }
@@ -396,8 +404,8 @@ STDMETHODIMP CDeCSSPinHelper::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     switch (Id)
     {
     case AM_PROPERTY_DVDCOPY_CHLG_KEY: { // 1. auth: send our nonce word
-        AM_DVDCOPY_CHLGKEY *pChlgKey = (AM_DVDCOPY_CHLGKEY *)pPropertyData;
-        for (int i = 0; i < 10; ++i)
+        AM_DVDCOPY_CHLGKEY *pChlgKey = reinterpret_cast<AM_DVDCOPY_CHLGKEY *>(pPropertyData);
+        for (int i{ 0 }; i < 10; ++i)
         {
             pChlgKey->ChlgKey[i] = 9 - (m_Challenge[i] = i);
         }
@@ -406,8 +414,8 @@ STDMETHODIMP CDeCSSPinHelper::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     break;
     case AM_PROPERTY_DVDCOPY_DEC_KEY2: { // 4. auth: send back the encrypted drive nonce word to finish the
                                          // authentication
-        AM_DVDCOPY_BUSKEY *pKey2 = (AM_DVDCOPY_BUSKEY *)pPropertyData;
-        for (int i = 0; i < 5; ++i)
+        AM_DVDCOPY_BUSKEY *pKey2 = reinterpret_cast<AM_DVDCOPY_BUSKEY *>(pPropertyData);
+        for (int i{ 0 }; i < 5; ++i)
         {
             pKey2->BusKey[4 - i] = m_Key[5 + i];
         }
@@ -415,14 +423,14 @@ STDMETHODIMP CDeCSSPinHelper::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
     }
     break;
     case AM_PROPERTY_DVDCOPY_REGION: {
-        DVD_REGION *pRegion = (DVD_REGION *)pPropertyData;
+        DVD_REGION *pRegion = reinterpret_cast<DVD_REGION *>(pPropertyData);
         pRegion->RegionData = 0;
         pRegion->SystemRegion = 0;
         *pBytesReturned = sizeof(DVD_REGION);
     }
     break;
     case AM_PROPERTY_DVDCOPY_SET_COPY_STATE: {
-        AM_DVDCOPY_SET_COPY_STATE *pState = (AM_DVDCOPY_SET_COPY_STATE *)pPropertyData;
+        AM_DVDCOPY_SET_COPY_STATE *pState = reinterpret_cast<AM_DVDCOPY_SET_COPY_STATE *>(pPropertyData);
         pState->DVDCopyState = AM_DVDCOPYSTATE_AUTHENTICATION_REQUIRED;
         *pBytesReturned = sizeof(AM_DVDCOPY_SET_COPY_STATE);
     }

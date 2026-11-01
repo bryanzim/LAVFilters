@@ -19,23 +19,27 @@
 
 #include "stdafx.h"
 
-#include <emmintrin.h>
-
 #include "pixconv_internal.h"
 #include "pixconv_sse2_templates.h"
+
+#include <emmintrin.h>
+
+#include <cstddef>
+#include <cstdint>
+
 
 LAV_TARGET("ssse3")
 DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
 {
-    const uint16_t *rgb = (const uint16_t *)src[0U];
-    const ptrdiff_t inStride = srcStride[0U] >> 1;
-    const ptrdiff_t outStride = dstStride[0U];
-    ptrdiff_t line, i;
+    const std::uint16_t *rgb = reinterpret_cast<const std::uint16_t *>(src[0U]);
+    const std::ptrdiff_t inStride = srcStride[0U] >> 1;
+    const std::ptrdiff_t outStride = dstStride[0U];
+    std::ptrdiff_t line, i;
 
     int const processWidth = width * 3;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
+    const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
 }
@@ -46,14 +50,14 @@ DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
     _mm_sfence();
     for (line = 0; line < height; ++line)
     {
-        __m128i *dst128 = (__m128i *)(dst[0U] + line * outStride);
+        __m128i *dst128 = reinterpret_cast<__m128i *>((dst[0U] + line * outStride));
 
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm5 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 0));
-            xmm6 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 8));
-            xmm7 = _mm_load_si128((const __m128i *)(dithers + (line << 5) + 16));
+            xmm5 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 0)));
+            xmm6 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 8)));
+            xmm7 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 5) + 16)));
         }
         else
         {
@@ -93,34 +97,32 @@ DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
 template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
 {
     // Byte Swap to BGR layout
-    uint8_t *dstBS[4U] = {nullptr};
-    dstBS[0U] = (BYTE *)av_malloc(height * srcStride[0U]);
-    if (dstBS[0U] == nullptr) {
-        return E_OUTOFMEMORY;
-}
+    std::uint8_t *dstBS[4U] = {nullptr};
+    dstBS[0U] = reinterpret_cast<BYTE *>(av_malloc(height * srcStride[0U]));
+    if (dstBS[0U] == nullptr) { return E_OUTOFMEMORY; }
 
     SwsContext *ctx = GetSWSContext(width, height, GetFFInput(), AV_PIX_FMT_BGR48LE, SWS_POINT);
     sws_scale2(ctx, src, srcStride, 0, height, dstBS, srcStride);
 
     // Dither to RGB24/32 with SSE2
-    const uint16_t *rgb = (const uint16_t *)dstBS[0U];
-    const ptrdiff_t inStride = srcStride[0U] >> 1;
-    const ptrdiff_t outStride = dstStride[0U];
-    ptrdiff_t line, i;
+    const std::uint16_t *rgb = reinterpret_cast<const std::uint16_t *>(dstBS[0U]);
+    const std::ptrdiff_t inStride = srcStride[0U] >> 1;
+    const std::ptrdiff_t outStride = dstStride[0U];
+    std::ptrdiff_t line, i;
     int const processWidth = width * 3;
 
     LAVDitherMode ditherMode = m_pSettings->GetDitherMode();
-    const uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
+    const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
 }
 
     __m128i xmm0, xmm1, xmm6, xmm7;
 
-    uint8_t *rgb24buffer = nullptr;
+    std::uint8_t *rgb24buffer = nullptr;
     if (out32)
     {
-        rgb24buffer = (uint8_t *)av_malloc(outStride + AV_INPUT_BUFFER_PADDING_SIZE);
+        rgb24buffer = reinterpret_cast<std::uint8_t *>(av_malloc(outStride + AV_INPUT_BUFFER_PADDING_SIZE));
         if (rgb24buffer == nullptr)
         {
             av_freep(&dstBS[0U]);
@@ -134,18 +136,18 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         __m128i *dst128 = nullptr;
         if (out32)
         {
-            dst128 = (__m128i *)rgb24buffer;
+            dst128 = reinterpret_cast<__m128i *>(rgb24buffer);
         }
         else
         {
-            dst128 = (__m128i *)(dst[0U] + line * outStride);
+            dst128 = reinterpret_cast<__m128i *>((dst[0U] + line * outStride));
         }
 
         // Load dithering coefficients for this line
         if (ditherMode == LAVDither_Random)
         {
-            xmm6 = _mm_load_si128((const __m128i *)(dithers + (line << 4) + 0));
-            xmm7 = _mm_load_si128((const __m128i *)(dithers + (line << 4) + 8));
+            xmm6 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 4) + 0)));
+            xmm7 = _mm_load_si128(reinterpret_cast<const __m128i *>((dithers + (line << 4) + 8)));
         }
         else
         {
@@ -168,13 +170,13 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         rgb += inStride;
         if (out32)
         {
-            uint32_t *src24 = (uint32_t *)rgb24buffer;
-            uint32_t *dst32 = (uint32_t *)(dst[0U] + line * outStride);
+            std::uint32_t *src24 = reinterpret_cast<std::uint32_t *>(rgb24buffer);
+            std::uint32_t *dst32 = reinterpret_cast<std::uint32_t *>((dst[0U] + line * outStride));
             for (i = 0; i < width; i += 4)
             {
-                uint32_t const sa = src24[0U];
-                uint32_t const sb = src24[1U];
-                uint32_t const sc = src24[2U];
+                std::uint32_t const sa = src24[0U];
+                std::uint32_t const sb = src24[1U];
+                std::uint32_t const sc = src24[2U];
 
                 dst32[i + 0] = sa;
                 dst32[i + 1] = (sa >> 24) | (sb << 8);

@@ -20,10 +20,16 @@
  */
 
 #include "stdafx.h"
+
 #include "StreamParser.h"
 
-#include "OutputPin.h"
 #include "H264Nalu.h"
+#include "OutputPin.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 
 #pragma warning(push)
 #pragma warning(disable : 4101)
@@ -69,7 +75,7 @@ HRESULT CStreamParser::Parse(const GUID &gSubtype, Packet *pPacket)
     {
         Queue(pPacket);
     }
-    else if (m_gSubtype == MEDIASUBTYPE_AVC1 &&
+    else if ((m_gSubtype == MEDIASUBTYPE_AVC1) &&
              (m_strContainer == "mpegts" || pPacket->dwFlags & LAV_PACKET_H264_ANNEXB))
     {
         ParseH264AnnexB(pPacket);
@@ -100,11 +106,11 @@ HRESULT CStreamParser::Parse(const GUID &gSubtype, Packet *pPacket)
     {
         ParseMOVText(pPacket);
     }
-    else if (m_gSubtype == MEDIASUBTYPE_AAC && (m_strContainer != "matroska" && m_strContainer != "mp4"))
+    else if ((m_gSubtype == MEDIASUBTYPE_AAC) && (m_strContainer != "matroska" && m_strContainer != "mp4"))
     {
         ParseAAC(pPacket);
     }
-    else if (m_gSubtype == MEDIASUBTYPE_UTF8 && (pPacket->dwFlags & LAV_PACKET_SRT))
+    else if ((m_gSubtype == MEDIASUBTYPE_UTF8) && (pPacket->dwFlags & LAV_PACKET_SRT))
     {
         ParseSRT(pPacket);
     }
@@ -164,7 +170,7 @@ static Packet *InitPacket(Packet *pSource)
 static BYTE H264NaluType(const Packet *pPacket)
 {
     BYTE const *pData = pPacket->GetData();
-    if (pData == nullptr || pPacket->GetDataSize() < 5) {
+    if ((pData == nullptr) || (pPacket->GetDataSize() < 5)) {
         return 0;
     }
     return pData[4] & 0x1f;
@@ -180,17 +186,17 @@ static bool H264NaluIsVcl(BYTE naluType)
 static bool H264NaluStartsPicture(const Packet *pPacket)
 {
     BYTE const *pData = pPacket->GetData();
-    if (pData == nullptr || pPacket->GetDataSize() < 6 || !H264NaluIsVcl(H264NaluType(pPacket))) {
+    if ((pData == nullptr) || (pPacket->GetDataSize() < 6) || !H264NaluIsVcl(H264NaluType(pPacket))) {
         return false;
     }
     return (pData[5] & 0x80) != 0;
 }
 
 #define MOVE_TO_H264_START_CODE(b, e)                                                                  \
-    while (b <= e - 4 && !((*(DWORD *)b == 0x01000000) || ((*(DWORD *)b & 0x00FFFFFF) == 0x00010000))) \
+    while ((b <= e - 4) && (!((*reinterpret_cast<DWORD *>(b) == 0x01000000) || ((*reinterpret_cast<DWORD *>(b) & 0x00FFFFFF) == 0x00010000)))) \
         b++;                                                                                           \
-    if ((b <= e - 4) && *(DWORD *)b == 0x01000000)                                                     \
-        b++;
+    if ((b <= e - 4) && (*reinterpret_cast<DWORD *>(b) == 0x01000000))                                                     \
+        ++b;
 
 HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
 {
@@ -218,21 +224,21 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
             break;
         }
 
-        size_t const size = next - start;
+        std::size_t const size = next - start;
 
         CH264Nalu Nalu;
-        Nalu.SetBuffer(start, (int)size, 0);
+        Nalu.SetBuffer(start, static_cast<int>(size), 0);
 
         Packet *p2 = nullptr;
 
         while (Nalu.ReadNext())
         {
             Packet *p3 = new Packet();
-            p3->SetDataSize((int)Nalu.GetDataLength() + 4);
+            p3->SetDataSize(static_cast<int>(Nalu.GetDataLength()) + 4);
 
             // Write size of the NALU (Big Endian)
-            AV_WB32(p3->GetData(), (uint32_t)Nalu.GetDataLength());
-            memcpy(p3->GetData() + 4, Nalu.GetDataBuffer(), Nalu.GetDataLength());
+            AV_WB32(p3->GetData(), static_cast<std::uint32_t>(Nalu.GetDataLength()));
+            std::memcpy(p3->GetData() + 4, Nalu.GetDataBuffer(), Nalu.GetDataLength());
 
             if (!p2)
             {
@@ -295,7 +301,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
 
     if (start > m_pPacketBuffer->GetData())
     {
-        m_pPacketBuffer->RemoveHead((int)(start - m_pPacketBuffer->GetData()));
+        m_pPacketBuffer->RemoveHead(static_cast<int>((start - m_pPacketBuffer->GetData())));
     }
 
     SAFE_DELETE(pPacket);
@@ -305,7 +311,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
         pPacket = nullptr;
 
         REFERENCE_TIME rtStart = Packet::INVALID_TIME, rtStop = rtStart = Packet::INVALID_TIME;
-        bool seenVcl = false;
+        bool seenVcl{ false };
 
         std::deque<Packet *>::iterator it;
         for (it = m_queue.GetQueue()->begin(); it != m_queue.GetQueue()->end(); ++it)
@@ -338,7 +344,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
             if (aud || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME) || newPicture)
             {
                 pPacket = p;
-                if (p->rtStart == Packet::INVALID_TIME && rtStart != Packet::INVALID_TIME)
+                if ((p->rtStart == Packet::INVALID_TIME) && (rtStart != Packet::INVALID_TIME))
                 {
                     p->rtStart = rtStart;
                     p->rtStop = rtStop;
@@ -383,9 +389,7 @@ HRESULT CStreamParser::DeliverQueuedH264()
     }
 
     Packet *p = m_queue.Get();
-    if (p == nullptr) {
-        return S_OK;
-    }
+    if (p == nullptr) { return S_OK; }
 
     for (;;)
     {
@@ -401,12 +405,12 @@ HRESULT CStreamParser::DeliverQueuedH264()
 
 HRESULT CStreamParser::ParsePGS(Packet *pPacket)
 {
-    const uint8_t *buf = pPacket->GetData();
-    const size_t buf_size = pPacket->GetDataSize();
+    const std::uint8_t *buf = pPacket->GetData();
+    const std::size_t buf_size = pPacket->GetDataSize();
 
-    const uint8_t *buf_end = buf + buf_size;
-    uint8_t segment_type;
-    size_t segment_length;
+    const std::uint8_t *buf_end = buf + buf_size;
+    std::uint8_t segment_type;
+    std::size_t segment_length;
 
     if (buf_size < 3)
     {
@@ -418,8 +422,8 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
 
     while ((buf + 3) <= buf_end)
     {
-        const uint8_t *segment_start = buf;
-        const size_t segment_buf_len = buf_end - buf;
+        const std::uint8_t *segment_start = buf;
+        const std::size_t segment_buf_len = buf_end - buf;
         segment_type = AV_RB8(buf);
         segment_length = AV_RB16(buf + 1);
 
@@ -437,7 +441,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
 #endif
 
         // Presentation segment
-        if (segment_type == 0x16 && segment_length > 10)
+        if ((segment_type == 0x16) && (segment_length > 10))
         {
             // Segment Layout
             // 2 bytes width
@@ -446,7 +450,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
             // 2 bytes id
             // 1 byte composition state (0x00 = normal, 0x40 = ACQU_POINT (?), 0x80 = epoch start (new frame), 0xC0 =
             // epoch continue) 2 unknown bytes 1 byte object number
-            uint8_t const objectNumber = buf[10U];
+            std::uint8_t const objectNumber = buf[10U];
             // 2 bytes object ref id
             if (objectNumber == 0)
             {
@@ -456,7 +460,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
             {
                 // 1 byte window_id
                 // 1 byte object_cropped_flag: 0x80, forced_on_flag = 0x040, 6bit reserved
-                uint8_t const forced_flag = buf[14U];
+                std::uint8_t const forced_flag = buf[14U];
                 m_bPGSDropState = !(forced_flag & 0x40);
                 // 2 bytes x
                 // 2 bytes y
@@ -469,7 +473,7 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
         }
         if (!m_bPGSDropState)
         {
-            m_pgsBuffer.Append(segment_start, (DWORD)(segment_length + 3));
+            m_pgsBuffer.Append(segment_start, static_cast<DWORD>((segment_length + 3)));
         }
 
         buf += segment_length;
@@ -491,7 +495,7 @@ done:
 
 HRESULT CStreamParser::ParseMOVText(Packet *pPacket)
 {
-    size_t const avail = pPacket->GetDataSize();
+    std::size_t const avail = pPacket->GetDataSize();
     BYTE *ptr = pPacket->GetData();
     if (avail > 2)
     {
@@ -530,7 +534,7 @@ HRESULT CStreamParser::ParseAAC(Packet *pPacket)
         int const crc_abs = get_bits1(&gb); /* protection_absent */
         int const header = AAC_ADTS_HEADER_SIZE + 2 * !crc_abs;
 
-        if (pPacket->GetDataSize() < header || pPacket->RemoveHead(header) < 0)
+        if ((pPacket->GetDataSize() < header) || (pPacket->RemoveHead(header) < 0))
         {
             SAFE_DELETE(pPacket);
             return S_FALSE;
@@ -546,11 +550,11 @@ static const char *read_srt_ts(const char *buf, int *ts_start, int *ts_end, int 
     for (i = 0; i < 2; ++i)
     {
         /* try to read timestamps in either the first or second line */
-        int const c = sscanf_s(buf,
+        int const c = ::sscanf_s(buf,
                          "%d:%2d:%2d%*1[,.]%3d --> %d:%2d:%2d%*1[,.]%3d"
                          "%*[ ]X1:%u X2:%u Y1:%u Y2:%u",
                          &hs, &ms, &ss, ts_start, &he, &me, &se, ts_end, x1, x2, y1, y2);
-        buf += strcspn(buf, "\n") + 1;
+        buf += std::strcspn(buf, "\n") + 1;
         if (c >= 8)
         {
             *ts_start = 100 * (ss + 60 * (ms + 60 * hs)) + *ts_start / 10;
@@ -565,14 +569,14 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
 {
     int ts_start, ts_end, x1 = -1, y1 = -1, x2 = -1, y2 = -1;
 
-    const char *ptr = (const char *)pPacket->GetData();
+    const char *ptr = reinterpret_cast<const char *>(pPacket->GetData());
     const char *end = ptr + pPacket->GetDataSize();
 
     if (pPacket->GetDataSize() == 0) {
         return S_FALSE;
 }
 
-    while (ptr && end > ptr && *ptr)
+    while (ptr && (end > ptr) && *ptr)
     {
         // Read the embedded timestamp and find the start of the subtitle
         ptr = read_srt_ts(ptr, &ts_start, &ts_end, &x1, &y1, &x2, &y2);
@@ -581,9 +585,9 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
             const char *linestart = ptr;
             while (end > ptr)
             {
-                if (*ptr != ' ' && *ptr != '\n' && *ptr != '\r')
+                if ((*ptr != ' ') && (*ptr != '\n') && (*ptr != '\r'))
                 {
-                    ptr += strcspn(ptr, "\n") + 1;
+                    ptr += std::strcspn(ptr, "\n") + 1;
                 }
                 else
                 {
@@ -592,7 +596,7 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
 }
                 }
             }
-            size_t const size = ptr - linestart;
+            std::size_t const size = ptr - linestart;
 
             Packet *p = new Packet();
             p->pmt = pPacket->pmt;
@@ -602,7 +606,7 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
             p->StreamId = pPacket->StreamId;
             p->rtStart = pPacket->rtStart;
             p->rtStop = pPacket->rtStop;
-            p->AppendData(linestart, (int)size);
+            p->AppendData(linestart, static_cast<int>(size));
             Queue(p);
         }
     }
@@ -619,9 +623,7 @@ HRESULT CStreamParser::ParsePlanarPCM(Packet *pPacket)
     audioFormatTypeHandler(mt.Format(), mt.FormatType(), nullptr, &nChannels, &nBPS, &nBlockAlign, nullptr, nullptr);
 
     // Mono needs no special handling
-    if (nChannels == 1) {
-        return Queue(pPacket);
-}
+    if (nChannels == 1) { return Queue(pPacket); }
 
     Packet *out = new Packet();
     out->CopyProperties(pPacket);
@@ -632,12 +634,12 @@ HRESULT CStreamParser::ParsePlanarPCM(Packet *pPacket)
     BYTE *out_data = out->GetData();
     const BYTE *in_data = pPacket->GetData();
 
-    for (int i = 0; i < nAudioBlocks; i += nBytesPerChannel)
+    for (int i{ 0 }; i < nAudioBlocks; i += nBytesPerChannel)
     {
         // interleave the channels into audio blocks
-        for (int c = 0; c < nChannels; ++c)
+        for (int c{ 0 }; c < nChannels; ++c)
         {
-            memcpy(out_data + (c * nBytesPerChannel), in_data + (nAudioBlocks * c), nBytesPerChannel);
+            std::memcpy(out_data + (c * nBytesPerChannel), in_data + (nAudioBlocks * c), nBytesPerChannel);
         }
         // Skip to the next output block
         out_data += nChannels * nBytesPerChannel;

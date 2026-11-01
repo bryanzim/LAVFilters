@@ -21,12 +21,17 @@
  */
 
 #include "stdafx.h"
-#include "BaseDemuxer.h"
+
 #include "OutputPin.h"
+
+#include "BaseDemuxer.h"
 #include "LAVSplitter.h"
 #include "moreuuids.h"
-
 #include "PacketAllocator.h"
+
+#include <cstddef>
+#include <cstring>
+
 
 CLAVOutputPin::CLAVOutputPin(std::deque<CMediaType> &mts, LPCWSTR pName, CBaseFilter *pFilter, CCritSec *pLock,
                              HRESULT *phr, CBaseDemuxer::StreamType pinType, const char *container)
@@ -48,7 +53,7 @@ CLAVOutputPin::~CLAVOutputPin()
 
 void CLAVOutputPin::SetQueueSizes()
 {
-    size_t factor = 1;
+    std::size_t factor{ 1U };
 
     // Normalize common audio codecs to reach a base line of 20ms
     if (m_mts.begin()->subtype == MEDIASUBTYPE_DOLBY_TRUEHD)
@@ -56,12 +61,12 @@ void CLAVOutputPin::SetQueueSizes()
         DbgLog((LOG_TRACE, 10, L"Increasing Audio Queue size for TrueHD"));
         factor = 30;
     }
-    else if (m_mts.begin()->subtype == MEDIASUBTYPE_HDMV_LPCM_AUDIO ||
-             m_mts.begin()->subtype == MEDIASUBTYPE_BD_LPCM_AUDIO || m_mts.begin()->subtype == MEDIASUBTYPE_PCM)
+    else if ((m_mts.begin()->subtype == MEDIASUBTYPE_HDMV_LPCM_AUDIO) ||
+             (m_mts.begin()->subtype == MEDIASUBTYPE_BD_LPCM_AUDIO) || (m_mts.begin()->subtype == MEDIASUBTYPE_PCM))
     {
         factor = 4;
     }
-    else if (m_mts.begin()->subtype == MEDIASUBTYPE_DTS || m_mts.begin()->subtype == MEDIASUBTYPE_WAVE_DTS)
+    else if ((m_mts.begin()->subtype == MEDIASUBTYPE_DTS) || (m_mts.begin()->subtype == MEDIASUBTYPE_WAVE_DTS))
     {
         factor = 2;
     }
@@ -72,9 +77,9 @@ void CLAVOutputPin::SetQueueSizes()
     }
 
     m_nQueueLow = MIN_PACKETS_IN_QUEUE * factor;
-    m_nQueueHigh = (size_t)(static_cast<CLAVSplitter *>(m_pFilter))->GetMaxQueueSize() * factor;
+    m_nQueueHigh = static_cast<std::size_t>((static_cast<CLAVSplitter *>(m_pFilter))->GetMaxQueueSize()) * factor;
 
-    m_nQueueMaxMem = (size_t)(static_cast<CLAVSplitter *>(m_pFilter))->GetMaxQueueMemSize() * 1024 * 1024;
+    m_nQueueMaxMem = static_cast<std::size_t>((static_cast<CLAVSplitter *>(m_pFilter))->GetMaxQueueMemSize()) * 1024 * 1024;
     if (!m_nQueueMaxMem)
     {
         m_nQueueMaxMem = 256 * 1024 * 1024;
@@ -84,8 +89,8 @@ void CLAVOutputPin::SetQueueSizes()
 HRESULT CLAVOutputPin::GetQueueSize(int &samples, int &size)
 {
     CAutoLock const lock(&m_queue);
-    samples = (int)m_queue.Size();
-    size = (int)m_queue.DataSize();
+    samples = static_cast<int>(m_queue.Size());
+    size = static_cast<int>(m_queue.DataSize());
     return S_OK;
 }
 
@@ -179,10 +184,10 @@ HRESULT CLAVOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERT
     HRESULT hr = S_OK;
 
     pProperties->cBuffers = max(pProperties->cBuffers, (m_bPacketAllocator ? 20 : m_nBuffers));
-    pProperties->cbBuffer = max(max(m_mt.lSampleSize, 256000), (ULONG)pProperties->cbBuffer);
+    pProperties->cbBuffer = max(max(m_mt.lSampleSize, 256000), static_cast<ULONG>(pProperties->cbBuffer));
 
     // Vorbis requires at least 2 buffers
-    if (m_mt.subtype == MEDIASUBTYPE_Vorbis && m_mt.formattype == FORMAT_VorbisFormat)
+    if ((m_mt.subtype == MEDIASUBTYPE_Vorbis) && (m_mt.formattype == FORMAT_VorbisFormat))
     {
         pProperties->cBuffers = max(pProperties->cBuffers, 2);
     }
@@ -192,9 +197,7 @@ HRESULT CLAVOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERT
     if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) {
         return hr;
 }
-    if (Actual.cbBuffer < pProperties->cbBuffer) {
-        return E_FAIL;
-}
+    if (Actual.cbBuffer < pProperties->cbBuffer) { return E_FAIL; }
     ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
     return S_OK;
@@ -204,9 +207,7 @@ HRESULT CLAVOutputPin::CheckMediaType(const CMediaType *pmt)
 {
     for (auto it = m_mts.begin(); it != m_mts.end(); ++it)
     {
-        if (*pmt == *it) {
-            return S_OK;
-}
+        if (*pmt == *it) { return S_OK; }
     }
 
     return E_INVALIDARG;
@@ -218,10 +219,8 @@ HRESULT CLAVOutputPin::GetMediaType(int iPosition, CMediaType *pmt)
             CBaseDemuxer::CStreamList::ToStringW(m_pinType), iPosition));
     CAutoLock const cAutoLock(m_pLock);
 
-    if (iPosition < 0) {
-        return E_INVALIDARG;
-}
-    if ((size_t)iPosition >= m_mts.size()) {
+    if (iPosition < 0) { return E_INVALIDARG; }
+    if (static_cast<std::size_t>(iPosition) >= m_mts.size()) {
         return VFW_S_NO_MORE_ITEMS;
 }
 
@@ -323,18 +322,14 @@ HRESULT CLAVOutputPin::DeliverNewSegment(REFERENCE_TIME tStart, REFERENCE_TIME t
     DbgLog((LOG_TRACE, 20, L"::DeliverNewSegment on %s Pin (rtStart: %I64d; rtStop: %I64d)",
             CBaseDemuxer::CStreamList::ToStringW(m_pinType), tStart, tStop));
     m_rtPrev = AV_NOPTS_VALUE;
-    if (m_fFlushing) {
-        return S_FALSE;
-}
+    if (m_fFlushing) { return S_FALSE; }
     if (!ThreadExists()) {
         return S_FALSE;
 }
 
     m_BitRate.rtLastDeliverTime = Packet::INVALID_TIME;
     hr = __super::DeliverNewSegment(tStart, tStop, dRate);
-    if (hr != S_OK) {
-        return hr;
-}
+    if (hr != S_OK) { return hr; }
 
     MakeISCRHappy();
 
@@ -355,7 +350,7 @@ void CLAVOutputPin::MakeISCRHappy()
     }
 }
 
-size_t CLAVOutputPin::QueueCount()
+std::size_t CLAVOutputPin::QueueCount()
 {
     return m_queue.Size();
 }
@@ -378,7 +373,7 @@ HRESULT CLAVOutputPin::QueuePacket(Packet *pPacket)
     // While everything is good AND no pin is drying AND the queue is full .. sleep
     // The queue has a "soft" limit of MAX_PACKETS_IN_QUEUE, and a hard limit of MAX_PACKETS_IN_QUEUE * 16 (and a memory limit)
     // That means, even if one pin is drying, we'll never exceed MAX_PACKETS_IN_QUEUE * 16
-    while (S_OK == m_hrDeliver && (m_queue.DataSize() > m_nQueueMaxMem || m_queue.Size() > 16 * m_nQueueHigh ||
+    while ((S_OK == m_hrDeliver) && (m_queue.DataSize() > m_nQueueMaxMem || m_queue.Size() > 16 * m_nQueueHigh ||
                                    (m_queue.Size() > m_nQueueHigh && !pSplitter->IsAnyPinDrying()))) {
         Sleep(10);
 }
@@ -420,7 +415,7 @@ DWORD CLAVOutputPin::ThreadProc()
     m_hrDeliver = S_OK;
     m_fFlushing = m_fFlushed = false;
     m_eEndFlush.Set();
-    bool bFailFlush = false;
+    bool bFailFlush{ false };
 
     while (1)
     {
@@ -435,7 +430,7 @@ DWORD CLAVOutputPin::ThreadProc()
             return 0;
         }
 
-        size_t cnt = 0;
+        std::size_t cnt{ 0U };
         do
         {
             Packet *pPacket = nullptr;
@@ -450,7 +445,7 @@ DWORD CLAVOutputPin::ThreadProc()
             }
 
             // We need to check cnt instead of pPacket, since it can be nullptr for EndOfStream
-            if (m_hrDeliver == S_OK && cnt > 0)
+            if ((m_hrDeliver == S_OK) && (cnt > 0))
             {
                 ASSERT(!m_fFlushing);
                 m_fFlushed = false;
@@ -461,11 +456,11 @@ DWORD CLAVOutputPin::ThreadProc()
                 // .. so, wait until flush finished
                 m_eEndFlush.Wait();
 
-                if (hr != S_OK && !m_fFlushed)
+                if ((hr != S_OK) && !m_fFlushed)
                 {
                     DbgLog((LOG_TRACE, 10, L"OutputPin::ThreadProc(): Delivery failed on %s pin, hr: %0#.8x",
                             CBaseDemuxer::CStreamList::ToStringW(GetPinType()), hr));
-                    if (!bFailFlush && hr == S_FALSE)
+                    if (!bFailFlush && (hr == S_FALSE))
                     {
                         DbgLog((LOG_TRACE, 10, L"OutputPin::ThreadProc(): Trying to revive it by flushing..."));
                         GetConnected()->BeginFlush();
@@ -484,7 +479,7 @@ DWORD CLAVOutputPin::ThreadProc()
                 // in case of stream switches or other events, we may end up here
                 SAFE_DELETE(pPacket);
             }
-        } while (cnt > 1 && m_hrDeliver == S_OK);
+        } while ((cnt > 1) && (m_hrDeliver == S_OK));
     }
     return 0;
 }
@@ -494,7 +489,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
     HRESULT hr = S_OK;
     IMediaSample *pSample = nullptr;
 
-    long const nBytes = (long)pPacket->GetDataSize();
+    long const nBytes = static_cast<long>(pPacket->GetDataSize());
 
     if (nBytes == 0)
     {
@@ -534,11 +529,11 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 
         // Fill the sample
         BYTE *pData = nullptr;
-        if (FAILED(hr = pSample->GetPointer(&pData)) || !pData) {
+        if ((FAILED(hr = pSample->GetPointer(&pData))) || !pData) {
             goto done;
 }
 
-        memcpy(pData, pPacket->GetData(), nBytes);
+        std::memcpy(pData, pPacket->GetData(), nBytes);
     }
 
     if (pPacket->pmt)
@@ -577,14 +572,14 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 
             dSecs = rtDiff / 10000000.0;
             dBits = 8.0 * m_BitRate.nBytesSinceLastDeliverTime;
-            m_BitRate.nCurrentBitRate = (DWORD)(dBits / dSecs);
+            m_BitRate.nCurrentBitRate = static_cast<DWORD>((dBits / dSecs));
 
             m_BitRate.rtTotalTimeDelivered += rtDiff;
             m_BitRate.nTotalBytesDelivered += m_BitRate.nBytesSinceLastDeliverTime;
 
             dSecs = m_BitRate.rtTotalTimeDelivered / 10000000.0;
             dBits = 8.0 * m_BitRate.nTotalBytesDelivered;
-            m_BitRate.nAverageBitRate = (DWORD)(dBits / dSecs);
+            m_BitRate.nAverageBitRate = static_cast<DWORD>((dBits / dSecs));
 
             m_BitRate.rtLastDeliverTime = pPacket->rtStart;
             m_BitRate.nBytesSinceLastDeliverTime = 0;
@@ -694,7 +689,7 @@ STDMETHODIMP_(int) CLAVOutputPin::GetHasBFrames()
     return (static_cast<CLAVSplitter *>(m_pFilter))->GetHasBFrames(m_streamId);
 }
 
-STDMETHODIMP CLAVOutputPin::GetSideData(GUID guidType, const BYTE **pData, size_t *pSize)
+STDMETHODIMP CLAVOutputPin::GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize)
 {
     return (static_cast<CLAVSplitter *>(m_pFilter))->GetSideData(m_streamId, guidType, pData, pSize);
 }

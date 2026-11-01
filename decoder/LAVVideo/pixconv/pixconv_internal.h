@@ -20,8 +20,13 @@
 #pragma once
 
 #include "LAVPixFmtConverter.h"
-#include <emmintrin.h>
-#include "timer.h"
 #include "Media.h"
+#include "timer.h"
 
-extern __declspec(align(16)) const uint16_t dither_8x8_256[8U][8U];
+#include <emmintrin.h>
+
+#include <array>
+#include <cstdint>
+
+
+extern std::array<std::array<const std::uint16_t, 8U>, 8U> dither_8x8_256;

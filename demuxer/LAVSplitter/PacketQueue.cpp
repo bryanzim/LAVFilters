@@ -18,8 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "PacketQueue.h"
+
 #include "BaseDemuxer.h"
+
+#include <cstddef>
+
 
 // Queue a new packet at the end of the list
 void CPacketQueue::Queue(Packet *pPacket)
@@ -27,7 +32,7 @@ void CPacketQueue::Queue(Packet *pPacket)
     CAutoLock const cAutoLock(this);
 
     if (pPacket) {
-        m_dataSize += (size_t)pPacket->GetDataSize();
+        m_dataSize += static_cast<std::size_t>(pPacket->GetDataSize());
 }
 
     m_queue.push_back(pPacket);
@@ -46,14 +51,14 @@ Packet *CPacketQueue::Get()
     m_queue.pop_front();
 
     if (pPacket) {
-        m_dataSize -= (size_t)pPacket->GetDataSize();
+        m_dataSize -= static_cast<std::size_t>(pPacket->GetDataSize());
 }
 
     return pPacket;
 }
 
 // Get the size of the queue
-size_t CPacketQueue::Size()
+std::size_t CPacketQueue::Size()
 {
     CAutoLock const cAutoLock(this);
 
@@ -61,7 +66,7 @@ size_t CPacketQueue::Size()
 }
 
 // Get the size of the queue
-size_t CPacketQueue::DataSize()
+std::size_t CPacketQueue::DataSize()
 {
     CAutoLock const cAutoLock(this);
 

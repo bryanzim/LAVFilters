@@ -18,11 +18,14 @@
  */
 
 #include "stdafx.h"
-#include "LAVVideo.h"
+
 #include "VideoOutputPin.h"
 
+#include "LAVVideo.h"
+
+
 CVideoOutputPin::CVideoOutputPin(LPCTSTR pObjectName, CLAVVideo *pFilter, HRESULT *phr, LPCWSTR pName)
-    : CTransformOutputPin(pObjectName, (CTransformFilter *)pFilter, phr, pName)
+    : CTransformOutputPin(pObjectName, reinterpret_cast<CTransformFilter *>(pFilter), phr, pName)
     , m_pFilter{pFilter}
 {
 }

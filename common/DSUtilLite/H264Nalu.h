@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 typedef enum
 {
     NALU_TYPE_UNKNOWN = 0,
@@ -42,48 +44,48 @@ typedef enum
 class CH264Nalu
 {
   protected:
-    int forbidden_bit = 0;                       //! should be always FALSE
-    int nal_reference_idc = 0;                   //! NALU_PRIORITY_xxxx
+    int forbidden_bit{ 0 };                       //! should be always FALSE
+    int nal_reference_idc{ 0 };                   //! NALU_PRIORITY_xxxx
     NALU_TYPE nal_unit_type = NALU_TYPE_UNKNOWN; //! NALU_TYPE_xxxx
 
-    size_t m_nNALStartPos = 0; //! NALU start (including startcode / size)
-    size_t m_nNALDataPos = 0;  //! Useful part
+    std::size_t m_nNALStartPos{ 0U }; //! NALU start (including startcode / size)
+    std::size_t m_nNALDataPos{ 0U };  //! Useful part
 
     const BYTE *m_pBuffer = nullptr;
-    size_t m_nCurPos = 0;
-    size_t m_nNextRTP = 0;
-    size_t m_nSize = 0;
-    int m_nNALSize = 0;
+    std::size_t m_nCurPos{ 0U };
+    std::size_t m_nNextRTP{ 0U };
+    std::size_t m_nSize{ 0U };
+    int m_nNALSize{ 0 };
 
     bool MoveToNextAnnexBStartcode();
     bool MoveToNextRTPStartcode();
 
   public:
-    CH264Nalu() { SetBuffer(nullptr, 0, 0); }
-    NALU_TYPE GetType() const { return nal_unit_type; }
-    bool IsRefFrame() const { return (nal_reference_idc != 0); }
+    explicit CH264Nalu() { SetBuffer(nullptr, 0, 0); }
+    [[nodiscard]] constexpr NALU_TYPE GetType() const noexcept { return nal_unit_type; }
+    [[nodiscard]] bool IsRefFrame() const { return (nal_reference_idc != 0); }
 
-    size_t GetDataLength() const { return m_nCurPos - m_nNALDataPos; }
-    const BYTE *GetDataBuffer() { return m_pBuffer + m_nNALDataPos; }
-    size_t GetRoundedDataLength() const
+    [[nodiscard]] constexpr std::size_t GetDataLength() const noexcept { return m_nCurPos - m_nNALDataPos; }
+    [[nodiscard]] constexpr const BYTE *GetDataBuffer() noexcept { return m_pBuffer + m_nNALDataPos; }
+    std::size_t GetRoundedDataLength() const
     {
-        size_t const nSize = m_nCurPos - m_nNALDataPos;
+        std::size_t const nSize = m_nCurPos - m_nNALDataPos;
         return nSize + 128 - (nSize % 128);
     }
 
-    size_t GetLength() const { return m_nCurPos - m_nNALStartPos; }
-    const BYTE *GetNALBuffer() { return m_pBuffer + m_nNALStartPos; }
-    size_t GetNALPos() { return m_nNALStartPos; }
-    bool IsEOF() const { return m_nCurPos >= m_nSize; }
+    [[nodiscard]] constexpr std::size_t GetLength() const noexcept { return m_nCurPos - m_nNALStartPos; }
+    [[nodiscard]] constexpr const BYTE *GetNALBuffer() noexcept { return m_pBuffer + m_nNALStartPos; }
+    [[nodiscard]] constexpr std::size_t GetNALPos() noexcept { return m_nNALStartPos; }
+    [[nodiscard]] constexpr bool IsEOF() const noexcept { return m_nCurPos >= m_nSize; }
 
-    void SetBuffer(const BYTE *pBuffer, size_t nSize, int nNALSize);
+    void SetBuffer(const BYTE *pBuffer, std::size_t nSize, int nNALSize);
     bool ReadNext();
 };
 
 class CH265Nalu : public CH264Nalu
 {
   public:
-    CH265Nalu()
+    explicit CH265Nalu()
         : CH264Nalu(){};
     bool ReadNext();
 };
@@ -91,12 +93,12 @@ class CH265Nalu : public CH264Nalu
 class CH264NALUnescape
 {
   public:
-    CH264NALUnescape(const BYTE *pBuffer, size_t nSize);
+    CH264NALUnescape(const BYTE *pBuffer, std::size_t nSize);
     ~CH264NALUnescape();
-    const BYTE *GetBuffer() const { return m_pBuffer; }
-    size_t GetSize() const { return m_nSize; }
+    [[nodiscard]] constexpr const BYTE *GetBuffer() const noexcept { return m_pBuffer; }
+    [[nodiscard]] constexpr std::size_t GetSize() const noexcept { return m_nSize; }
 
   private:
     BYTE *m_pBuffer = nullptr;
-    size_t m_nSize = 0;
+    std::size_t m_nSize{ 0U };
 };

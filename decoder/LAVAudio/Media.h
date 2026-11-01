@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #define DBL_SECOND_MULT 10000000.0
 #define RT_SECOND_MULT 10000000LL
 
@@ -41,7 +44,7 @@ struct scmap_t
 struct codec_config_t
 {
     int nCodecs;
-    AVCodecID codecs[MAX_NUM_CC_CODECS];
+    std::array<AVCodecID, MAX_NUM_CC_CODECS> codecs{};
     const char *name;
     const char *description;
 };
@@ -71,4 +74,4 @@ const char *get_channel_desc(DWORD dwFlag);
 // DO NOT USE WITH AN INTEGER TYPE - only double and float are allowed
 template <class T> T get_sample_from_buffer(const BYTE *pBuffer, LAVAudioSampleFormat sfFormat);
 
-void lav_spdif_bswap_buf16(uint16_t *dst, const uint16_t *src, int w);
+void lav_spdif_bswap_buf16(std::uint16_t *dst, const std::uint16_t *src, int w);

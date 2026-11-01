@@ -18,7 +18,12 @@
  */
 
 #include "stdafx.h"
+
 #include "AnnexBConverter.h"
+
+#include <cstdint>
+#include <cstring>
+
 
 #include "libavutil/intreadwrite.h"
 
@@ -30,19 +35,17 @@ CAnnexBConverter::~CAnnexBConverter(void)
 {
 }
 
-static HRESULT alloc_and_copy(uint8_t **poutbuf, int *poutbuf_size, const uint8_t *in, uint32_t in_size)
+static HRESULT alloc_and_copy(std::uint8_t **poutbuf, int *poutbuf_size, const std::uint8_t *in, std::uint32_t in_size)
 {
-    uint32_t const offset = *poutbuf_size;
-    uint8_t const nal_header_size = offset ? 3 : 4;
+    std::uint32_t const offset = *poutbuf_size;
+    std::uint8_t const nal_header_size = offset ? 3 : 4;
     void *tmp;
 
     *poutbuf_size += in_size + nal_header_size;
     tmp = av_realloc(*poutbuf, *poutbuf_size);
-    if (!tmp) {
-        return E_OUTOFMEMORY;
-}
-    *poutbuf = (uint8_t *)tmp;
-    memcpy(*poutbuf + nal_header_size + offset, in, in_size);
+    if (!tmp) { return E_OUTOFMEMORY; }
+    *poutbuf = reinterpret_cast<std::uint8_t *>(tmp);
+    std::memcpy(*poutbuf + nal_header_size + offset, in, in_size);
     if (!offset)
     {
         AV_WB32(*poutbuf, 1);
@@ -58,8 +61,8 @@ static HRESULT alloc_and_copy(uint8_t **poutbuf, int *poutbuf_size, const uint8_
 
 HRESULT CAnnexBConverter::Convert(BYTE **poutbuf, int *poutbuf_size, const BYTE *buf, int buf_size)
 {
-    int32_t nal_size;
-    const uint8_t *buf_end = buf + buf_size;
+    std::int32_t nal_size;
+    const std::uint8_t *buf_end = buf + buf_size;
 
     *poutbuf_size = 0;
 
@@ -87,7 +90,7 @@ HRESULT CAnnexBConverter::Convert(BYTE **poutbuf, int *poutbuf_size, const BYTE 
 
         buf += m_NaluSize;
 
-        if (buf + nal_size > buf_end || nal_size < 0) {
+        if ((buf + nal_size > buf_end) || (nal_size < 0)) {
             goto fail;
 }
 
@@ -107,9 +110,7 @@ fail:
 
 HRESULT CAnnexBConverter::ConvertHEVCExtradata(BYTE **poutbuf, int *poutbuf_size, const BYTE *buf, int buf_size)
 {
-    if (buf_size < 23) {
-        return E_INVALIDARG;
-}
+    if (buf_size < 23) { return E_INVALIDARG; }
 
     SetNALUSize(2);
 
@@ -119,7 +120,7 @@ HRESULT CAnnexBConverter::ConvertHEVCExtradata(BYTE **poutbuf, int *poutbuf_size
     int const num_arrays = buf[22U];
     int remaining_size = buf_size - 23;
     buf += 23;
-    for (int i = 0; i < num_arrays; ++i)
+    for (int i{ 0 }; i < num_arrays; ++i)
     {
         if (remaining_size < 3) {
             break;
@@ -127,7 +128,7 @@ HRESULT CAnnexBConverter::ConvertHEVCExtradata(BYTE **poutbuf, int *poutbuf_size
         int const cnt = AV_RB16(buf + 1);
         buf += 3;
         remaining_size -= 3;
-        for (int j = 0; j < cnt; ++j)
+        for (int j{ 0 }; j < cnt; ++j)
         {
             if (remaining_size < 2) {
                 break;

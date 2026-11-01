@@ -22,10 +22,13 @@
 
 #pragma once
 
-#include "Packet.h"
+#include "ILAVDynamicAllocator.h"
 #include "IMediaSideData.h"
 #include "IMediaSideDataFFmpeg.h"
-#include "ILAVDynamicAllocator.h"
+#include "Packet.h"
+
+#include <cstddef>
+
 
 interface __declspec(uuid("0B2EE323-0ED8-452D-B31E-B9B4DE2C0C39")) ILAVMediaSample : public IUnknown
 {
@@ -49,8 +52,8 @@ class CMediaPacketSample
     STDMETHODIMP SetPacket(Packet *pPacket);
 
     // IMediaSideData
-    STDMETHODIMP SetSideData(GUID guidType, const BYTE *pData, size_t size);
-    STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, size_t *pSize);
+    STDMETHODIMP SetSideData(GUID guidType, const BYTE *pData, std::size_t size);
+    STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize);
 
   protected:
     Packet *m_pPacket = nullptr;
@@ -62,7 +65,7 @@ class CPacketAllocator
     , public ILAVDynamicAllocator
 {
   protected:
-    BOOL m_bAllocated = FALSE;
+    BOOL m_bAllocated{ FALSE };
 
     // override to free the memory when decommit completes
     // - we actually do nothing, and save the memory until deletion.

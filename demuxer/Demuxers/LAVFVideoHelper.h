@@ -21,7 +21,9 @@
 
 #pragma once
 
-#include "dvdmedia.h"
+#ifdef _WIN32
+#include <dvdmedia.h>
+#endif
 
 // clang-format off
 const AVCodecTag mp_bmp_tags[] = {
@@ -63,7 +65,7 @@ const struct AVCodecTag *const mp_bmp_taglists[] = {avformat_get_riff_video_tags
 class CLAVFVideoHelper
 {
   public:
-    CLAVFVideoHelper(){};
+    explicit CLAVFVideoHelper(){};
     CMediaType initVideoType(AVCodecID codecId, unsigned int &codecTag, std::string container);
 
     VIDEOINFOHEADER *CreateVIH(const AVStream *avstream, ULONG *size, std::string container);

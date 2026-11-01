@@ -19,13 +19,18 @@
 
 #pragma once
 
-#include "LAVVideoSettings.h"
 #include "decoders/ILAVDecoder.h"
+#include "LAVVideoSettings.h"
 
 #include <emmintrin.h>
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+
 #define CONV_FUNC_PARAMS                                                                                       \
-    (const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], const ptrdiff_t dstStride[4U], \
+    (const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], const std::ptrdiff_t dstStride[4U], \
      int width, int height, LAVPixelFormat inputFormat, int bpp, LAVOutPixFmts outputFormat)
 
 #define DECLARE_CONV_FUNC(name) HRESULT name CONV_FUNC_PARAMS
@@ -46,8 +51,8 @@ typedef struct
     int bpp;
     int codedbytes;
     int planes;
-    int planeHeight[4U];
-    int planeWidth[4U];
+    std::array<int, 4U> planeHeight{};
+    std::array<int, 4U> planeWidth{};
 } LAVOutPixFmtDesc;
 
 typedef struct _RGBCoeffs
@@ -61,17 +66,17 @@ typedef struct _RGBCoeffs
     __m128i cB_Cb;
 } RGBCoeffs;
 
-typedef int(__stdcall *YUVRGBConversionFunc)(const uint8_t *srcY, const uint8_t *srcU, const uint8_t *srcV,
-                                             uint8_t *dst, int width, int height, ptrdiff_t srcStrideY,
-                                             ptrdiff_t srcStrideUV, ptrdiff_t dstStride, ptrdiff_t sliceYStart,
-                                             ptrdiff_t sliceYEnd, const RGBCoeffs *coeffs, const uint16_t *dithers);
+typedef int(__stdcall *YUVRGBConversionFunc)(const std::uint8_t *srcY, const std::uint8_t *srcU, const std::uint8_t *srcV,
+                                             std::uint8_t *dst, int width, int height, std::ptrdiff_t srcStrideY,
+                                             std::ptrdiff_t srcStrideUV, std::ptrdiff_t dstStride, std::ptrdiff_t sliceYStart,
+                                             std::ptrdiff_t sliceYEnd, const RGBCoeffs *coeffs, const std::uint16_t *dithers);
 
 extern LAVOutPixFmtDesc lav_pixfmt_desc[];
 
 class CLAVPixFmtConverter
 {
   public:
-    CLAVPixFmtConverter();
+    explicit CLAVPixFmtConverter();
     ~CLAVPixFmtConverter();
 
     void SetSettings(ILAVVideoSettings *pSettings) { m_pSettings = pSettings; }
@@ -79,7 +84,7 @@ class CLAVPixFmtConverter
     BOOL SetInputFmt(enum LAVPixelFormat pixfmt, int bpp)
     {
         ASSERT((pixfmt != LAVPixFmt_None && pixfmt != LAVPixFmt_D3D11 && pixfmt != LAVPixFmt_DXVA2));
-        if (m_InputPixFmt != pixfmt || m_InBpp != bpp)
+        if ((m_InputPixFmt != pixfmt) || (m_InBpp != bpp))
         {
             m_InputPixFmt = pixfmt;
             m_InBpp = bpp;
@@ -100,10 +105,10 @@ class CLAVPixFmtConverter
     LAVOutPixFmts GetOutputBySubtype(const GUID *guid);
     LAVOutPixFmts GetPreferredOutput();
 
-    LAVOutPixFmts GetOutputPixFmt() { return m_OutputPixFmt; }
+    [[nodiscard]] constexpr LAVOutPixFmts GetOutputPixFmt() noexcept { return m_OutputPixFmt; }
     void SetColorProps(DXVA2_ExtendedFormat props, int RGBOutputRange)
     {
-        if (props.value != m_ColorProps.value || swsOutputRange != RGBOutputRange)
+        if ((props.value != m_ColorProps.value) || (swsOutputRange != RGBOutputRange))
         {
             DestroySWScale();
             m_ColorProps = props;
@@ -116,17 +121,17 @@ class CLAVPixFmtConverter
                       REFERENCE_TIME rtAvgTime, BOOL bInterlaced = TRUE, BOOL bVIH1 = FALSE);
     BOOL IsAllowedSubtype(const GUID *guid);
 
-    HRESULT Convert(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst, int width, int height,
-                    ptrdiff_t dstStride, int planeHeight);
-    HRESULT ConvertDirect(LAVFrame *pFrame, uint8_t *dst, int width, int height, ptrdiff_t dstStride, int planeHeight);
+    HRESULT Convert(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst, int width, int height,
+                    std::ptrdiff_t dstStride, int planeHeight);
+    HRESULT ConvertDirect(LAVFrame *pFrame, std::uint8_t *dst, int width, int height, std::ptrdiff_t dstStride, int planeHeight);
 
-    BOOL IsRGBConverterActive() { return m_bRGBConverter; }
-    BOOL IsDirectModeSupported(uintptr_t dst, ptrdiff_t stride);
+    [[nodiscard]] constexpr BOOL IsRGBConverterActive() noexcept { return m_bRGBConverter; }
+    BOOL IsDirectModeSupported(std::uintptr_t dst, std::ptrdiff_t stride);
 
     DWORD GetImageSize(int width, int height, LAVOutPixFmts pixFmt = LAVOutPixFmt_None);
 
   private:
-    AVPixelFormat GetFFInput() { return getFFPixelFormatFromLAV(m_InputPixFmt, m_InBpp); }
+    [[nodiscard]] AVPixelFormat GetFFInput() { return getFFPixelFormatFromLAV(m_InputPixFmt, m_InBpp); }
 
     int GetFilteredFormatCount();
     LAVOutPixFmts GetFilteredFormat(int index);
@@ -135,23 +140,23 @@ class CLAVPixFmtConverter
     void SelectConvertFunctionDirect();
 
     // Helper functions for convert_generic
-    HRESULT swscale_scale(enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, const uint8_t *const src[4U],
-                          const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width, int height,
-                          const ptrdiff_t dstStride[4U], LAVOutPixFmtDesc pixFmtDesc, bool swapPlanes12 = false);
-    HRESULT ConvertTo422Packed(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                               int height, const ptrdiff_t dstStride[4U]);
-    HRESULT ConvertToAYUV(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                          int height, const ptrdiff_t dstStride[4U]);
-    HRESULT ConvertToPX1X(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                          int height, const ptrdiff_t dstStride[4U], int chromaVertical);
-    HRESULT ConvertToY410(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                          int height, const ptrdiff_t dstStride[4U]);
-    HRESULT ConvertToY416(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                          int height, const ptrdiff_t dstStride[4U]);
-    HRESULT ConvertTov210(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                          int height, const ptrdiff_t dstStride[4U]);
-    HRESULT ConvertTov410(const uint8_t *const src[4U], const ptrdiff_t srcStride[4U], uint8_t *dst[4U], int width,
-                          int height, const ptrdiff_t dstStride[4U]);
+    HRESULT swscale_scale(enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, const std::uint8_t *const src[4U],
+                          const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width, int height,
+                          const std::ptrdiff_t dstStride[4U], LAVOutPixFmtDesc pixFmtDesc, bool swapPlanes12 = false);
+    HRESULT ConvertTo422Packed(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                               int height, const std::ptrdiff_t dstStride[4U]);
+    HRESULT ConvertToAYUV(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                          int height, const std::ptrdiff_t dstStride[4U]);
+    HRESULT ConvertToPX1X(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                          int height, const std::ptrdiff_t dstStride[4U], int chromaVertical);
+    HRESULT ConvertToY410(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                          int height, const std::ptrdiff_t dstStride[4U]);
+    HRESULT ConvertToY416(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                          int height, const std::ptrdiff_t dstStride[4U]);
+    HRESULT ConvertTov210(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                          int height, const std::ptrdiff_t dstStride[4U]);
+    HRESULT ConvertTov410(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U], int width,
+                          int height, const std::ptrdiff_t dstStride[4U]);
 
     void DestroySWScale()
     {
@@ -170,7 +175,7 @@ class CLAVPixFmtConverter
     };
     SwsContext *GetSWSContext(int width, int height, enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, int flags);
 
-    void ChangeStride(const uint8_t *src, ptrdiff_t srcStride, uint8_t *dst, ptrdiff_t dstStride, int width, int height,
+    void ChangeStride(const std::uint8_t *src, std::ptrdiff_t srcStride, std::uint8_t *dst, std::ptrdiff_t dstStride, int width, int height,
                       int planeHeight, LAVOutPixFmts format);
 
     typedef HRESULT(CLAVPixFmtConverter::*ConverterFn) CONV_FUNC_PARAMS;
@@ -213,41 +218,41 @@ class CLAVPixFmtConverter
     const RGBCoeffs *getRGBCoeffs(int width, int height);
     void InitRGBConvDispatcher();
 
-    const uint16_t *GetRandomDitherCoeffs(int height, int coeffs, int bits, int line);
+    const std::uint16_t *GetRandomDitherCoeffs(int height, int coeffs, int bits, int line);
 
   private:
     LAVPixelFormat m_InputPixFmt = LAVPixFmt_None;
     LAVOutPixFmts m_OutputPixFmt = LAVOutPixFmt_YV12;
-    int m_InBpp = 0;
+    int m_InBpp{ 0 };
 
-    BOOL m_bDirectMode = false;
+    BOOL m_bDirectMode{ false };
 
-    int swsWidth = 0;
-    int swsHeight = 0;
-    int swsOutputRange = 0;
+    int swsWidth{ 0 };
+    int swsHeight{ 0 };
+    int swsOutputRange{ 0 };
 
     DXVA2_ExtendedFormat m_ColorProps;
 
-    ptrdiff_t m_RequiredAlignment = 0;
+    std::ptrdiff_t m_RequiredAlignment{ 0 };
 
     SwsContext *m_pSwsContext = nullptr;
 
-    size_t m_nAlignedBufferSize = 0;
-    uint8_t *m_pAlignedBuffer = nullptr;
+    std::size_t m_nAlignedBufferSize{ 0U };
+    std::uint8_t *m_pAlignedBuffer = nullptr;
 
-    int m_NumThreads = 1;
+    int m_NumThreads{ 1 };
 
     ILAVVideoSettings *m_pSettings = nullptr;
 
     RGBCoeffs *m_rgbCoeffs = nullptr;
-    BOOL m_bRGBConverter = FALSE;
-    BOOL m_bRGBConvInit = FALSE;
+    BOOL m_bRGBConverter{ FALSE };
+    BOOL m_bRGBConvInit{ FALSE };
 
     // [out32][dithermode][ycgco][format][shift]
     YUVRGBConversionFunc m_RGBConvFuncs[2U][2U][2U][LAVPixFmt_NB][9U];
 
-    uint16_t *m_pRandomDithers = nullptr;
-    int m_ditherWidth = 0;
-    int m_ditherHeight = 0;
-    int m_ditherBits = 0;
+    std::uint16_t *m_pRandomDithers = nullptr;
+    int m_ditherWidth{ 0 };
+    int m_ditherHeight{ 0 };
+    int m_ditherBits{ 0 };
 };

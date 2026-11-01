@@ -18,7 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "MPEG2HeaderParser.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 
 #pragma warning(push)
 #pragma warning(disable : 4101)
@@ -30,13 +36,11 @@
 #define SEQ_START_CODE 0x000001b3
 #define EXT_START_CODE 0x000001b5
 
-static inline const uint8_t *find_next_marker(const uint8_t *src, const uint8_t *end)
+static inline const std::uint8_t *find_next_marker(const std::uint8_t *src, const std::uint8_t *end)
 {
-    uint32_t mrk = 0xFFFFFFFF;
+    std::uint32_t mrk{ 0xFFFFFFFFU };
 
-    if (end - src < 4) {
-        return end;
-}
+    if (end - src < 4) { return end; }
     while (src < end)
     {
         mrk = (mrk << 8) | *src++;
@@ -47,9 +51,9 @@ static inline const uint8_t *find_next_marker(const uint8_t *src, const uint8_t 
     return end;
 }
 
-CMPEG2HeaderParser::CMPEG2HeaderParser(const BYTE *pData, size_t length)
+CMPEG2HeaderParser::CMPEG2HeaderParser(const BYTE *pData, std::size_t length)
 {
-    memset(&hdr, 0, sizeof(hdr));
+    std::memset(&hdr, 0, sizeof(hdr));
     ParseMPEG2Header(pData, length);
 }
 
@@ -57,7 +61,7 @@ CMPEG2HeaderParser::~CMPEG2HeaderParser(void)
 {
 }
 
-void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, size_t length)
+void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, std::size_t length)
 {
     if (length < 16) {
         return;
@@ -65,9 +69,9 @@ void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, size_t length)
 
     GetBitContext gb;
 
-    const uint8_t *start = pData;
-    const uint8_t *end = start + length;
-    const uint8_t *next = nullptr;
+    const std::uint8_t *start = pData;
+    const std::uint8_t *end = start + length;
+    const std::uint8_t *next = nullptr;
 
     int size;
 
@@ -77,7 +81,7 @@ void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, size_t length)
     for (; next < end; start = next)
     {
         next = find_next_marker(start + 4, end);
-        size = (int)(next - start - 4);
+        size = static_cast<int>((next - start - 4));
         if (size <= 0) {
             continue;
 }

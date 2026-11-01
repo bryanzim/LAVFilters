@@ -20,11 +20,13 @@
 #pragma once
 
 #include "common_defines.h"
+#include "streams.h"
 
+#ifdef _WIN32
 #include <atlbase.h>
 #include <atlconv.h>
+#endif
 
-#include "streams.h"
 
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -36,26 +38,28 @@ extern "C"
 #include "libavutil/channel_layout.h"
 #include "libavutil/display.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
+#include "libavutil/pixdesc.h"
 
-#include "libbluray/bluray.h"
 #include "libbluray/bdnav/clpi_parse.h"
+#include "libbluray/bluray.h"
 }
 #pragma warning(pop)
 
 #define AVFORMAT_INTERNAL_H
+
+#include "DShowUtil.h"
+#include "util/log_control.h"
+
+#ifdef _WIN32
+#include <MMReg.h>
+#include <Shlwapi.h>
+#endif
 typedef struct AVCodecTag
 {
     enum AVCodecID id;
     unsigned int tag;
 } AVCodecTag;
 
-#include "util/log_control.h"
-
-#include "DShowUtil.h"
-#include <MMReg.h>
-
-#include <Shlwapi.h>
 
 // TODO: reference additional headers your program requires here

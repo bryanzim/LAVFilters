@@ -23,12 +23,17 @@
 
 #pragma once
 
-#include <dvdmedia.h>
+#ifdef _WIN32
 #include <dmodshow.h>
+#include <dvdmedia.h>
 #include <ks.h>
 #include <ksmedia.h>
 #include <MMReg.h>
 #include <wmcodecdsp.h>
+#endif
+
+#include <array>
+#include <cstring>
 
 #define WAVE_FORMAT_DOLBY_AC3 0x2000
 // {00002000-0000-0010-8000-00aa00389b71}
@@ -128,7 +133,7 @@ struct DIRACINFOHEADER
 {
     VIDEOINFOHEADER2 hdr;
     DWORD cbSequenceHeader;
-    DWORD dwSequenceHeader[1U];
+    std::array<DWORD, 1U> dwSequenceHeader{};
 };
 
 // MP4
@@ -303,9 +308,9 @@ struct WAVEFORMATEXPS2 : public WAVEFORMATEX
 {
     DWORD dwInterleave;
 
-    WAVEFORMATEXPS2()
+    explicit WAVEFORMATEXPS2()
     {
-        memset(this, 0, sizeof(*this));
+        std::memset(this, 0, sizeof(*this));
         cbSize = sizeof(WAVEFORMATEXPS2) - sizeof(WAVEFORMATEX);
     }
 };
@@ -398,7 +403,7 @@ typedef struct tagVORBISFORMAT2
     DWORD Channels;
     DWORD SamplesPerSec;
     DWORD BitsPerSample;
-    DWORD HeaderSize[3U]; // 0: Identification, 1: Comment, 2: Setup
+    std::array<DWORD, 3U> HeaderSize{}; // 0: Identification, 1: Comment, 2: Setup
 } VORBISFORMAT2, *PVORBISFORMAT2, FAR *LPVORBISFORMAT2;
 
 //
@@ -445,8 +450,8 @@ DEFINE_GUID(MEDIASUBTYPE_WEBVTT, 0xc886d215, 0xf485, 0x40bb, 0x8d, 0xb6, 0xfa, 0
 typedef struct
 {
     DWORD dwOffset;
-    CHAR IsoLang[4U];      // three letter lang code + terminating zero
-    WCHAR TrackName[256U]; // 256 chars ought to be enough for everyone :)
+    std::array<CHAR, 4U> IsoLang{}; // three letter lang code + terminating zero
+    std::array<WCHAR, 256U> TrackName{}; // 256 chars ought to be enough for everyone :)
 } SUBTITLEINFO;
 #pragma pack(pop)
 
@@ -1377,9 +1382,9 @@ struct WAVEFORMATEX_HDMV_LPCM : public WAVEFORMATEX
 {
     BYTE channel_conf;
 
-    WAVEFORMATEX_HDMV_LPCM()
+    explicit WAVEFORMATEX_HDMV_LPCM()
     {
-        memset(this, 0, sizeof(*this));
+        std::memset(this, 0, sizeof(*this));
         cbSize = sizeof(WAVEFORMATEX_HDMV_LPCM) - sizeof(WAVEFORMATEX);
     }
 };
@@ -1395,7 +1400,7 @@ struct WAVEFORMATEXFFMPEG
     int nCodecId;
     WAVEFORMATEX wfex;
 
-    WAVEFORMATEXFFMPEG()
+    explicit WAVEFORMATEXFFMPEG()
     {
         nCodecId = 0;
     }

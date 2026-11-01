@@ -35,7 +35,7 @@ inline void ExtChMapSet(ExtendedChannelMap *map, int ch, int idx, int factor)
 
 inline void ExtChMapClear(ExtendedChannelMap *map)
 {
-    for (unsigned i = 0; i < 8; ++i)
+    for (unsigned i{ 0U }; i < 8; ++i)
     {
         (*map)[i].idx = -1;
         (*map)[i].factor = 0;

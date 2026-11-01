@@ -19,10 +19,13 @@
 
 #pragma once
 
-#include <d3d11.h>
-
-#include "MediaSampleSideData.h"
 #include "ID3DVideoMemoryConfiguration.h"
+#include "MediaSampleSideData.h"
+
+#ifdef _WIN32
+#include <d3d11.h>
+#endif
+
 
 class CDecD3D11;
 

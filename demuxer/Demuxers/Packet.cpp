@@ -17,8 +17,12 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <stdafx.h>
+#include "stdafx.h"
+
 #include "Packet.h"
+
+#include <cstring>
+
 
 Packet::Packet()
 {
@@ -32,9 +36,7 @@ Packet::~Packet()
 
 int Packet::SetDataSize(int len)
 {
-    if (len < 0) {
-        return -1;
-}
+    if (len < 0) { return -1; }
 
     if (len <= GetDataSize())
     {
@@ -61,15 +63,11 @@ int Packet::SetDataSize(int len)
 
 int Packet::SetData(const void *ptr, int len)
 {
-    if (!ptr || len < 0) {
-        return -1;
-}
+    if (!ptr || (len < 0)) { return -1; }
     int const ret = SetDataSize(len);
-    if (ret < 0) {
-        return ret;
-}
+    if (ret < 0) { return ret; }
 
-    memcpy(m_Packet->data, ptr, len);
+    std::memcpy(m_Packet->data, ptr, len);
     return 0;
 }
 
@@ -78,9 +76,7 @@ int Packet::SetPacket(AVPacket *pkt)
     ASSERT(!m_Packet);
 
     m_Packet = av_packet_alloc();
-    if (!m_Packet) {
-        return -1;
-}
+    if (!m_Packet) { return -1; }
 
     return av_packet_ref(m_Packet, pkt);
 }
@@ -94,16 +90,14 @@ int Packet::AppendData(const void *ptr, int len)
 {
     int const prevSize = GetDataSize();
     int const ret = SetDataSize(prevSize + len);
-    if (ret < 0) {
-        return ret;
-}
-    memcpy(m_Packet->data + prevSize, ptr, len);
+    if (ret < 0) { return ret; }
+    std::memcpy(m_Packet->data + prevSize, ptr, len);
     return 0;
 }
 
 int Packet::RemoveHead(int count)
 {
-    if (m_Packet == nullptr || count < 0 || count > m_Packet->size)
+    if ((m_Packet == nullptr) || (count < 0) || (count > m_Packet->size))
     {
         return -1;
     }

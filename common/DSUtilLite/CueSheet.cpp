@@ -18,11 +18,13 @@
  */
 
 #include "stdafx.h"
+
 #include "CueSheet.h"
 
 #include <algorithm>
-#include <sstream>
 #include <regex>
+#include <sstream>
+
 
 using namespace std;
 
@@ -33,7 +35,7 @@ enum class ParserState
     TRACK
 };
 
-typedef string::value_type char_t;
+using char_t = string::value_type;
 
 static char_t up_char(char_t ch)
 {
@@ -49,7 +51,7 @@ static string toupper(const string &src)
 
 static void str_replace(string &s, const string &search, const string &replace)
 {
-    for (string::size_type pos = 0;; pos += replace.length())
+    for (string::size_type pos{ 0 };; pos += replace.length())
     {
         pos = s.find(search, pos);
         if (pos == string::npos) {
@@ -71,9 +73,7 @@ static string GetCueParam(string line, bool firstWord = false)
     idx = line.find_first_of(delims, idx);
     // Find beginning of param
     idx = line.find_first_not_of(delims, idx);
-    if (idx == string::npos) {
-        return string();
-}
+    if (idx == string::npos) { return string(); }
     string param = line.substr(idx);
     // trim spaces off the end
     param = param.substr(0, param.find_last_not_of(delims) + 1);
@@ -93,10 +93,8 @@ static string GetCueParam(string line, bool firstWord = false)
 static REFERENCE_TIME ParseCueIndex(string line)
 {
     int index, m, s, f, ret;
-    ret = sscanf_s(line.c_str(), " INDEX %d %d:%d:%d", &index, &m, &s, &f);
-    if (ret == 4) {
-        return (m * 60i64 + s) * 10000000i64 + (f * 10000000i64 / 75);
-    } else {
+    ret = ::sscanf_s(line.c_str(), " INDEX %d %d:%d:%d", &index, &m, &s, &f);
+    if (ret == 4) { return (m * 60i64 + s) * 10000000i64 + (f * 10000000i64 / 75); } else {
         return 0;
 }
 }
@@ -112,7 +110,7 @@ CCueSheet::~CCueSheet()
 HRESULT CCueSheet::Parse(string cueSheet)
 {
     DbgLog((LOG_TRACE, 10, L"CCueSheet::Parse(): Parsing Cue Sheet"));
-    int trackCount = 0;
+    int trackCount{ 0 };
     ParserState state(ParserState::GLOBAL);
     stringstream cueSheetStream(cueSheet);
     string line;
@@ -147,7 +145,7 @@ HRESULT CCueSheet::Parse(string cueSheet)
             if (word == "TRACK")
             {
                 state = ParserState::TRACK;
-                trackCount++;
+                ++trackCount;
 
                 string const id = GetCueParam(line, true);
                 Track const track{trackCount - 1, id, "Title " + id, 0, ""};

@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 
 // -----------------------------------------------------------------
 // Interface to exchange binary side data
@@ -16,12 +18,12 @@ interface __declspec(uuid("F940AE7F-48EB-4377-806C-8FC48CAB2292")) IMediaSideDat
 {
     // Set the side data identified by guidType to the data provided
     // The provided data will be copied and stored internally
-    STDMETHOD(SetSideData)(GUID guidType, const BYTE *pData, size_t size) PURE;
+    STDMETHOD(SetSideData)(GUID guidType, const BYTE *pData, std::size_t size) PURE;
 
     // Get the side data identified by guidType
     // The caller receives pointers to the internal data, and the pointers shall stay
     // valid for the lifetime of the object
-    STDMETHOD(GetSideData)(GUID guidType, const BYTE **pData, size_t *pSize) PURE;
+    STDMETHOD(GetSideData)(GUID guidType, const BYTE **pData, std::size_t *pSize) PURE;
 };
 
 // -----------------------------------------------------------------
@@ -35,8 +37,8 @@ DEFINE_GUID(IID_MediaSideDataHDR, 0x53820dbc, 0xa7b8, 0x49c4, 0xb1, 0x7b, 0xe5, 
 struct MediaSideDataHDR
 {
     // coordinates of the primaries, in G-B-R order
-    double display_primaries_x[3U];
-    double display_primaries_y[3U];
+    std::array<double, 3U> display_primaries_x{};
+    std::array<double, 3U> display_primaries_y{};
     // white point
     double white_point_x;
     double white_point_y;
@@ -101,7 +103,7 @@ struct MediaSideDataHDR10Plus
         unsigned int semiminor_axis_external_ellipse;
         unsigned int overlap_process_option;
 
-        double maxscl[3U];
+        std::array<double, 3U> maxscl{};
         double average_maxrgb;
 
         unsigned int num_distribution_maxrgb_percentiles;
@@ -119,7 +121,7 @@ struct MediaSideDataHDR10Plus
         double knee_point_y;
 
         unsigned int num_bezier_curve_anchors;
-        double bezier_curve_anchors[15U];
+        std::array<double, 15U> bezier_curve_anchors{};
 
         unsigned int color_saturation_mapping_flag;
         double color_saturation_weight;
@@ -130,12 +132,12 @@ struct MediaSideDataHDR10Plus
     unsigned int targeted_system_display_actual_peak_luminance_flag;
     unsigned int num_rows_targeted_system_display_actual_peak_luminance;
     unsigned int num_cols_targeted_system_display_actual_peak_luminance;
-    double targeted_system_display_actual_peak_luminance[25U][25U];
+    std::array<std::array<double, 25U>, 25U> targeted_system_display_actual_peak_luminance{};
 
     unsigned int mastering_display_actual_peak_luminance_flag;
     unsigned int num_rows_mastering_display_actual_peak_luminance;
     unsigned int num_cols_mastering_display_actual_peak_luminance;
-    double mastering_display_actual_peak_luminance[25U][25U];
+    std::array<std::array<double, 25U>, 25U> mastering_display_actual_peak_luminance{};
 };
 #pragma pack(pop)
 
@@ -163,65 +165,65 @@ struct MediaSideDataDOVIMetadata
 {
     struct
     {
-        uint8_t rpu_type;
-        uint16_t rpu_format;
-        uint8_t vdr_rpu_profile;
-        uint8_t vdr_rpu_level;
-        uint8_t chroma_resampling_explicit_filter_flag;
-        uint8_t coef_data_type; /* informative, lavc always converts to fixed */
-        uint8_t coef_log2_denom;
-        uint8_t vdr_rpu_normalized_idc;
-        uint8_t bl_video_full_range_flag;
-        uint8_t bl_bit_depth;  /* [8, 16] */
-        uint8_t el_bit_depth;  /* [8, 16] */
-        uint8_t vdr_bit_depth; /* [8, 16] */
-        uint8_t spatial_resampling_filter_flag;
-        uint8_t el_spatial_resampling_filter_flag;
-        uint8_t disable_residual_flag;
+        std::uint8_t rpu_type;
+        std::uint16_t rpu_format;
+        std::uint8_t vdr_rpu_profile;
+        std::uint8_t vdr_rpu_level;
+        std::uint8_t chroma_resampling_explicit_filter_flag;
+        std::uint8_t coef_data_type; /* informative, lavc always converts to fixed */
+        std::uint8_t coef_log2_denom;
+        std::uint8_t vdr_rpu_normalized_idc;
+        std::uint8_t bl_video_full_range_flag;
+        std::uint8_t bl_bit_depth;  /* [8, 16] */
+        std::uint8_t el_bit_depth;  /* [8, 16] */
+        std::uint8_t vdr_bit_depth; /* [8, 16] */
+        std::uint8_t spatial_resampling_filter_flag;
+        std::uint8_t el_spatial_resampling_filter_flag;
+        std::uint8_t disable_residual_flag;
     } Header;
 
     struct
     {
-        uint8_t vdr_rpu_id;
-        uint8_t mapping_color_space;
-        uint8_t mapping_chroma_format_idc;
+        std::uint8_t vdr_rpu_id;
+        std::uint8_t mapping_color_space;
+        std::uint8_t mapping_chroma_format_idc;
 
         struct
         {
 #define LAV_DOVI_MAX_PIECES 8
-            uint8_t num_pivots;                       /* [2, 9] */
-            uint16_t pivots[LAV_DOVI_MAX_PIECES + 1]; /* sorted ascending */
-            uint8_t mapping_idc[LAV_DOVI_MAX_PIECES]; /* 0 polynomial, 1 mmr */
+            std::uint8_t num_pivots;                       /* [2, 9] */
+            std::uint16_t pivots[LAV_DOVI_MAX_PIECES + 1]; /* sorted ascending */
+            std::array<std::uint8_t, LAV_DOVI_MAX_PIECES> mapping_idc{};
 
             /* polynomial */
-            uint8_t poly_order[LAV_DOVI_MAX_PIECES];   /* [1, 2] */
-            int64_t poly_coef[LAV_DOVI_MAX_PIECES][3U]; /* x^0, x^1, x^2 */
+            std::array<std::uint8_t, LAV_DOVI_MAX_PIECES> poly_order{};
+            std::array<std::array<std::int64_t, 3U>, LAV_DOVI_MAX_PIECES> poly_coef{};
 
             /* mmr */
-            uint8_t mmr_order[LAV_DOVI_MAX_PIECES]; /* [1, 3] */
-            int64_t mmr_constant[LAV_DOVI_MAX_PIECES];
-            int64_t mmr_coef[LAV_DOVI_MAX_PIECES][3 /* order - 1 */][7U];
+            std::array<std::uint8_t, LAV_DOVI_MAX_PIECES> mmr_order{};
+            std::array<std::int64_t, LAV_DOVI_MAX_PIECES> mmr_constant{};
+            std::int64_t mmr_coef[LAV_DOVI_MAX_PIECES][3 /* order - 1 */][7U];
         } curves[3U]; /* per component */
 
         /* Non-linear inverse quantization */
-        uint8_t nlq_method_idc; // -1 none, 0 linear dz
-        uint32_t num_x_partitions;
-        uint32_t num_y_partitions;
+        std::uint8_t nlq_method_idc; // -1 none, 0 linear dz
+        std::uint32_t num_x_partitions;
+        std::uint32_t num_y_partitions;
         struct
         {
-            uint16_t nlq_offset;
-            uint64_t vdr_in_max;
+            std::uint16_t nlq_offset;
+            std::uint64_t vdr_in_max;
 
             /* linear dz */
-            uint64_t linear_deadzone_slope;
-            uint64_t linear_deadzone_threshold;
+            std::uint64_t linear_deadzone_slope;
+            std::uint64_t linear_deadzone_threshold;
         } nlq[3U]; /* per component */
     } Mapping;
 
     struct
     {
-        uint8_t dm_metadata_id;
-        uint8_t scene_refresh_flag;
+        std::uint8_t dm_metadata_id;
+        std::uint8_t scene_refresh_flag;
 
         /**
          * Coefficients of the custom Dolby Vision IPT-PQ matrices. These are to be
@@ -231,127 +233,127 @@ struct MediaSideDataDOVIMetadata
          * crosstalk. (See the definition of the ICtCp colorspace for more
          * information.)
          */
-        double ycc_to_rgb_matrix[9U]; /* before PQ linearization */
-        double ycc_to_rgb_offset[3U]; /* input offset of neutral value */
-        double rgb_to_lms_matrix[9U]; /* after PQ linearization */
+        std::array<double, 9U> ycc_to_rgb_matrix{};
+        std::array<double, 3U> ycc_to_rgb_offset{};
+        std::array<double, 9U> rgb_to_lms_matrix{};
 
         /**
          * Extra signal metadata (see Dolby patents for more info).
          */
-        uint16_t signal_eotf;
-        uint16_t signal_eotf_param0;
-        uint16_t signal_eotf_param1;
-        uint32_t signal_eotf_param2;
-        uint8_t signal_bit_depth;
-        uint8_t signal_color_space;
-        uint8_t signal_chroma_format;
-        uint8_t signal_full_range_flag; /* [0, 3] */
-        uint16_t source_min_pq;
-        uint16_t source_max_pq;
-        uint16_t source_diagonal;
+        std::uint16_t signal_eotf;
+        std::uint16_t signal_eotf_param0;
+        std::uint16_t signal_eotf_param1;
+        std::uint32_t signal_eotf_param2;
+        std::uint8_t signal_bit_depth;
+        std::uint8_t signal_color_space;
+        std::uint8_t signal_chroma_format;
+        std::uint8_t signal_full_range_flag; /* [0, 3] */
+        std::uint16_t source_min_pq;
+        std::uint16_t source_max_pq;
+        std::uint16_t source_diagonal;
     } ColorMetadata;
 
     #define LAV_DOVI_MAX_EXTENSIONS 32
     struct
     {
-        uint8_t level;
+        std::uint8_t level;
         union {
             struct
             {
                 /* L1 Per-frame brightness metadata */
-                uint16_t min_pq;
-                uint16_t max_pq;
-                uint16_t avg_pq;
+                std::uint16_t min_pq;
+                std::uint16_t max_pq;
+                std::uint16_t avg_pq;
             } Level1;
             struct
             {
-                uint16_t target_max_pq;
-                uint16_t trim_slope;
-                uint16_t trim_offset;
-                uint16_t trim_power;
-                uint16_t trim_chroma_weight;
-                uint16_t trim_saturation_gain;
-                int16_t ms_weight;
+                std::uint16_t target_max_pq;
+                std::uint16_t trim_slope;
+                std::uint16_t trim_offset;
+                std::uint16_t trim_power;
+                std::uint16_t trim_chroma_weight;
+                std::uint16_t trim_saturation_gain;
+                std::int16_t ms_weight;
             } Level2;
             struct
             {
-                uint16_t min_pq_offset;
-                uint16_t max_pq_offset;
-                uint16_t avg_pq_offset;
+                std::uint16_t min_pq_offset;
+                std::uint16_t max_pq_offset;
+                std::uint16_t avg_pq_offset;
             } Level3;
             struct
             {
-                uint16_t anchor_pq;
-                uint16_t anchor_power;
+                std::uint16_t anchor_pq;
+                std::uint16_t anchor_power;
             } Level4;
             struct
             {
                 /* Active area definition */
-                uint16_t left_offset;
-                uint16_t right_offset;
-                uint16_t top_offset;
-                uint16_t bottom_offset;
+                std::uint16_t left_offset;
+                std::uint16_t right_offset;
+                std::uint16_t top_offset;
+                std::uint16_t bottom_offset;
             } Level5;
             struct
             {
                 /* Static HDR10 metadata */
-                uint16_t max_luminance;
-                uint16_t min_luminance;
-                uint16_t max_cll;
-                uint16_t max_fall;
+                std::uint16_t max_luminance;
+                std::uint16_t min_luminance;
+                std::uint16_t max_cll;
+                std::uint16_t max_fall;
             } Level6;
             /* level 7 is currently unused */
             struct
             {
                 /* Extended version of level 2 */
-                uint8_t target_display_index;
-                uint16_t trim_slope;
-                uint16_t trim_offset;
-                uint16_t trim_power;
-                uint16_t trim_chroma_weight;
-                uint16_t trim_saturation_gain;
-                uint16_t ms_weight;
-                uint16_t target_mid_contrast;
-                uint16_t clip_trim;
-                uint8_t saturation_vector_field[6U];
-                uint8_t hue_vector_field[6U];
+                std::uint8_t target_display_index;
+                std::uint16_t trim_slope;
+                std::uint16_t trim_offset;
+                std::uint16_t trim_power;
+                std::uint16_t trim_chroma_weight;
+                std::uint16_t trim_saturation_gain;
+                std::uint16_t ms_weight;
+                std::uint16_t target_mid_contrast;
+                std::uint16_t clip_trim;
+                std::array<std::uint8_t, 6U> saturation_vector_field{};
+                std::array<std::uint8_t, 6U> hue_vector_field{};
             } Level8;
             struct
             {
                 /* Source display characteristics */
-                uint8_t source_primary_index;
+                std::uint8_t source_primary_index;
                 double white_point_x;
                 double white_point_y;
                 /* primaries are in R-G-B order */
-                double display_primaries_x[3U];
-                double display_primaries_y[3U];
+                std::array<double, 3U> display_primaries_x{};
+                std::array<double, 3U> display_primaries_y{};
             } Level9;
             struct
             {
                 /* Target display characteristics */
-                uint8_t target_display_index;
-                uint16_t target_max_pq;
-                uint16_t target_min_pq;
-                uint8_t target_primary_index;
+                std::uint8_t target_display_index;
+                std::uint16_t target_max_pq;
+                std::uint16_t target_min_pq;
+                std::uint8_t target_primary_index;
                 double white_point_x;
                 double white_point_y;
                 /* primaries are in R-G-B order */
-                double display_primaries_x[3U];
-                double display_primaries_y[3U];
+                std::array<double, 3U> display_primaries_x{};
+                std::array<double, 3U> display_primaries_y{};
             } Level10;
             struct
             {
-                uint8_t content_type;
-                uint8_t whitepoint;
-                uint8_t reference_mode_flag;
+                std::uint8_t content_type;
+                std::uint8_t whitepoint;
+                std::uint8_t reference_mode_flag;
             } Level11;
             struct
             {
                 /* DMv2 info block, always present in samples with DMv2 metadata */
-                uint8_t dm_mode;
-                uint8_t dm_version_index;
+                std::uint8_t dm_mode;
+                std::uint8_t dm_version_index;
             } Level254;
-            uint8_t Reserved[128U]; /* reserve space for a fixed size of the extension block */
+            std::array<std::uint8_t, 128U> Reserved{};
         };
     } Extensions[LAV_DOVI_MAX_EXTENSIONS];
 };
@@ -373,7 +375,7 @@ struct MediaSideData3DOffset
     // Offset Value, can be positive or negative
     // positive values offset closer to the viewer (move right on the left view, left on the right view)
     // negative values offset further away from the viewer (move left on the left view, right on the right view)
-    int offset[32U];
+    std::array<int, 32U> offset{};
 };
 #pragma pack(pop)
 

@@ -27,16 +27,23 @@
 
 #include "stdafx.h"
 
-// Initialize the GUIDs
+#ifdef _WIN32
 #include <InitGuid.h>
-
-#include <qnetwork.h>
-#include "LAVAudio.h"
-#include "AudioSettingsProp.h"
+#endif
 #include "moreuuids.h"
-#include "IMediaSideDataFFmpeg.h"
 
+#include "AudioSettingsProp.h"
+#include "IMediaSideDataFFmpeg.h"
+#include "LAVAudio.h"
 #include "registry.h"
+
+
+#ifdef _WIN32
+#include <qnetwork.h>
+#endif
+
+// Initialize the GUIDs
+
 
 // --- COM factory table and registration code --------------
 
@@ -91,7 +98,7 @@ void CALLBACK OpenConfiguration(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, i
     HRESULT hr = S_OK;
     CUnknown *pInstance = CreateInstance<CLAVAudio>(nullptr, &hr);
     IBaseFilter *pFilter = nullptr;
-    pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, (void **)&pFilter);
+    pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, reinterpret_cast<void **>(&pFilter));
     if (pFilter)
     {
         pFilter->AddRef();

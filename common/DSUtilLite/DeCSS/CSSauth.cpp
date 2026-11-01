@@ -1,12 +1,15 @@
 #include "stdafx.h"
 
+#include <array>
+
+
 static void CSSengine(int varient, unsigned char const *input, unsigned char *output);
 
 void CSSkey1(int varient, unsigned char const *challenge, unsigned char *key)
 {
     static unsigned char const perm_challenge[] = {1, 3, 0, 7, 5, 2, 9, 6, 4, 8};
 
-    unsigned char scratch[10U];
+    std::array<unsigned char, 10U> scratch{};
     int i;
 
     for (i = 9; i >= 0; --i)
@@ -14,7 +17,7 @@ void CSSkey1(int varient, unsigned char const *challenge, unsigned char *key)
         scratch[i] = challenge[perm_challenge[i]];
     }
 
-    CSSengine(varient, scratch, key);
+    CSSengine(varient, scratch.data(), key);
 }
 
 void CSSkey2(int varient, unsigned char const *challenge, unsigned char *key)
@@ -25,7 +28,7 @@ void CSSkey2(int varient, unsigned char const *challenge, unsigned char *key)
                                            0x1c, 0x1b, 0x19, 0x1f, 0x1d, 0x02, 0x00, 0x06, 0x04, 0x03, 0x01,
                                            0x07, 0x05, 0x12, 0x10, 0x16, 0x14, 0x13, 0x11, 0x17, 0x15};
 
-    unsigned char scratch[10U];
+    std::array<unsigned char, 10U> scratch{};
     int i;
 
     for (i = 9; i >= 0; --i)
@@ -33,7 +36,7 @@ void CSSkey2(int varient, unsigned char const *challenge, unsigned char *key)
         scratch[i] = challenge[perm_challenge[i]];
     }
 
-    CSSengine(perm_varient[varient], scratch, key);
+    CSSengine(perm_varient[varient], scratch.data(), key);
 }
 
 void CSSbuskey(int varient, unsigned char const *challenge, unsigned char *key)
@@ -43,7 +46,7 @@ void CSSbuskey(int varient, unsigned char const *challenge, unsigned char *key)
                                            0x1c, 0x00, 0x08, 0x04, 0x0c, 0x13, 0x1b, 0x17, 0x1f, 0x03, 0x0b,
                                            0x07, 0x0f, 0x11, 0x19, 0x15, 0x1d, 0x01, 0x09, 0x05, 0x0d};
 
-    unsigned char scratch[10U];
+    std::array<unsigned char, 10U> scratch{};
     int i;
 
     for (i = 9; i >= 0; --i)
@@ -51,7 +54,7 @@ void CSSbuskey(int varient, unsigned char const *challenge, unsigned char *key)
         scratch[i] = challenge[perm_challenge[i]];
     }
 
-    CSSengine(perm_varient[varient], scratch, key);
+    CSSengine(perm_varient[varient], scratch.data(), key);
 }
 
 static void CSSgenbits(unsigned char *output, int len, unsigned char const *s)
@@ -107,9 +110,9 @@ extern unsigned char CSStable3[];
 static void CSSengine(int varient, unsigned char const *input, unsigned char *output)
 {
     unsigned char cse, term, index;
-    unsigned char temp1[5U];
-    unsigned char temp2[5U];
-    unsigned char bits[30U];
+    std::array<unsigned char, 5U> temp1{};
+    std::array<unsigned char, 5U> temp2{};
+    std::array<unsigned char, 30U> bits{};
 
     int i;
 
@@ -122,7 +125,7 @@ static void CSSengine(int varient, unsigned char const *input, unsigned char *ou
         temp1[i] = input[5 + i] ^ CSSsecret[i] ^ CSStable2[i];
     }
 
-    CSSgenbits(&bits[29U], sizeof bits, temp1);
+    CSSgenbits(&bits[29U], sizeof bits, temp1.data());
 
     /* This term is used throughout the following to
      * select one of 32 different variations on the

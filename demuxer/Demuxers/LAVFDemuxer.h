@@ -19,16 +19,24 @@
 
 #pragma once
 
-#include <Qnetwork.h>
-#include <set>
-#include <algorithm>
-#include <sstream>
-
 #include "BaseDemuxer.h"
+#include "DSMResourceBag.h"
+#include "FontInstaller.h"
 #include "IKeyFrameInfo.h"
 #include "ITrackInfo.h"
-#include "FontInstaller.h"
-#include "DSMResourceBag.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <ctime>
+#include <set>
+#include <sstream>
+
+
+#ifdef _WIN32
+#include <Qnetwork.h>
+#endif
+
 
 #define SUBMODE_FORCED_PGS_ONLY 0xFF
 
@@ -104,7 +112,7 @@ class CLAVFDemuxer
     STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream);
     STDMETHODIMP_(int) GetPixelFormat(DWORD dwStream);
     STDMETHODIMP_(int) GetHasBFrames(DWORD dwStream);
-    STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, size_t *pSize);
+    STDMETHODIMP GetSideData(DWORD dwStream, GUID guidType, const BYTE **pData, std::size_t *pSize);
 
     // IAMExtendedSeeking
     STDMETHODIMP get_ExSeekCapabilities(long *pExCapabilities);
@@ -163,16 +171,16 @@ class CLAVFDemuxer
     STDMETHODIMP OpenInputStream(AVIOContext *byteContext, LPCOLESTR pszFileName = nullptr,
                                  const char *format = nullptr, BOOL bForce = FALSE, BOOL bFileSource = FALSE,
                                  LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
-    STDMETHODIMP SeekByte(int64_t pos, int flags);
+    STDMETHODIMP SeekByte(std::int64_t pos, int flags);
 
     AVStream *GetAVStreamByPID(int pid);
     void UpdateSubStreams();
-    unsigned int GetNumStreams() const { return m_avFormat->nb_streams; }
+    [[nodiscard]] constexpr unsigned int GetNumStreams() const noexcept { return m_avFormat->nb_streams; }
 
     REFERENCE_TIME GetStartTime() const;
     void SetBluRay(CBDDemuxer *pBluRay) { m_pBluRay = pBluRay; }
 
-    void AddMPEGTSStream(int pid, uint32_t stream_type);
+    void AddMPEGTSStream(int pid, std::uint32_t stream_type);
 
   private:
     STDMETHODIMP AddStream(int streamId, bool bIsVideoEnhancementLayer = false);
@@ -183,13 +191,13 @@ class CLAVFDemuxer
 
     void FlushOnSeek();
 
-    REFERENCE_TIME ConvertTimestampToRT(int64_t pts, int num, int den,
-                                        int64_t starttime = (int64_t)AV_NOPTS_VALUE) const;
-    int64_t ConvertRTToTimestamp(REFERENCE_TIME timestamp, int num, int den,
-                                 int64_t starttime = (int64_t)AV_NOPTS_VALUE) const;
+    REFERENCE_TIME ConvertTimestampToRT(std::int64_t pts, int num, int den,
+                                        std::int64_t starttime = static_cast<std::int64_t>(AV_NOPTS_VALUE)) const;
+    std::int64_t ConvertRTToTimestamp(REFERENCE_TIME timestamp, int num, int den,
+                                 std::int64_t starttime = static_cast<std::int64_t>(AV_NOPTS_VALUE)) const;
 
-    int GetStreamIdxFromTotalIdx(size_t index) const;
-    const CBaseDemuxer::stream *GetStreamFromTotalIdx(size_t index) const;
+    int GetStreamIdxFromTotalIdx(std::size_t index) const;
+    const CBaseDemuxer::stream *GetStreamFromTotalIdx(std::size_t index) const;
     HRESULT CheckBDM2TSCPLI(LPCOLESTR pszFileName);
 
     HRESULT UpdateForcedSubtitleStream(unsigned audio_pid);
@@ -217,64 +225,64 @@ class CLAVFDemuxer
     AVFormatContext *m_avFormat = nullptr;
     const char *m_pszInputFormat = nullptr;
 
-    BOOL m_bMatroska = FALSE;
-    BOOL m_bOgg = FALSE;
-    BOOL m_bAVI = FALSE;
-    BOOL m_bMPEGTS = FALSE;
-    BOOL m_bMPEGPS = FALSE;
-    BOOL m_bRM = FALSE;
-    BOOL m_bPMP = FALSE;
-    BOOL m_bMP4 = FALSE;
+    BOOL m_bMatroska{ FALSE };
+    BOOL m_bOgg{ FALSE };
+    BOOL m_bAVI{ FALSE };
+    BOOL m_bMPEGTS{ FALSE };
+    BOOL m_bMPEGPS{ FALSE };
+    BOOL m_bRM{ FALSE };
+    BOOL m_bPMP{ FALSE };
+    BOOL m_bMP4{ FALSE };
 
-    BOOL m_bTSDiscont = FALSE;
-    BOOL m_bSubStreams = FALSE;
-    BOOL m_bVC1Correction = FALSE;
-    BOOL m_bVC1SeenTimestamp = FALSE;
-    BOOL m_bPGSNoParsing = FALSE;
+    BOOL m_bTSDiscont{ FALSE };
+    BOOL m_bSubStreams{ FALSE };
+    BOOL m_bVC1Correction{ FALSE };
+    BOOL m_bVC1SeenTimestamp{ FALSE };
+    BOOL m_bPGSNoParsing{ FALSE };
 
-    BOOL m_bH264MVCCombine = FALSE;
-    int m_nH264MVCBaseStream = -1;
-    int m_nH264MVCExtensionStream = -1;
+    BOOL m_bH264MVCCombine{ FALSE };
+    int m_nH264MVCBaseStream{ -1 };
+    int m_nH264MVCExtensionStream{ -1 };
     std::deque<Packet *> m_MVCExtensionQueue;
 
-    int m_ForcedSubStream = -1;
-    unsigned int m_program = 0;
+    int m_ForcedSubStream{ -1 };
+    unsigned int m_program{ 0U };
 
-    REFERENCE_TIME m_rtCurrent = 0;
+    REFERENCE_TIME m_rtCurrent{ 0 };
 
     AVStreamParseType *m_stOrigParser = nullptr;
 
     CFontInstaller *m_pFontInstaller = nullptr;
     ILAVFSettingsInternal *m_pSettings = nullptr;
 
-    BOOL m_bEnableTrackInfo = TRUE;
+    BOOL m_bEnableTrackInfo{ TRUE };
 
     CBDDemuxer *m_pBluRay = nullptr;
 
-    LONG m_Abort = 0;
-    time_t m_timeAbort = 0;
-    time_t m_timeOpening = 0;
+    LONG m_Abort{ 0 };
+    std::time_t m_timeAbort{ 0 };
+    std::time_t m_timeOpening{ 0 };
 
     // Seek skips. m_ReadInterrupt drops the packet read already in progress.
     // m_SeekLimitSerial owns m_SeekDeadline so a finished skip cannot clear a
     // newer skip's limit.
-    LONG m_ReadInterrupt = 0;
-    LONG m_SeekSerial = 0;
-    LONG m_SeekLimitSerial = 0;
-    LONGLONG m_SeekDeadline = 0;
+    LONG m_ReadInterrupt{ 0 };
+    LONG m_SeekSerial{ 0 };
+    LONG m_SeekLimitSerial{ 0 };
+    LONGLONG m_SeekDeadline{ 0 };
 
     struct
     {
         AVBSFContext *bsf = nullptr;
 
-        int nBLStreamId = -1;
-        int nELStreamId = -1;
+        int nBLStreamId{ -1 };
+        int nELStreamId{ -1 };
 
-        int nBLNALSize = -1;
-        int nELNALSize = -1;
+        int nBLNALSize{ -1 };
+        int nELNALSize{ -1 };
 
-        bool bBSFSplit = false;
-        bool bRPUMerge = false;
+        bool bBSFSplit{ false };
+        bool bRPUMerge{ false };
 
         std::deque<Packet *> queueBLPackets;
         std::deque<Packet *> queueRPU;
