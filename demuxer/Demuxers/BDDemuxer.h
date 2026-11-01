@@ -50,6 +50,19 @@ class CBDDemuxer
     // CBaseDemuxer
     STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
     STDMETHODIMP Start();
+    STDMETHODIMP AbortOpening(int mode = 1, int timeout = 0)
+    {
+        return m_lavfDemuxer ? m_lavfDemuxer->AbortOpening(mode, timeout) : E_UNEXPECTED;
+    }
+    LONG InterruptForSeek() { return m_lavfDemuxer ? m_lavfDemuxer->InterruptForSeek() : 0; }
+    bool BeginSeek(LONG serial) { return m_lavfDemuxer ? m_lavfDemuxer->BeginSeek(serial) : true; }
+    void EndSeek(LONG serial)
+    {
+        if (m_lavfDemuxer) {
+            m_lavfDemuxer->EndSeek(serial);
+        }
+    }
+    bool IsAborting() const { return m_lavfDemuxer && m_lavfDemuxer->IsAborting(); }
     REFERENCE_TIME GetDuration() const;
     STDMETHODIMP GetNextPacket(Packet **ppPacket) { return m_lavfDemuxer->GetNextPacket(ppPacket); }
     STDMETHODIMP Seek(REFERENCE_TIME rTime);

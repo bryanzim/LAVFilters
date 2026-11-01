@@ -58,7 +58,14 @@ HRESULT CStreamParser::Parse(const GUID &gSubtype, Packet *pPacket)
         Flush();
     }
 
-    if (!pPacket || (pPacket->dwFlags & LAV_PACKET_PARSED))
+    if (pPacket == nullptr)
+    {
+        // The last access unit is still queued when the stream ends. Deliver
+        // it before EOS, or a clip with no following picture never starts.
+        DeliverQueuedH264();
+        Queue(pPacket);
+    }
+    else if (pPacket->dwFlags & LAV_PACKET_PARSED)
     {
         Queue(pPacket);
     }
@@ -152,6 +159,31 @@ static Packet *InitPacket(Packet *pSource)
     pSource->pmt = nullptr;
 
     return pNew;
+}
+
+static BYTE H264NaluType(const Packet *pPacket)
+{
+    BYTE const *pData = pPacket->GetData();
+    if (pData == nullptr || pPacket->GetDataSize() < 5) {
+        return 0;
+    }
+    return pData[4] & 0x1f;
+}
+
+static bool H264NaluIsVcl(BYTE naluType)
+{
+    return naluType >= 1 && naluType <= 5;
+}
+
+// first_mb_in_slice == 0 is coded as a single 1 bit, so a new picture starts
+// when the top bit of the first slice-header byte is set.
+static bool H264NaluStartsPicture(const Packet *pPacket)
+{
+    BYTE const *pData = pPacket->GetData();
+    if (pData == nullptr || pPacket->GetDataSize() < 6 || !H264NaluIsVcl(H264NaluType(pPacket))) {
+        return false;
+    }
+    return (pData[5] & 0x80) != 0;
 }
 
 #define MOVE_TO_H264_START_CODE(b, e)                                                                  \
@@ -273,26 +305,37 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
         pPacket = nullptr;
 
         REFERENCE_TIME rtStart = Packet::INVALID_TIME, rtStop = rtStart = Packet::INVALID_TIME;
+        bool seenVcl = false;
 
         std::deque<Packet *>::iterator it;
         for (it = m_queue.GetQueue()->begin(); it != m_queue.GetQueue()->end(); ++it)
         {
-            // Skip the first
+            Packet *p = *it;
+            bool const vcl = H264NaluIsVcl(H264NaluType(p));
+
+            // The first NAL belongs to the access unit being built.
+            // An AUD there means later pictures are delimited the same way,
+            // so a slice must not split this unit open.
             if (it == m_queue.GetQueue()->begin())
             {
+                if (H264NaluType(p) == 0x09) {
+                    m_bHasAccessUnitDelimiters = true;
+                }
+                seenVcl = vcl;
                 continue;
             }
 
-            Packet *p = *it;
-            BYTE *pData = p->GetData();
-            bool const aud = pData != nullptr && p->GetDataSize() >= 5 && (pData[4U] & 0x1f) == 0x09;
-
+            bool const aud = H264NaluType(p) == 0x09;
             if (aud)
             {
                 m_bHasAccessUnitDelimiters = true;
             }
 
-            if (aud || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME))
+            // Without delimiters or a timestamp, the next picture's first
+            // slice is the boundary. Holding every NAL until one of those
+            // shows up keeps the renderer paused forever.
+            bool const newPicture = !m_bHasAccessUnitDelimiters && seenVcl && H264NaluStartsPicture(p);
+            if (aud || (!m_bHasAccessUnitDelimiters && p->rtStart != Packet::INVALID_TIME) || newPicture)
             {
                 pPacket = p;
                 if (p->rtStart == Packet::INVALID_TIME && rtStart != Packet::INVALID_TIME)
@@ -301,6 +344,10 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
                     p->rtStop = rtStop;
                 }
                 break;
+            }
+
+            if (vcl) {
+                seenVcl = true;
             }
 
             if (rtStart == Packet::INVALID_TIME)
@@ -327,6 +374,29 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
     } while (pPacket != nullptr);
 
     return S_OK;
+}
+
+HRESULT CStreamParser::DeliverQueuedH264()
+{
+    if (m_queue.Size() == 0) {
+        return S_OK;
+    }
+
+    Packet *p = m_queue.Get();
+    if (p == nullptr) {
+        return S_OK;
+    }
+
+    for (;;)
+    {
+        Packet *p2 = m_queue.Get();
+        if (p2 == nullptr) {
+            break;
+        }
+        p->Append(p2);
+        SAFE_DELETE(p2);
+    }
+    return Queue(p);
 }
 
 HRESULT CStreamParser::ParsePGS(Packet *pPacket)

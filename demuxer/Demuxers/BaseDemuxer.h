@@ -93,6 +93,14 @@ class CBaseDemuxer : public CUnknown
     virtual STDMETHODIMP Start() { return E_NOTIMPL; }
     // Abort opening the file
     virtual STDMETHODIMP AbortOpening(int mode = 1, int timeout = 0) { return E_NOTIMPL; }
+    // Drop the read that is blocking the demux thread so a skip can start.
+    // The returned serial identifies this skip. A newer skip replaces it.
+    virtual LONG InterruptForSeek() { return 0; }
+    // The blocking read has returned. Allow the seek to run, unless a newer
+    // skip or Stop() has already taken over.
+    virtual bool BeginSeek(LONG serial) { return true; }
+    virtual void EndSeek(LONG serial) {}
+    virtual bool IsAborting() const { return false; }
     // Get Duration
     virtual REFERENCE_TIME GetDuration() const = 0;
     // Get the next packet from the file

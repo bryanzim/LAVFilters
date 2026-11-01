@@ -73,6 +73,10 @@ class CLAVFDemuxer
     STDMETHODIMP Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent = nullptr, LPCOLESTR pszReferrer = nullptr);
     STDMETHODIMP Start();
     STDMETHODIMP AbortOpening(int mode = 1, int timeout = 0);
+    LONG InterruptForSeek();
+    bool BeginSeek(LONG serial);
+    void EndSeek(LONG serial);
+    bool IsAborting() const;
     REFERENCE_TIME GetDuration() const;
     STDMETHODIMP GetNextPacket(Packet **ppPacket);
     STDMETHODIMP Seek(REFERENCE_TIME rTime);
@@ -247,9 +251,17 @@ class CLAVFDemuxer
 
     CBDDemuxer *m_pBluRay = nullptr;
 
-    int m_Abort = 0;
+    LONG m_Abort = 0;
     time_t m_timeAbort = 0;
     time_t m_timeOpening = 0;
+
+    // Seek skips. m_ReadInterrupt drops the packet read already in progress.
+    // m_SeekLimitSerial owns m_SeekDeadline so a finished skip cannot clear a
+    // newer skip's limit.
+    LONG m_ReadInterrupt = 0;
+    LONG m_SeekSerial = 0;
+    LONG m_SeekLimitSerial = 0;
+    LONGLONG m_SeekDeadline = 0;
 
     struct
     {

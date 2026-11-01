@@ -146,10 +146,58 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
     return S_OK;
 }
 
+static bool ReadWasCanceled(const CLAVInputPin *pin)
+{
+    return InterlockedCompareExchange(const_cast<LONG *>(&pin->m_lReadCanceled), 0, 0) != 0;
+}
+
+void CLAVInputPin::CancelPendingRead()
+{
+    InterlockedExchange(&m_lReadCanceled, 1);
+
+    // BeginFlush on the upstream pin unblocks SyncRead. Take no lock here:
+    // Read() owns the pin lock for the duration of that call.
+    if (InterlockedCompareExchange(&m_lSourceFlushing, 1, 0) != 0) {
+        return;
+    }
+
+    IPin *pConnected = GetConnected();
+    if (pConnected == nullptr)
+    {
+        InterlockedExchange(&m_lSourceFlushing, 0);
+        return;
+    }
+
+    pConnected->AddRef();
+    pConnected->BeginFlush();
+    pConnected->Release();
+}
+
+void CLAVInputPin::ResumePendingRead()
+{
+    InterlockedExchange(&m_lReadCanceled, 0);
+    if (InterlockedCompareExchange(&m_lSourceFlushing, 0, 1) != 1) {
+        return;
+    }
+
+    IPin *pConnected = GetConnected();
+    if (pConnected == nullptr) {
+        return;
+    }
+
+    pConnected->AddRef();
+    pConnected->EndFlush();
+    pConnected->Release();
+}
+
 int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 {
     CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
     CAutoLock const lock(pin);
+
+    if (ReadWasCanceled(pin)) {
+        return AVERROR_EXIT;
+    }
 
     // The URL source doesn't properly signal EOF in all cases, so make sure no stale data is in the buffer
     if (pin->m_bURLSource) {
@@ -157,6 +205,9 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 }
 
     HRESULT hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, buf_size, buf);
+    if (ReadWasCanceled(pin)) {
+        return AVERROR_EXIT;
+    }
     if (FAILED(hr))
     {
         DbgLog((LOG_TRACE, 10, L"Read failed at pos: %I64d, hr: 0x%X", pin->m_llPos, hr));
@@ -194,6 +245,9 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
                     pin->m_llPos));
             do
             {
+                if (ReadWasCanceled(pin)) {
+                    return AVERROR_EXIT;
+                }
                 hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, 1, buf + read);
             } while (hr == S_OK && (++read) < buf_size);
             DbgLog((LOG_TRACE, 10, L"-> Read %d bytes", read));

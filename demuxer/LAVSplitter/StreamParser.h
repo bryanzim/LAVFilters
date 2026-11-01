@@ -37,6 +37,7 @@ class CStreamParser
 
   private:
     HRESULT ParseH264AnnexB(Packet *pPacket);
+    HRESULT DeliverQueuedH264();
     HRESULT ParsePGS(Packet *pPacket);
     HRESULT ParseMOVText(Packet *pPacket);
     HRESULT ParseAAC(Packet *pPacket);

@@ -471,11 +471,13 @@ STDMETHODIMP CLAVSplitter::QueryProgress(LONGLONG *pllTotal, LONGLONG *pllCurren
 
 STDMETHODIMP CLAVSplitter::AbortOperation()
 {
+    if (m_pInput) {
+        m_pInput->CancelPendingRead();
+    }
     if (m_pDemuxer) {
         return m_pDemuxer->AbortOpening();
-    } else {
-        return E_UNEXPECTED;
-}
+    }
+    return m_pInput ? S_OK : E_UNEXPECTED;
 }
 
 // CBaseSplitter
@@ -814,7 +816,11 @@ DWORD CLAVSplitter::ThreadProc()
 {
     std::vector<CLAVOutputPin *>::iterator pinIter;
 
-    CheckPointer(m_pDemuxer, 0);
+    if (m_pDemuxer == nullptr)
+    {
+        m_ePlaybackInit.Set();
+        return 0;
+    }
 
     SetThreadName(-1, "CLAVSplitter Demux");
 
@@ -836,7 +842,22 @@ DWORD CLAVSplitter::ThreadProc()
         m_rtStart = m_rtNewStart;
         m_rtStop = m_rtNewStop;
 
-        if (m_bPlaybackStarted || m_rtStart != 0 || cmd == CMD_SEEK)
+        bool const seekCommand = cmd == CMD_SEEK;
+        LONG const seekSerial = InterlockedCompareExchange(&m_ActiveSeekSerial, 0, 0);
+        bool performSeek = m_bPlaybackStarted || m_rtStart != 0 || seekCommand;
+        if (seekCommand)
+        {
+            // A newer fast-forward or rewind already replaced this skip.
+            if (m_pDemuxer != nullptr && !m_pDemuxer->BeginSeek(seekSerial)) {
+                performSeek = false;
+            } else if (m_pDemuxer != nullptr && !m_pDemuxer->IsAborting() && m_pInput != nullptr) {
+                // The source was flushed to unblock the previous read.
+                // Let the seek read again unless Stop() owns the abort.
+                m_pInput->ResumePendingRead();
+            }
+        }
+
+        if (performSeek)
         {
             HRESULT hr = S_FALSE;
             if (m_pInput)
@@ -849,6 +870,10 @@ DWORD CLAVSplitter::ThreadProc()
             if (hr != S_OK) {
                 DemuxSeek(m_rtStart);
 }
+        }
+
+        if (seekCommand && m_pDemuxer != nullptr) {
+            m_pDemuxer->EndSeek(seekSerial);
         }
 
         if (cmd != (DWORD)-1) {
@@ -1035,15 +1060,24 @@ STDMETHODIMP_(CMediaType *) CLAVSplitter::GetOutputMediatype(int stream)
 // State Control
 STDMETHODIMP CLAVSplitter::Stop()
 {
-    CAutoLock const cAutoLock(this);
-
-    // Wait for playback to finish initializing
-    m_ePlaybackInit.Wait();
-
-    // Ask network operations to exit
+    // The demux thread clears m_ePlaybackInit before it seeks and sends
+    // NewSegment. Cancel that work before waiting, and wait without the
+    // filter lock. A blocked av_seek_frame or av_read_frame then sees the
+    // abort, and NewSegment can call back into the splitter.
     if (m_pDemuxer) {
         m_pDemuxer->AbortOpening(1);
-}
+    }
+    if (m_pInput) {
+        m_pInput->CancelPendingRead();
+    }
+
+    if (ThreadExists()) {
+        m_ePlaybackInit.Wait();
+    } else {
+        m_ePlaybackInit.Set();
+    }
+
+    CAutoLock const cAutoLock(this);
 
     DeliverBeginFlush();
     CAMThread::CallWorker(CMD_EXIT);
@@ -1052,7 +1086,10 @@ STDMETHODIMP CLAVSplitter::Stop()
 
     if (m_pDemuxer) {
         m_pDemuxer->AbortOpening(0);
-}
+    }
+    if (m_pInput) {
+        m_pInput->ResumePendingRead();
+    }
 
     HRESULT hr;
     if (FAILED(hr = __super::Stop()))
@@ -1241,6 +1278,8 @@ STDMETHODIMP CLAVSplitter::SetPositionsInternal(void *caller, LONGLONG *pCurrent
             "::SetPositions() - seek request; caller: %p, current: %I64d; start: %I64d; flags: 0x%x, stop: %I64d; "
             "flags: 0x%x",
             caller, m_rtCurrent, pCurrent ? *pCurrent : -1, dwCurrentFlags, pStop ? *pStop : -1, dwStopFlags));
+    bool seek = false;
+    {
     CAutoLock const cAutoLock(this);
 
     if (!pCurrent && !pStop || (dwCurrentFlags & AM_SEEKING_PositioningBitsMask) == AM_SEEKING_NoPositioning &&
@@ -1300,8 +1339,22 @@ STDMETHODIMP CLAVSplitter::SetPositionsInternal(void *caller, LONGLONG *pCurrent
     DbgLog((LOG_TRACE, 20, " -> Performing seek to %I64d", m_rtNewStart));
     if (ThreadExists())
     {
+        // Fail the packet read the demux thread is blocked in, then leave
+        // the filter lock so the next skip can cancel this keyframe scan.
+        if (m_pDemuxer != nullptr) {
+            InterlockedExchange(&m_ActiveSeekSerial, m_pDemuxer->InterruptForSeek());
+        }
+        if (m_pInput != nullptr) {
+            m_pInput->CancelPendingRead();
+        }
         DeliverBeginFlush();
+        seek = true;
+    }
+    }
+    if (seek)
+    {
         CallWorker(CMD_SEEK);
+        CAutoLock const seekLock(this);
         DeliverEndFlush();
     }
     DbgLog((LOG_TRACE, 20, " -> Seek finished", m_rtNewStart));

@@ -319,6 +319,7 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
     REFERENCE_TIME m_rtLastStart = _I64_MIN;
     REFERENCE_TIME m_rtLastStop = _I64_MIN;
     std::set<void *> m_LastSeekers;
+    LONG m_ActiveSeekSerial = 0;
 
     CAMEvent m_ePlaybackInit{TRUE};
 

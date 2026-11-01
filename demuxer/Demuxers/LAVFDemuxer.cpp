@@ -57,6 +57,8 @@ extern "C"
 #include "CueSheet.h"
 
 #define AVFORMAT_OPEN_TIMEOUT 20
+// A keyframe scan is allowed this many seconds, then the skip gives up.
+#define AVFORMAT_SEEK_TIMEOUT 5
 
 extern void lavf_get_iformat_infos(const AVInputFormat *pFormat, const char **pszName, const char **pszDescription);
 
@@ -180,9 +182,53 @@ STDMETHODIMP CLAVFDemuxer::Start()
 
 STDMETHODIMP CLAVFDemuxer::AbortOpening(int mode, int timeout)
 {
-    m_Abort = mode;
     m_timeAbort = timeout ? time(nullptr) + timeout : 0;
+    InterlockedExchange(&m_Abort, mode);
     return S_OK;
+}
+
+LONG CLAVFDemuxer::InterruptForSeek()
+{
+    LONG const serial = InterlockedIncrement(&m_SeekSerial);
+    // The demux thread is blocked in the current packet read. Fail that read
+    // now. BeginSeek() arms the keyframe-scan deadline once this skip actually
+    // starts, so the deadline is not spent waiting for the old read.
+    InterlockedExchange(&m_ReadInterrupt, 1);
+    return serial;
+}
+
+bool CLAVFDemuxer::BeginSeek(LONG serial)
+{
+    if (InterlockedCompareExchange(&m_SeekSerial, 0, 0) != serial) {
+        return false;
+    }
+
+    LONGLONG const deadline = (LONGLONG)time(nullptr) + AVFORMAT_SEEK_TIMEOUT;
+    InterlockedExchange64(&m_SeekDeadline, deadline);
+    InterlockedExchange(&m_SeekLimitSerial, serial);
+    InterlockedExchange(&m_ReadInterrupt, 0);
+
+    if (InterlockedCompareExchange(&m_SeekSerial, 0, 0) != serial)
+    {
+        // A newer skip replaced this one while the interrupt was cleared.
+        InterlockedExchange(&m_ReadInterrupt, 1);
+        return false;
+    }
+    return true;
+}
+
+void CLAVFDemuxer::EndSeek(LONG serial)
+{
+    // Compare-exchange so a newer skip's deadline stays armed.
+    InterlockedCompareExchange(&m_SeekLimitSerial, 0, serial);
+    if (InterlockedCompareExchange(&m_SeekSerial, 0, 0) == serial) {
+        InterlockedExchange(&m_ReadInterrupt, 0);
+    }
+}
+
+bool CLAVFDemuxer::IsAborting() const
+{
+    return InterlockedCompareExchange(const_cast<LONG *>(&m_Abort), 0, 0) != 0;
 }
 
 int CLAVFDemuxer::avio_interrupt_cb(void *opaque)
@@ -193,11 +239,24 @@ int CLAVFDemuxer::avio_interrupt_cb(void *opaque)
     time_t const now = time(nullptr);
     if (demux->m_timeOpening && now > (demux->m_timeOpening + AVFORMAT_OPEN_TIMEOUT)) {
         return 1;
-}
+    }
 
-    if (demux->m_Abort && now > demux->m_timeAbort) {
+    if (InterlockedCompareExchange(&demux->m_Abort, 0, 0) && now > demux->m_timeAbort) {
         return 1;
-}
+    }
+
+    if (InterlockedCompareExchange(&demux->m_ReadInterrupt, 0, 0)) {
+        return 1;
+    }
+
+    LONG const limitSerial = InterlockedCompareExchange(&demux->m_SeekLimitSerial, 0, 0);
+    if (limitSerial != 0 && limitSerial == InterlockedCompareExchange(&demux->m_SeekSerial, 0, 0))
+    {
+        LONGLONG const deadline = InterlockedCompareExchange64(&demux->m_SeekDeadline, 0, 0);
+        if (deadline != 0 && (LONGLONG)now > deadline) {
+            return 1;
+        }
+    }
 
     return 0;
 }
@@ -391,6 +450,11 @@ trynoformat:
 
     // demuxer/protocol options
     AVDictionary *options = nullptr;
+    // tcp_open copies this onto the connect timeout as well, and its default
+    // connect timeout is 5 seconds, so keep the same value. Each later read
+    // then fails after 5 seconds with no data instead of waiting forever.
+    // AbortOpening() still returns sooner: the wait polls the interrupt callback.
+    av_dict_set(&options, "rw_timeout", "5000000", 0);
     av_dict_set(&options, "icy", "1", 0);               // request ICY metadata
     av_dict_set(&options, "advanced_editlist", "0", 0); // disable broken mov editlist handling
     av_dict_set(&options, "reconnect", "1", 0);         // for http, reconnect if we get disconnected
@@ -1016,8 +1080,9 @@ void CLAVFDemuxer::CleanupAVFormat()
     FlushMVCExtensionQueue();
     if (m_avFormat)
     {
-        // Override abort timer to ensure the close function in network protocols can actually close the stream
-        AbortOpening(1, 5);
+        // Give a protocol a moment to finish its close handshake, then force
+        // the interrupt callback so a close that does poll cannot sit here.
+        AbortOpening(1, 1);
         avformat_close_input(&m_avFormat);
     }
     SAFE_CO_FREE(m_stOrigParser);

@@ -45,6 +45,11 @@ class CLAVInputPin
     STDMETHODIMP BeginFlush();
     STDMETHODIMP EndFlush();
 
+    // Unblock a SyncRead on the upstream source. Safe to call from Stop
+    // while Read() is blocked: it does not take the pin lock.
+    void CancelPendingRead();
+    void ResumePendingRead();
+
     CMediaType &CurrentMediaType() { return m_mt; }
 
     // IStreamSourceControl
@@ -68,4 +73,7 @@ class CLAVInputPin
     IStreamSourceControl *m_pStreamControl = nullptr;
 
     BOOL m_bURLSource = false;
+
+    LONG m_lReadCanceled = 0;
+    LONG m_lSourceFlushing = 0;
 };
