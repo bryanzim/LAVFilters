@@ -94,12 +94,12 @@ class CQSMediaSample : public IMediaSample
         if (riid == IID_IUnknown)
         {
             AddRef();
-            *ppvObject = reinterpret_cast<IUnknown *>(this);
+            *ppvObject = static_cast<IUnknown *>(this);
         }
         else if (riid == IID_IMediaSample)
         {
             AddRef();
-            *ppvObject = reinterpret_cast<IMediaSample *>(this);
+            *ppvObject = static_cast<IMediaSample *>(this);
         }
         else
         {

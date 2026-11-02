@@ -41,7 +41,7 @@ class CLAVSubRect : public IUnknown
         if (riid == IID_IUnknown)
         {
             AddRef();
-            *ppvObject = reinterpret_cast<IUnknown *>(this);
+            *ppvObject = static_cast<IUnknown *>(this);
         }
         else
         {
