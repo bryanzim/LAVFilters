@@ -25,7 +25,7 @@
 
 
 CVideoOutputPin::CVideoOutputPin(LPCTSTR pObjectName, CLAVVideo *pFilter, HRESULT *phr, LPCWSTR pName)
-    : CTransformOutputPin(pObjectName, reinterpret_cast<CTransformFilter *>(pFilter), phr, pName)
+    : CTransformOutputPin(pObjectName, static_cast<CTransformFilter *>(pFilter), phr, pName)
     , m_pFilter{pFilter}
 {
 }

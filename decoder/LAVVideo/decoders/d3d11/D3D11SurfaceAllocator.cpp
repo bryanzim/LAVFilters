@@ -32,7 +32,7 @@ extern "C"
 }
 
 CD3D11MediaSample::CD3D11MediaSample(CD3D11SurfaceAllocator *pAllocator, AVFrame *pFrame, HRESULT *phr)
-    : CMediaSampleSideData(NAME("CD3D11MediaSample"), reinterpret_cast<CBaseAllocator *>(pAllocator), phr, nullptr, 0)
+    : CMediaSampleSideData(NAME("CD3D11MediaSample"), static_cast<CBaseAllocator *>(pAllocator), phr, nullptr, 0)
     , m_pFrame{pFrame}
 {
     ASSERT((m_pFrame && m_pFrame->format == AV_PIX_FMT_D3D11));
@@ -57,7 +57,7 @@ STDMETHODIMP CD3D11MediaSample::QueryInterface(REFIID riid, __deref_out void **p
 
     if (riid == __uuidof(IMediaSampleD3D11))
     {
-        return GetInterface(reinterpret_cast<IMediaSampleD3D11 *>(this), ppv);
+        return GetInterface(static_cast<IMediaSampleD3D11 *>(this), ppv);
     }
     else
     {

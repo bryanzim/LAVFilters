@@ -34,7 +34,7 @@
 
 
 CDXVA2Sample::CDXVA2Sample(CDXVA2SurfaceAllocator *pAlloc, HRESULT *phr)
-    : CMediaSampleSideData(NAME("CDXVA2Sample"), reinterpret_cast<CBaseAllocator *>(pAlloc), phr, nullptr, 0)
+    : CMediaSampleSideData(NAME("CDXVA2Sample"), static_cast<CBaseAllocator *>(pAlloc), phr, nullptr, 0)
 {
 }
 
@@ -53,11 +53,11 @@ STDMETHODIMP CDXVA2Sample::QueryInterface(REFIID riid, __deref_out void **ppv)
 
     if (riid == __uuidof(IMFGetService))
     {
-        return GetInterface(reinterpret_cast<IMFGetService *>(this), ppv);
+        return GetInterface(static_cast<IMFGetService *>(this), ppv);
     }
     else if (riid == __uuidof(ILAVDXVA2Sample))
     {
-        return GetInterface(reinterpret_cast<ILAVDXVA2Sample *>(this), ppv);
+        return GetInterface(static_cast<ILAVDXVA2Sample *>(this), ppv);
     }
     else
     {

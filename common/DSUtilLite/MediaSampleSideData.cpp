@@ -43,7 +43,7 @@ STDMETHODIMP CMediaSampleSideData::QueryInterface(REFIID riid, __deref_out void 
 
     if (riid == __uuidof(IMediaSideData))
     {
-        return GetInterface(reinterpret_cast<IMediaSideData *>(this), ppv);
+        return GetInterface(static_cast<IMediaSideData *>(this), ppv);
     }
     else
     {

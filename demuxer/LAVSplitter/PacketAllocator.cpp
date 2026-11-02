@@ -36,11 +36,11 @@ STDMETHODIMP CMediaPacketSample::QueryInterface(REFIID riid, void **ppv)
 {
     if (riid == __uuidof(ILAVMediaSample))
     {
-        return GetInterface(reinterpret_cast<ILAVMediaSample *>(this), ppv);
+        return GetInterface(static_cast<ILAVMediaSample *>(this), ppv);
     }
     else if (riid == __uuidof(IMediaSideData))
     {
-        return GetInterface(reinterpret_cast<IMediaSideData *>(this), ppv);
+        return GetInterface(static_cast<IMediaSideData *>(this), ppv);
     }
     return CMediaSample::QueryInterface(riid, ppv);
 }
@@ -143,7 +143,7 @@ STDMETHODIMP CPacketAllocator::NonDelegatingQueryInterface(REFIID riid, __deref_
 {
     if (riid == IID_ILAVDynamicAllocator)
     {
-        return GetInterface(reinterpret_cast<ILAVDynamicAllocator *>(this), ppv);
+        return GetInterface(static_cast<ILAVDynamicAllocator *>(this), ppv);
     }
     else
     {
@@ -336,7 +336,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
     *ppBuffer = pSample;
 
 #ifdef DXMPERF
-    PERFLOG_GETBUFFER(reinterpret_cast<IMemAllocator *>(this), pSample);
+    PERFLOG_GETBUFFER(static_cast<IMemAllocator *>(this), pSample);
 #endif // DXMPERF
 
     return NOERROR;
