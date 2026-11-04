@@ -42,7 +42,7 @@ typedef struct SubRenderOption
     /**
      * The offset relative to the options structure
      */
-    int offset;
+    int offset{ 0 };
 
     /**
      * The type of the options
@@ -52,7 +52,7 @@ typedef struct SubRenderOption
     /**
      * Flags
      */
-    int flags;
+    int flags{ 0 };
 #define SROPT_FLAG_READONLY 1
 } SubRenderOption;
 
@@ -86,8 +86,8 @@ class CSubRenderOptionsImpl : public ISubRenderOptions
     virtual STDMETHODIMP OnSubOptionSet(LPCSTR field) { return E_NOTIMPL; }
 
   private:
-    const SubRenderOption *options = nullptr;
-    void *context = nullptr;
+    const SubRenderOption *options{ nullptr };
+    void *context{ nullptr };
 };
 
 #define DECLARE_ISUBRENDEROPTIONS                                                                                  \

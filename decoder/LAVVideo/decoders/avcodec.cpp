@@ -71,12 +71,12 @@ static DXVA2_ExtendedFormat GetDXVA2ExtendedFlags(AVFrame *frame)
 
     if ((frame->format == AV_PIX_FMT_XYZ12LE) || (frame->format == AV_PIX_FMT_XYZ12BE)) {
         fmt.VideoPrimaries = DXVA2_VideoPrimaries_BT709;
-}
+    }
 
     // Color Range, 0-255 or 16-235
-    BOOL const ffFullRange = (frame->color_range == AVCOL_RANGE_JPEG) || frame->format == AV_PIX_FMT_YUVJ420P ||
-                       frame->format == AV_PIX_FMT_YUVJ422P || frame->format == AV_PIX_FMT_YUVJ444P ||
-                       frame->format == AV_PIX_FMT_YUVJ440P || frame->format == AV_PIX_FMT_YUVJ411P;
+    BOOL const ffFullRange = (frame->color_range == AVCOL_RANGE_JPEG) || (frame->format == AV_PIX_FMT_YUVJ420P) ||
+                       (frame->format == AV_PIX_FMT_YUVJ422P) || (frame->format == AV_PIX_FMT_YUVJ444P) ||
+                       (frame->format == AV_PIX_FMT_YUVJ440P) || (frame->format == AV_PIX_FMT_YUVJ411P);
     fmt.NominalRange =
         ffFullRange ? DXVA2_NominalRange_0_255
                        : (frame->color_range == AVCOL_RANGE_MPEG) ? DXVA2_NominalRange_16_235
@@ -85,203 +85,10 @@ static DXVA2_ExtendedFormat GetDXVA2ExtendedFlags(AVFrame *frame)
     return fmt;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// avcodec -> LAV codec mappings
-////////////////////////////////////////////////////////////////////////////////
-
-// This mapping table should contain all pixel formats, except hardware formats (VDPAU, XVMC, DXVA, etc)
-// A format that is not listed will be converted to YUV420
-static struct PixelFormatMapping
-{
-    AVPixelFormat ffpixfmt;
-    LAVPixelFormat lavpixfmt;
-    BOOL conversion;
-    int bpp;
-} ff_pix_map[] = {
-    {AV_PIX_FMT_YUV420P, LAVPixFmt_YUV420, FALSE},
-    {AV_PIX_FMT_YUYV422, LAVPixFmt_YUY2, FALSE},
-    {AV_PIX_FMT_BGR24, LAVPixFmt_RGB24, FALSE},
-    {AV_PIX_FMT_YUV422P, LAVPixFmt_YUV422, FALSE},
-    {AV_PIX_FMT_YUV444P, LAVPixFmt_YUV444, FALSE},
-    {AV_PIX_FMT_YUVJ420P, LAVPixFmt_YUV420, FALSE},
-    {AV_PIX_FMT_YUVJ422P, LAVPixFmt_YUV422, FALSE},
-    {AV_PIX_FMT_YUVJ444P, LAVPixFmt_YUV444, FALSE},
-
-    {AV_PIX_FMT_NV12, LAVPixFmt_NV12, FALSE},
-    {AV_PIX_FMT_NV21, LAVPixFmt_NV12, TRUE},
-
-    {AV_PIX_FMT_BGRA, LAVPixFmt_ARGB32, FALSE},
-    {AV_PIX_FMT_RGB48LE, LAVPixFmt_RGB48, FALSE},
-    {AV_PIX_FMT_BAYER_RGGB16LE, LAVPixFmt_RGB48, TRUE},
-    {AV_PIX_FMT_BAYER_RGGB16BE, LAVPixFmt_RGB48, TRUE},
-
-    {AV_PIX_FMT_YUV420P16LE, LAVPixFmt_YUV420bX, FALSE, 16},
-    {AV_PIX_FMT_YUV420P16BE, LAVPixFmt_YUV420bX, TRUE, 16},
-    {AV_PIX_FMT_YUV422P16LE, LAVPixFmt_YUV422bX, FALSE, 16},
-    {AV_PIX_FMT_YUV422P16BE, LAVPixFmt_YUV422bX, TRUE, 16},
-    {AV_PIX_FMT_YUV444P16LE, LAVPixFmt_YUV444bX, FALSE, 16},
-    {AV_PIX_FMT_YUV444P16BE, LAVPixFmt_YUV444bX, TRUE, 16},
-
-    {AV_PIX_FMT_YUV420P9BE, LAVPixFmt_YUV420bX, TRUE, 9},
-    {AV_PIX_FMT_YUV420P9LE, LAVPixFmt_YUV420bX, FALSE, 9},
-    {AV_PIX_FMT_YUV420P10BE, LAVPixFmt_YUV420bX, TRUE, 10},
-    {AV_PIX_FMT_YUV420P10LE, LAVPixFmt_YUV420bX, FALSE, 10},
-    {AV_PIX_FMT_YUV422P10BE, LAVPixFmt_YUV422bX, TRUE, 10},
-    {AV_PIX_FMT_YUV422P10LE, LAVPixFmt_YUV422bX, FALSE, 10},
-    {AV_PIX_FMT_YUV444P9BE, LAVPixFmt_YUV444bX, TRUE, 9},
-    {AV_PIX_FMT_YUV444P9LE, LAVPixFmt_YUV444bX, FALSE, 9},
-    {AV_PIX_FMT_YUV444P10BE, LAVPixFmt_YUV444bX, TRUE, 10},
-    {AV_PIX_FMT_YUV444P10LE, LAVPixFmt_YUV444bX, FALSE, 10},
-    {AV_PIX_FMT_YUV422P9BE, LAVPixFmt_YUV422bX, TRUE, 9},
-    {AV_PIX_FMT_YUV422P9LE, LAVPixFmt_YUV422bX, FALSE, 9},
-
-    {AV_PIX_FMT_YUVA420P9BE, LAVPixFmt_YUV420bX, TRUE, 9},
-    {AV_PIX_FMT_YUVA420P9LE, LAVPixFmt_YUV420bX, FALSE, 9},
-    {AV_PIX_FMT_YUVA422P9BE, LAVPixFmt_YUV422bX, TRUE, 9},
-    {AV_PIX_FMT_YUVA422P9LE, LAVPixFmt_YUV422bX, FALSE, 9},
-    {AV_PIX_FMT_YUVA444P9BE, LAVPixFmt_YUV444bX, TRUE, 9},
-    {AV_PIX_FMT_YUVA444P9LE, LAVPixFmt_YUV444bX, FALSE, 9},
-    {AV_PIX_FMT_YUVA420P10BE, LAVPixFmt_YUV420bX, TRUE, 10},
-    {AV_PIX_FMT_YUVA420P10LE, LAVPixFmt_YUV420bX, FALSE, 10},
-    {AV_PIX_FMT_YUVA422P10BE, LAVPixFmt_YUV422bX, TRUE, 10},
-    {AV_PIX_FMT_YUVA422P10LE, LAVPixFmt_YUV422bX, FALSE, 10},
-    {AV_PIX_FMT_YUVA444P10BE, LAVPixFmt_YUV444bX, TRUE, 10},
-    {AV_PIX_FMT_YUVA444P10LE, LAVPixFmt_YUV444bX, FALSE, 10},
-    {AV_PIX_FMT_YUVA420P16BE, LAVPixFmt_YUV420bX, TRUE, 16},
-    {AV_PIX_FMT_YUVA420P16LE, LAVPixFmt_YUV420bX, FALSE, 16},
-    {AV_PIX_FMT_YUVA422P16BE, LAVPixFmt_YUV422bX, TRUE, 16},
-    {AV_PIX_FMT_YUVA422P16LE, LAVPixFmt_YUV422bX, FALSE, 16},
-    {AV_PIX_FMT_YUVA444P16BE, LAVPixFmt_YUV444bX, TRUE, 16},
-    {AV_PIX_FMT_YUVA444P16LE, LAVPixFmt_YUV444bX, FALSE, 16},
-
-    {AV_PIX_FMT_BGR0, LAVPixFmt_RGB32, FALSE},
-
-    {AV_PIX_FMT_YUV420P12BE, LAVPixFmt_YUV420bX, TRUE, 12},
-    {AV_PIX_FMT_YUV420P12LE, LAVPixFmt_YUV420bX, FALSE, 12},
-    {AV_PIX_FMT_YUV420P14BE, LAVPixFmt_YUV420bX, TRUE, 14},
-    {AV_PIX_FMT_YUV420P14LE, LAVPixFmt_YUV420bX, FALSE, 14},
-    {AV_PIX_FMT_YUV422P12BE, LAVPixFmt_YUV422bX, TRUE, 12},
-    {AV_PIX_FMT_YUV422P12LE, LAVPixFmt_YUV422bX, FALSE, 12},
-    {AV_PIX_FMT_YUV422P14BE, LAVPixFmt_YUV422bX, TRUE, 14},
-    {AV_PIX_FMT_YUV422P14LE, LAVPixFmt_YUV422bX, FALSE, 14},
-    {AV_PIX_FMT_YUV444P12BE, LAVPixFmt_YUV444bX, TRUE, 12},
-    {AV_PIX_FMT_YUV444P12LE, LAVPixFmt_YUV444bX, FALSE, 12},
-    {AV_PIX_FMT_YUV444P14BE, LAVPixFmt_YUV444bX, TRUE, 14},
-    {AV_PIX_FMT_YUV444P14LE, LAVPixFmt_YUV444bX, FALSE, 14},
-
-    {AV_PIX_FMT_P010LE, LAVPixFmt_P016, FALSE, 10},
-    {AV_PIX_FMT_P010BE, LAVPixFmt_P016, TRUE, 10},
-
-    {AV_PIX_FMT_P016LE, LAVPixFmt_P016, FALSE, 16},
-    {AV_PIX_FMT_P016BE, LAVPixFmt_P016, TRUE, 16},
-
-    {AV_PIX_FMT_YUVA422P12BE, LAVPixFmt_YUV422bX, TRUE, 12},
-    {AV_PIX_FMT_YUVA422P12LE, LAVPixFmt_YUV422bX, FALSE, 12},
-    {AV_PIX_FMT_YUVA444P12BE, LAVPixFmt_YUV444bX, TRUE, 12},
-    {AV_PIX_FMT_YUVA444P12LE, LAVPixFmt_YUV444bX, FALSE, 12},
-
-    {AV_PIX_FMT_Y210BE, LAVPixFmt_Y216, TRUE, 10},
-    {AV_PIX_FMT_Y210LE, LAVPixFmt_Y216, FALSE, 10},
-
-    {AV_PIX_FMT_VUYA, LAVPixFmt_AYUV, FALSE},
-    {AV_PIX_FMT_VUYX, LAVPixFmt_AYUV, FALSE},
-
-    {AV_PIX_FMT_P012LE, LAVPixFmt_P016, FALSE, 12},
-    {AV_PIX_FMT_P012BE, LAVPixFmt_P016, TRUE, 12},
-
-    {AV_PIX_FMT_Y212BE, LAVPixFmt_Y216, TRUE, 12},
-    {AV_PIX_FMT_Y212LE, LAVPixFmt_Y216, FALSE, 12},
-
-    {AV_PIX_FMT_XV30BE, LAVPixFmt_Y410, TRUE, 10},
-    {AV_PIX_FMT_XV30LE, LAVPixFmt_Y410, FALSE, 10},
-
-    {AV_PIX_FMT_XV48BE, LAVPixFmt_Y416, TRUE, 10},
-    {AV_PIX_FMT_XV48LE, LAVPixFmt_Y416, FALSE, 10},
-
-    {AV_PIX_FMT_Y216BE, LAVPixFmt_Y216, TRUE, 16},
-    {AV_PIX_FMT_Y216LE, LAVPixFmt_Y216, FALSE, 16},
-
-    {AV_PIX_FMT_DXVA2_VLD, LAVPixFmt_DXVA2, FALSE},
-    {AV_PIX_FMT_D3D11, LAVPixFmt_D3D11, FALSE},
-};
-
 static AVCodecID ff_interlace_capable[] = {AV_CODEC_ID_DNXHD,  AV_CODEC_ID_DVVIDEO,  AV_CODEC_ID_FRWU,
                                            AV_CODEC_ID_MJPEG,  AV_CODEC_ID_MPEG4,    AV_CODEC_ID_MPEG2VIDEO,
                                            AV_CODEC_ID_H264,   AV_CODEC_ID_VC1,      AV_CODEC_ID_PNG,
                                            AV_CODEC_ID_PRORES, AV_CODEC_ID_RAWVIDEO, AV_CODEC_ID_UTVIDEO};
-
-static struct PixelFormatMapping getPixFmtMapping(AVPixelFormat pixfmt)
-{
-    const PixelFormatMapping def = {pixfmt, LAVPixFmt_YUV420, TRUE, 8};
-    PixelFormatMapping result = { AV_PIX_FMT_NONE };
-    for (int i{ 0 }; i < countof(ff_pix_map); ++i)
-    {
-        if (ff_pix_map[i].ffpixfmt == pixfmt)
-        {
-            result = ff_pix_map[i];
-            break;
-        }
-    }
-
-    // use a heuristic if there was no perfect match
-    if (result.ffpixfmt == AV_PIX_FMT_NONE)
-    {
-        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(pixfmt);
-        if (desc == nullptr)
-        {
-            result = def;
-        }
-        else
-        {
-            // RGB formats (or PAL)
-            if (desc->flags & (AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_PAL))
-            {
-                if (desc->comp[0U].depth > 8) {
-                    result = {pixfmt, LAVPixFmt_RGB48, TRUE};
-                } else {
-                    result = {pixfmt, LAVPixFmt_RGB32, TRUE};
-}
-            }
-            else
-            {
-                // 420 and 410 (and gray)
-                if ((desc->log2_chroma_w && desc->log2_chroma_h) || (desc->nb_components == 1))
-                {
-                    if (desc->comp[0U].depth > 8) {
-                        result = {pixfmt, LAVPixFmt_YUV420bX, TRUE, desc->comp[0U].depth};
-                    } else {
-                        result = {pixfmt, LAVPixFmt_YUV420, TRUE};
-}
-                }
-                else if (desc->log2_chroma_w) // 422 and 411
-                {
-                    if (desc->comp[0U].depth > 8) {
-                        result = {pixfmt, LAVPixFmt_YUV422bX, TRUE, desc->comp[0U].depth};
-                    } else {
-                        result = {pixfmt, LAVPixFmt_YUV422, TRUE};
-}
-                }
-                else // 444 and others
-                {
-                    if (desc->comp[0U].depth > 8) {
-                        result = {pixfmt, LAVPixFmt_YUV444bX, TRUE, desc->comp[0U].depth};
-                    } else {
-                        result = {pixfmt, LAVPixFmt_YUV444, TRUE};
-}
-                }
-            }
-
-        }
-    }
-
-    if ((result.lavpixfmt != LAVPixFmt_YUV420bX) && (result.lavpixfmt != LAVPixFmt_YUV422bX) &&
-        (result.lavpixfmt != LAVPixFmt_YUV444bX) && (result.lavpixfmt != LAVPixFmt_P016) &&
-        (result.lavpixfmt != LAVPixFmt_Y216)) {
-        result.bpp = 8;
-}
-
-    return result;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // AVCodec decoder implementation
@@ -314,7 +121,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     DestroyDecoder();
     DbgLog((LOG_TRACE, 10, L"Initializing ffmpeg for codec %S", avcodec_get_name(codec)));
 
-    BITMAPINFOHEADER *pBMI = nullptr;
+    BITMAPINFOHEADER *pBMI{ nullptr };
     videoFormatTypeHandler(reinterpret_cast<const BYTE *>(pmt->Format()), pmt->FormatType(), &pBMI);
 
     if ((codec == AV_CODEC_ID_AV1) && IsHardwareAccelerator())
@@ -360,6 +167,10 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
             biRealWidth = vih2->rcTarget.right;
             biRealHeight = vih2->rcTarget.bottom;
         }
+        // Uncompressed decoders need the container's field order to flag their decoded frames.
+        if (((codec == AV_CODEC_ID_V210) || (codec == AV_CODEC_ID_RAWVIDEO)) &&
+            (vih2->dwInterlaceFlags & AMINTERLACE_IsInterlaced))
+            m_pAVCtx->field_order = (vih2->dwInterlaceFlags & AMINTERLACE_Field1First) ? AV_FIELD_TT : AV_FIELD_BB;
     }
 
     m_pAVCtx->codec_id = codec;
@@ -419,7 +230,6 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
             // We'll put them all into one block and add a second block with 0 elements afterwards
             // The parsing logic does not care what type they are, it just expects 2 blocks.
             BYTE *p = extra + 6, *end = extra + 6 + actual_len;
-            BOOL bSPS = FALSE, bPPS = FALSE;
             while (p + 1 < end)
             {
                 unsigned const len = ((static_cast<unsigned>(p[0U]) << 8) | p[1U]) + 2;
@@ -427,12 +237,6 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                 {
                     break;
                 }
-                if ((p[2U] & 0x1F) == 7) {
-                    bSPS = TRUE;
-}
-                if ((p[2U] & 0x1F) == 8) {
-                    bPPS = TRUE;
-}
                 ++ps_count;
                 p += len;
             }
@@ -447,7 +251,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     else if (extralen > 0)
     {
         DbgLog((LOG_TRACE, 10, L"-> Processing extradata of %d bytes", extralen));
-        BYTE *extra = nullptr;
+        BYTE *extra{ nullptr };
         if (pmt->subtype == MEDIASUBTYPE_LAV_RAWVIDEO)
         {
             if (extralen < sizeof(m_pAVCtx->pix_fmt))
@@ -474,9 +278,9 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                 if ((AV_RB32(extra) == MKBETAG('v', 'p', 'c', 'C')) && (AV_RB8(extra + 4) == 1))
                 {
                     m_pAVCtx->profile = AV_RB8(extra + 8);
-                    m_pAVCtx->color_primaries = (AVColorPrimaries)AV_RB8(extra + 11);
-                    m_pAVCtx->color_trc = (AVColorTransferCharacteristic)AV_RB8(extra + 12);
-                    m_pAVCtx->colorspace = (AVColorSpace)AV_RB8(extra + 13);
+                    m_pAVCtx->color_primaries = static_cast<AVColorPrimaries>(AV_RB8(extra + 11));
+                    m_pAVCtx->color_trc = static_cast<AVColorTransferCharacteristic>(AV_RB8(extra + 12));
+                    m_pAVCtx->colorspace = static_cast<AVColorSpace>(AV_RB8(extra + 13));
 
                     int const bitdepth = AV_RB8(extra + 10) >> 4;
                     if ((m_pAVCtx->profile == 2) && (bitdepth == 10))
@@ -528,7 +332,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                                 m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV420P10;
                             } else {
                                 m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV420P12;
-}
+                            }
                         }
                         else if (chroma_x && !chroma_y)
                         {
@@ -538,7 +342,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                                 m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV422P10;
                             } else {
                                 m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV422P12;
-}
+                            }
                         }
                         else if (!chroma_x && !chroma_y)
                         {
@@ -548,7 +352,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                                 m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV444P10;
                             } else {
                                 m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV444P12;
-}
+                            }
                         }
                     }
                     else
@@ -559,7 +363,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                             m_pAVCtx->pix_fmt = AV_PIX_FMT_GRAY10;
                         } else {
                             m_pAVCtx->pix_fmt = AV_PIX_FMT_GRAY12;
-}
+                        }
                     }
                 }
             }
@@ -589,7 +393,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
             {
                 m_pAVCtx->extradata = reinterpret_cast<std::uint8_t *>(av_mallocz(1 + AV_INPUT_BUFFER_PADDING_SIZE));
                 m_pAVCtx->extradata_size = 1;
-                m_pAVCtx->extradata[0U] = (cropH << 4) | cropV;
+                m_pAVCtx->extradata[0U] = static_cast<std::uint8_t>((cropH << 4) | cropV);
             }
         }
     }
@@ -607,13 +411,13 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     // MPEG-4 with VideoInfo/2 is from AVI, and only DTS
     if ((codec == AV_CODEC_ID_MPEG4) && (pmt->formattype != FORMAT_MPEG2Video)) {
         dwDecFlags |= LAV_VIDEO_DEC_FLAG_ONLY_DTS;
-}
+    }
 
     // RealVideo is only DTS
     if ((codec == AV_CODEC_ID_RV10) || (codec == AV_CODEC_ID_RV20) || (codec == AV_CODEC_ID_RV30) ||
         (codec == AV_CODEC_ID_RV40)) {
         dwDecFlags |= LAV_VIDEO_DEC_FLAG_ONLY_DTS;
-}
+    }
 
     // H.264 without B frames should use reordering for proper delay handling
     if ((codec == AV_CODEC_ID_H264) && bLAVInfoValid && (lavPinInfo.has_b_frames == 0))
@@ -628,13 +432,13 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                       (m_pAVCodec->capabilities & (AV_CODEC_CAP_DELAY | AV_CODEC_CAP_FRAME_THREADS));
 
     // Stop time is unreliable, drop it and calculate it
-    m_bCalculateStopTime = (codec == AV_CODEC_ID_H264 || codec == AV_CODEC_ID_DIRAC ||
+    m_bCalculateStopTime = ((codec == AV_CODEC_ID_H264) || (codec == AV_CODEC_ID_DIRAC) ||
                             (codec == AV_CODEC_ID_MPEG4 && pmt->formattype == FORMAT_MPEG2Video) ||
                             (codec == AV_CODEC_ID_VC1 && !(dwDecFlags & LAV_VIDEO_DEC_FLAG_ONLY_DTS)));
 
     // Real Video content has some odd timestamps
     // LAV Splitter does them allright with RV30/RV40, everything else screws them up
-    m_bRVDropBFrameTimings = (codec == AV_CODEC_ID_RV10 || codec == AV_CODEC_ID_RV20 ||
+    m_bRVDropBFrameTimings = ((codec == AV_CODEC_ID_RV10) || (codec == AV_CODEC_ID_RV20) ||
                               ((codec == AV_CODEC_ID_RV30 || codec == AV_CODEC_ID_RV40) &&
                                (!(dwDecFlags & LAV_VIDEO_DEC_FLAG_LAVSPLITTER) ||
                                 (bLAVInfoValid && (lavPinInfo.flags & LAV_STREAM_FLAG_RV34_MKV)))));
@@ -643,12 +447,12 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     m_bBFrameDelay = !m_bFFReordering && !m_bRVDropBFrameTimings;
 
     m_bWaitingForKeyFrame = TRUE;
-    m_bResumeAtKeyFrame = codec == AV_CODEC_ID_MPEG2VIDEO || codec == AV_CODEC_ID_VC1 ||
-                          codec == AV_CODEC_ID_VC1IMAGE || codec == AV_CODEC_ID_WMV3 ||
-                          codec == AV_CODEC_ID_WMV3IMAGE || codec == AV_CODEC_ID_RV30 || codec == AV_CODEC_ID_RV40 ||
-                          codec == AV_CODEC_ID_VP3 || codec == AV_CODEC_ID_THEORA || codec == AV_CODEC_ID_MPEG4;
+    m_bResumeAtKeyFrame = (codec == AV_CODEC_ID_MPEG2VIDEO) || (codec == AV_CODEC_ID_VC1) ||
+                          (codec == AV_CODEC_ID_VC1IMAGE) || (codec == AV_CODEC_ID_WMV3) ||
+                          (codec == AV_CODEC_ID_WMV3IMAGE) || (codec == AV_CODEC_ID_RV30) || (codec == AV_CODEC_ID_RV40) ||
+                          (codec == AV_CODEC_ID_VP3) || (codec == AV_CODEC_ID_THEORA) || (codec == AV_CODEC_ID_MPEG4);
 
-    m_bHasPalette = m_pAVCtx->bits_per_coded_sample <= 8 && m_pAVCtx->extradata_size &&
+    m_bHasPalette = (m_pAVCtx->bits_per_coded_sample <= 8) && m_pAVCtx->extradata_size &&
                     !(dwDecFlags & LAV_VIDEO_DEC_FLAG_LAVSPLITTER) &&
                     (codec == AV_CODEC_ID_MSVIDEO1 || codec == AV_CODEC_ID_MSRLE || codec == AV_CODEC_ID_CINEPAK ||
                      codec == AV_CODEC_ID_8BPS || codec == AV_CODEC_ID_QPEG || codec == AV_CODEC_ID_QTRLE ||
@@ -676,7 +480,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
             // Set H264 to at least 2 B-Frames, which is the most common for broadcasts
             if ((codec == AV_CODEC_ID_H264) && (m_pAVCtx->has_b_frames == 1)) {
                 m_pAVCtx->has_b_frames = 2;
-}
+            }
         }
     }
 
@@ -701,7 +505,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
     }
 
     // codec-specific options
-    AVDictionary *options = nullptr;
+    AVDictionary *options{ nullptr };
 
     // workaround for old/broken x264 streams
     int const nX264Build = m_pCallback->GetX264Build();
@@ -743,6 +547,12 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
         }
     }
 
+    if (((codec == AV_CODEC_ID_V210) || (codec == AV_CODEC_ID_RAWVIDEO)) &&
+        (m_pAVCtx->field_order > AV_FIELD_PROGRESSIVE))
+    {
+        m_iInterlaced = 1;
+    }
+
     // Detect chroma and interlaced
     if ((m_pAVCtx->extradata) && (m_pAVCtx->extradata_size))
     {
@@ -769,17 +579,17 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                 h264parser.ParseNALs(m_pAVCtx->extradata + 6, m_pAVCtx->extradata_size - 6, 2);
             } else {
                 h264parser.ParseNALs(m_pAVCtx->extradata, m_pAVCtx->extradata_size, 0);
-}
+            }
             if (h264parser.sps.valid) {
                 m_iInterlaced = h264parser.sps.interlaced;
-}
+            }
         }
         else if (codec == AV_CODEC_ID_VC1)
         {
             CVC1HeaderParser const vc1parser(m_pAVCtx->extradata, m_pAVCtx->extradata_size);
             if (vc1parser.hdr.valid) {
                 m_iInterlaced = (vc1parser.hdr.interlaced ? -1 : 0);
-}
+            }
         }
     }
 
@@ -787,22 +597,22 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
         m_pAVCtx->pix_fmt = AV_PIX_FMT_YUV422P10;
     } else if (codec == AV_CODEC_ID_FRAPS) {
         m_pAVCtx->pix_fmt = AV_PIX_FMT_BGR24;
-}
+    }
 
     if (bLAVInfoValid && (lavPinInfo.pix_fmt != AV_PIX_FMT_NONE) && (codec != AV_CODEC_ID_FRAPS))
     {
         if ((m_pAVCtx->pix_fmt != AV_PIX_FMT_DXVA2_VLD) && (m_pAVCtx->pix_fmt != AV_PIX_FMT_D3D11)) {
             m_pAVCtx->pix_fmt = lavPinInfo.pix_fmt;
-}
+        }
         if (m_pAVCtx->sw_pix_fmt == AV_PIX_FMT_NONE) {
             m_pAVCtx->sw_pix_fmt = lavPinInfo.pix_fmt;
-}
+        }
     }
 
     // Ensure software pixfmt is set, so hardware accels can use it immediately
     if ((m_pAVCtx->sw_pix_fmt == AV_PIX_FMT_NONE) && (m_pAVCtx->pix_fmt != AV_PIX_FMT_DXVA2_VLD) && (m_pAVCtx->pix_fmt != AV_PIX_FMT_D3D11)) {
         m_pAVCtx->sw_pix_fmt = m_pAVCtx->pix_fmt;
-}
+    }
 
 
     DbgLog((LOG_TRACE, 10, L"AVCodec init successfull. interlaced: %d", m_iInterlaced));
@@ -827,7 +637,7 @@ STDMETHODIMP CDecAvcodec::DestroyDecoder()
             std::int64_t x264build{ -1 };
             if (av_opt_get_int(m_pAVCtx->priv_data, "x264_build", 0, &x264build) >= 0) {
                 m_pCallback->SetX264Build(static_cast<int>(x264build));
-}
+            }
         }
 
         av_freep(&m_pAVCtx->hwaccel_context);
@@ -886,7 +696,7 @@ STDMETHODIMP CDecAvcodec::FillAVPacketData(AVPacket *avpkt, const std::uint8_t *
         // create fresh packet
         if (av_new_packet(avpkt, buflen) < 0) {
             return E_OUTOFMEMORY;
-}
+        }
 
         // copy data over
         std::memcpy(avpkt->data, buffer, buflen);
@@ -895,11 +705,11 @@ STDMETHODIMP CDecAvcodec::FillAVPacketData(AVPacket *avpkt, const std::uint8_t *
     // copy side-data from input sample
     if (pSample)
     {
-        IMediaSideData *pSideData = nullptr;
+        IMediaSideData *pSideData{ nullptr };
         if (SUCCEEDED(pSample->QueryInterface(&pSideData)))
         {
             std::size_t nFFSideDataSize{ 0U };
-            const MediaSideDataFFMpeg *pFFSideData = nullptr;
+            const MediaSideDataFFMpeg *pFFSideData{ nullptr };
             if ((FAILED(
                     pSideData->GetSideData(IID_MediaSideDataFFMpeg, reinterpret_cast<const BYTE **>(static_cast<void *>(&pFFSideData)), &nFFSideDataSize))) ||
                 (nFFSideDataSize != sizeof(MediaSideDataFFMpeg)))
@@ -965,7 +775,7 @@ STDMETHODIMP CDecAvcodec::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         avpkt->pts = rtStartIn;
         if ((rtStartIn != AV_NOPTS_VALUE) && (rtStopIn != AV_NOPTS_VALUE)) {
             avpkt->duration = static_cast<int>((rtStopIn - rtStartIn));
-}
+        }
 
         // flags
         avpkt->flags = bSyncPoint ? AV_PKT_FLAG_KEY : 0;
@@ -992,7 +802,7 @@ STDMETHODIMP CDecAvcodec::ParsePacket(const BYTE *buffer, int buflen, REFERENCE_
     BOOL const bFlush = (buffer == nullptr);
     int used_bytes{ 0 };
     std::uint8_t *pDataBuffer = const_cast<std::uint8_t *>(reinterpret_cast<const std::uint8_t *>(buffer));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     // re-allocate with padding, if needed
     if ((m_bInputPadded == false) && (buflen > 0))
@@ -1014,7 +824,7 @@ STDMETHODIMP CDecAvcodec::ParsePacket(const BYTE *buffer, int buflen, REFERENCE_
     {
         REFERENCE_TIME rtStart = rtStartIn, rtStop = rtStopIn;
 
-        std::uint8_t *pOutBuffer = nullptr;
+        std::uint8_t *pOutBuffer{ nullptr };
         int pOutLen{ 0 };
 
         used_bytes = av_parser_parse2(m_pParser, m_pAVCtx, &pOutBuffer, &pOutLen, pDataBuffer, buflen, AV_NOPTS_VALUE,
@@ -1039,7 +849,7 @@ STDMETHODIMP CDecAvcodec::ParsePacket(const BYTE *buffer, int buflen, REFERENCE_
         {
             if (rtStartIn != AV_NOPTS_VALUE) {
                 m_rtStartCache = rtStartIn;
-}
+            }
         }
         else if ((used_bytes == pOutLen) || ((used_bytes + 9) == pOutLen))
         {
@@ -1144,12 +954,12 @@ STDMETHODIMP CDecAvcodec::DecodePacket(AVPacket *avpkt, REFERENCE_TIME rtStartIn
             // check vp9 frame marker
             if (VP9Header.BitRead(2) != 0x2) {
                 return E_FAIL;
-}
+            }
 
             int profile = VP9Header.BitRead(1) | (VP9Header.BitRead(1) << 1);
             if (profile == 3) {
                 profile += VP9Header.BitRead(1);
-}
+            }
             if ((VP9Header.BitRead(1) == 0) && (VP9Header.BitRead(1) == 0))
             {
                 DbgLog((LOG_TRACE, 10, L"::Decode(): Found VP9 key-frame, resuming decoding"));
@@ -1171,7 +981,7 @@ STDMETHODIMP CDecAvcodec::DecodePacket(AVPacket *avpkt, REFERENCE_TIME rtStartIn
 
             for (int i{ 0 }; i < pal_size / 4; ++i) {
                 pal[i] = 0xFF << 24 | AV_RL32(pal_src + 4 * i);
-}
+            }
         }
     }
 
@@ -1198,7 +1008,7 @@ send_packet:
         }
         else {
             return S_FALSE;
-}
+        }
     }
     else
     {
@@ -1262,7 +1072,7 @@ send_packet:
                 rtStop = m_pFrame->pts + m_pFrame->duration;
             } else {
                 rtStop = AV_NOPTS_VALUE;
-}
+            }
         }
         else if (m_bBFrameDelay && (m_pAVCtx->has_b_frames))
         {
@@ -1283,13 +1093,18 @@ send_packet:
 
         if (m_bCalculateStopTime) {
             rtStop = AV_NOPTS_VALUE;
-}
+        }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         // All required values collected, deliver the frame
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        LAVFrame *pOutFrame = nullptr;
-        AllocateFrame(&pOutFrame);
+        LAVFrame *pOutFrame{ nullptr };
+        HRESULT const hrFrame = AllocateFrame(&pOutFrame);
+        if (FAILED(hrFrame))
+        {
+            av_frame_unref(m_pFrame);
+            return hrFrame;
+        }
 
         AVRational display_aspect_ratio;
         std::int64_t const num = static_cast<std::int64_t>(m_pFrame->sample_aspect_ratio.num) * m_pFrame->width;
@@ -1304,29 +1119,29 @@ send_packet:
         pOutFrame->frame_type = av_get_picture_type_char(m_pFrame->pict_type);
         pOutFrame->ext_format = GetDXVA2ExtendedFlags(m_pFrame);
 
-        if ((m_nCodecId == AV_CODEC_ID_H264 || m_nCodecId == AV_CODEC_ID_MPEG2VIDEO) && (m_pFrame->repeat_pict)) {
+        if (((m_nCodecId == AV_CODEC_ID_H264) || (m_nCodecId == AV_CODEC_ID_MPEG2VIDEO)) && (m_pFrame->repeat_pict)) {
             m_nSoftTelecine = 2;
         } else if (m_nSoftTelecine > 0) {
             --m_nSoftTelecine;
-}
+        }
 
         if ((m_pFrame->flags & AV_FRAME_FLAG_INTERLACED) || (!m_pAVCtx->progressive_sequence &&
                                            (m_nCodecId == AV_CODEC_ID_H264 || m_nCodecId == AV_CODEC_ID_MPEG2VIDEO)))
         {
             if (!m_nSoftTelecine) {
                 m_iInterlaced = 1;
-}
+            }
         }
         else if (m_pAVCtx->progressive_sequence) {
             m_iInterlaced = 0;
-}
+        }
 
         // Don't apply aggressive deinterlacing to content that looks soft-telecined, as it would destroy the content
         bool const bAggressiveFlag =
-            (m_iInterlaced == 1 && m_pSettings->GetDeinterlacingMode() == DeintMode_Aggressive) && !m_nSoftTelecine;
+            ((m_iInterlaced == 1) && (m_pSettings->GetDeinterlacingMode() == DeintMode_Aggressive)) && !m_nSoftTelecine;
 
         pOutFrame->interlaced = ((m_pFrame->flags & AV_FRAME_FLAG_INTERLACED) || bAggressiveFlag ||
-                                 m_pSettings->GetDeinterlacingMode() == DeintMode_Force) &&
+                                 (m_pSettings->GetDeinterlacingMode() == DeintMode_Force)) &&
             !(m_pSettings->GetDeinterlacingMode() == DeintMode_Disable);
 
         LAVDeintFieldOrder const fo = m_pSettings->GetDeintFieldOrder();
@@ -1336,14 +1151,14 @@ send_packet:
         pOutFrame->rtStart = rtStart;
         pOutFrame->rtStop = rtStop;
 
-        PixelFormatMapping const map = getPixFmtMapping((AVPixelFormat)m_pFrame->format);
+        AVPixelFormatMapping const map = getFFToLAVPixFmtMapping(static_cast<AVPixelFormat>(m_pFrame->format));
         pOutFrame->format = map.lavpixfmt;
         pOutFrame->sw_format = pOutFrame->format;
         pOutFrame->bpp = map.bpp;
 
         if ((m_nCodecId == AV_CODEC_ID_MPEG2VIDEO) || (m_nCodecId == AV_CODEC_ID_MPEG1VIDEO)) {
             pOutFrame->avgFrameDuration = GetFrameDuration();
-}
+        }
 
         AVFrameSideData *sdHDR = av_frame_get_side_data(m_pFrame, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
         if (sdHDR)
@@ -1353,7 +1168,7 @@ send_packet:
                 AVMasteringDisplayMetadata *metadata = reinterpret_cast<AVMasteringDisplayMetadata *>(sdHDR->data);
                 MediaSideDataHDR *hdr =
                     reinterpret_cast<MediaSideDataHDR *>(AddLAVFrameSideData(pOutFrame, IID_MediaSideDataHDR, sizeof(MediaSideDataHDR)));
-                processFFHDRData(hdr, metadata);
+                if (hdr) { processFFHDRData(hdr, metadata); }
             }
             else
             {
@@ -1369,8 +1184,11 @@ send_packet:
                 AVContentLightMetadata *metadata = reinterpret_cast<AVContentLightMetadata *>(sdHDRContentLightLevel->data);
                 MediaSideDataHDRContentLightLevel *hdr = reinterpret_cast<MediaSideDataHDRContentLightLevel *>(AddLAVFrameSideData(
                     pOutFrame, IID_MediaSideDataHDRContentLightLevel, sizeof(MediaSideDataHDRContentLightLevel)));
-                hdr->MaxCLL = metadata->MaxCLL;
-                hdr->MaxFALL = metadata->MaxFALL;
+                if (hdr)
+                {
+                    hdr->MaxCLL = metadata->MaxCLL;
+                    hdr->MaxFALL = metadata->MaxFALL;
+                }
             }
             else
             {
@@ -1387,16 +1205,22 @@ send_packet:
                 AVDynamicHDRPlus *metadata = reinterpret_cast<AVDynamicHDRPlus *>(sdHDR10Plus->data);
                 MediaSideDataHDR10Plus *hdr = reinterpret_cast<MediaSideDataHDR10Plus *>(AddLAVFrameSideData(
                     pOutFrame, IID_MediaSideDataHDR10Plus, sizeof(MediaSideDataHDR10Plus)));
-                processFFHDR10PlusData(hdr, metadata, m_pFrame->width, m_pFrame->height);
+                if (hdr)
+                {
+                    processFFHDR10PlusData(hdr, metadata, m_pFrame->width, m_pFrame->height);
 
-                #pragma warning(push)
-                #pragma warning(disable : 4996)
-                // legacy format without the version info
-                std::size_t const offset = offsetof(MediaSideDataHDR10Plus, num_windows);
-                BYTE *hdrLegacy = reinterpret_cast<BYTE *>(AddLAVFrameSideData(pOutFrame, IID_MediaSideDataHDR10PlusOld,
-                                                              sizeof(MediaSideDataHDR10Plus) - offset));
-                std::memcpy(hdrLegacy, (reinterpret_cast<BYTE *>(hdr)) + offset, sizeof(MediaSideDataHDR10Plus) - offset);
-                #pragma warning(pop)
+                    #pragma warning(push)
+                    #pragma warning(disable : 4996)
+                    // legacy format without the version info
+                    std::size_t const offset = offsetof(MediaSideDataHDR10Plus, num_windows);
+                    BYTE *hdrLegacy = reinterpret_cast<BYTE *>(AddLAVFrameSideData(pOutFrame, IID_MediaSideDataHDR10PlusOld,
+                                                                  sizeof(MediaSideDataHDR10Plus) - offset));
+                    if (hdrLegacy)
+                    {
+                        std::memcpy(hdrLegacy, (reinterpret_cast<BYTE *>(hdr)) + offset, sizeof(MediaSideDataHDR10Plus) - offset);
+                    }
+                    #pragma warning(pop)
+                }
             }
             else
             {
@@ -1410,29 +1234,32 @@ send_packet:
             AVDOVIMetadata *metadata = reinterpret_cast<AVDOVIMetadata *>(sdDOVI->data);
             MediaSideDataDOVIMetadata *hdr = reinterpret_cast<MediaSideDataDOVIMetadata *>(AddLAVFrameSideData(
                 pOutFrame, IID_MediaSideDataDOVIMetadataV2, sizeof(MediaSideDataDOVIMetadata)));
-            processFFDOVIData(hdr, metadata);
+            if (hdr)
+            {
+                processFFDOVIData(hdr, metadata);
 
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
-            // legacy format without extensions
-            BYTE *hdrLegacy = reinterpret_cast<BYTE *>(AddLAVFrameSideData(
-                pOutFrame, IID_MediaSideDataDOVIMetadata, offsetof(MediaSideDataDOVIMetadata, Extensions)));
-            std::memcpy(hdrLegacy, hdr, offsetof(MediaSideDataDOVIMetadata, Extensions));
-            #pragma warning(pop)
+                #pragma warning(push)
+                #pragma warning(disable: 4996)
+                // legacy format without extensions
+                BYTE *hdrLegacy = reinterpret_cast<BYTE *>(AddLAVFrameSideData(
+                    pOutFrame, IID_MediaSideDataDOVIMetadata, offsetof(MediaSideDataDOVIMetadata, Extensions)));
+                if (hdrLegacy) { std::memcpy(hdrLegacy, hdr, offsetof(MediaSideDataDOVIMetadata, Extensions)); }
+                #pragma warning(pop)
+            }
         }
 
         AVFrameSideData *sdDOVIRPU = av_frame_get_side_data(m_pFrame, AV_FRAME_DATA_DOVI_RPU_BUFFER);
         if (sdDOVIRPU)
         {
             BYTE *pDVRPU = AddLAVFrameSideData(pOutFrame, IID_MediaSideDataDOVIRPU, sdDOVIRPU->size);
-            std::memcpy(pDVRPU, sdDOVIRPU->data, sdDOVIRPU->size);
+            if (pDVRPU) { std::memcpy(pDVRPU, sdDOVIRPU->data, sdDOVIRPU->size); }
         }
 
         AVFrameSideData *sdCC = av_frame_get_side_data(m_pFrame, AV_FRAME_DATA_A53_CC);
         if (sdCC)
         {
             BYTE *CC = AddLAVFrameSideData(pOutFrame, IID_MediaSideDataEIA608CC, sdCC->size);
-            std::memcpy(CC, sdCC->data, sdCC->size);
+            if (CC) { std::memcpy(CC, sdCC->data, sdCC->size); }
         }
 
         if (map.conversion)
@@ -1470,32 +1297,49 @@ send_packet:
 
         if (bEndOfSequence) {
             pOutFrame->flags |= LAV_FRAME_FLAG_END_OF_SEQUENCE;
-}
+        }
 
+        HRESULT hrDeliver{ S_OK };
         if (pOutFrame->format == LAVPixFmt_DXVA2)
         {
             pOutFrame->data[0U] = m_pFrame->data[4U];
-            HandleDXVA2Frame(pOutFrame);
+            hrDeliver = HandleDXVA2Frame(pOutFrame);
         }
         else if (pOutFrame->format == LAVPixFmt_D3D11)
         {
-            HandleDXVA2Frame(pOutFrame);
+            hrDeliver = HandleDXVA2Frame(pOutFrame);
         }
         else
         {
-            Deliver(pOutFrame);
+            hrDeliver = Deliver(pOutFrame);
+        }
+        if (FAILED(hrDeliver))
+        {
+            av_frame_unref(m_pFrame);
+            return hrDeliver;
         }
 
         if (bEndOfSequence)
         {
             bEndOfSequence = FALSE;
+            LAVFrame *const pFlush = m_pCallback->GetFlushFrame();
+            if (pFlush == nullptr)
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             if ((pOutFrame->format == LAVPixFmt_DXVA2) || (pOutFrame->format == LAVPixFmt_D3D11))
             {
-                HandleDXVA2Frame(m_pCallback->GetFlushFrame());
+                hrDeliver = HandleDXVA2Frame(pFlush);
             }
             else
             {
-                Deliver(m_pCallback->GetFlushFrame());
+                hrDeliver = Deliver(pFlush);
+            }
+            if (FAILED(hrDeliver))
+            {
+                av_frame_unref(m_pFrame);
+                return hrDeliver;
             }
         }
 
@@ -1556,16 +1400,16 @@ STDMETHODIMP CDecAvcodec::EndOfStream()
 STDMETHODIMP CDecAvcodec::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
 {
     AVPixelFormat const pixfmt = m_pAVCtx ? m_pAVCtx->pix_fmt : AV_PIX_FMT_NONE;
-    PixelFormatMapping const mapping = getPixFmtMapping(pixfmt);
+    AVPixelFormatMapping const mapping = getFFToLAVPixFmtMapping(pixfmt);
     if (pPix) {
         *pPix = mapping.lavpixfmt;
-}
+    }
     if (pBpp) {
         *pBpp = mapping.bpp;
-}
+    }
     if (pPixSoftware) {
         *pPixSoftware = mapping.lavpixfmt;
-}
+    }
     return S_OK;
 }
 
@@ -1575,20 +1419,20 @@ STDMETHODIMP CDecAvcodec::ConvertPixFmt(AVFrame *pFrame, LAVFrame *pOutFrame)
     HRESULT const hr = AllocLAVFrameBuffers(pOutFrame);
     if (FAILED(hr)) {
         return hr;
-}
+    }
 
     // Map to swscale compatible format
     AVPixelFormat const dstFormat = getFFPixelFormatFromLAV(pOutFrame->format, pOutFrame->bpp);
 
     // Get a context
-    m_pSwsContext = sws_getCachedContext(m_pSwsContext, pFrame->width, pFrame->height, (AVPixelFormat)pFrame->format,
+    m_pSwsContext = sws_getCachedContext(m_pSwsContext, pFrame->width, pFrame->height, static_cast<AVPixelFormat>(pFrame->format),
                                          pFrame->width, pFrame->height, dstFormat,
                                          SWS_BILINEAR | SWS_FULL_CHR_H_INT | SWS_PRINT_INFO, nullptr, nullptr, nullptr);
 
     std::array<std::ptrdiff_t, 4U> linesize{};
     for (int i{ 0 }; i < 4; ++i) {
         linesize[i] = pFrame->linesize[i];
-}
+    }
 
     // Perform conversion
     sws_scale2(m_pSwsContext, pFrame->data, linesize.data(), 0, pFrame->height, pOutFrame->data, pOutFrame->stride.data());
@@ -1608,5 +1452,5 @@ STDMETHODIMP_(REFERENCE_TIME) CDecAvcodec::GetFrameDuration()
 STDMETHODIMP_(BOOL) CDecAvcodec::IsInterlaced(BOOL bAllowGuess)
 {
     return (bAllowGuess && m_iInterlaced) || (m_iInterlaced > 0) ||
-           m_pSettings->GetDeinterlacingMode() == DeintMode_Force;
+           (m_pSettings->GetDeinterlacingMode() == DeintMode_Force);
 }

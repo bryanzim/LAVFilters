@@ -133,7 +133,7 @@ STDMETHODIMP CDecCuvid::DestroyDecoder(bool bFull)
 {
     if (m_cudaCtxLock) {
         cuda.cuvidCtxLock(m_cudaCtxLock, 0);
-}
+    }
 
     if (m_AnnexBConverter)
     {
@@ -161,7 +161,7 @@ STDMETHODIMP CDecCuvid::DestroyDecoder(bool bFull)
 
     if (m_cudaCtxLock) {
         cuda.cuvidCtxUnlock(m_cudaCtxLock, 0);
-}
+    }
 
     if (bFull)
     {
@@ -299,11 +299,11 @@ STDMETHODIMP CDecCuvid::FlushParser()
 static int _ConvertSMVer2CoresDrvApi(int major, int minor)
 {
     // Defines for GPU Architecture types (using the SM version to determine the # of cores per SM
-    typedef struct
+    struct sSMtoCores
     {
         int SM; // 0xMm (hexadecimal notation), M = SM Major version, and m = SM minor version
-        int Cores;
-    } sSMtoCores;
+        int Cores{ 0 };
+    };
 
     sSMtoCores const nGpuArchCoresPerSM[] = {{0x10, 8},   {0x11, 8},   {0x12, 8},   {0x13, 8},   {0x20, 32},
                                        {0x21, 48},  {0x30, 192}, {0x32, 192}, {0x35, 192}, {0x37, 192},
@@ -354,7 +354,7 @@ int CDecCuvid::GetMaxGflopsGraphicsDeviceId()
             // Assume a Tesla GPU is running in TCC if we are running CUDA 3.1
             if (deviceName[0U] == 'T') {
                 bTCC = 1;
-}
+            }
         }
         if (!bTCC)
         {
@@ -383,7 +383,7 @@ int CDecCuvid::GetMaxGflopsGraphicsDeviceId()
             // Assume a Tesla GPU is running in TCC if we are running CUDA 3.1
             if (deviceName[0U] == 'T') {
                 bTCC = 1;
-}
+            }
         }
 
         if ((major == 9999) && (minor == 9999))
@@ -434,7 +434,7 @@ int CDecCuvid::GetMaxGflopsGraphicsDeviceId()
 STDMETHODIMP CDecCuvid::Init()
 {
     DbgLog((LOG_TRACE, 10, L"CDecCuvid::Init(): Trying to open CUVID device"));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     CUresult cuStatus = CUDA_SUCCESS;
 
     hr = LoadCUDAFuncRefs();
@@ -518,7 +518,7 @@ select_device:
 
 STDMETHODIMP CDecCuvid::InitD3D9(int best_device, DWORD requested_device)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     CUresult cuStatus = CUDA_SUCCESS;
     int device{ 0 };
 
@@ -537,7 +537,7 @@ STDMETHODIMP CDecCuvid::InitD3D9(int best_device, DWORD requested_device)
 
     if (!m_pD3D9) {
         m_pD3D9 = Direct3DCreate9(D3D_SDK_VERSION);
-}
+    }
 
     if (!m_pD3D9)
     {
@@ -563,7 +563,7 @@ STDMETHODIMP CDecCuvid::InitD3D9(int best_device, DWORD requested_device)
         d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
         d3dpp.Flags = D3DPRESENTFLAG_VIDEO;
 
-        IDirect3DDevice9 *pDev = nullptr;
+        IDirect3DDevice9 *pDev{ nullptr };
         CUcontext cudaCtx{ nullptr };
         hr = m_pD3D9->CreateDevice(
             lAdapter, D3DDEVTYPE_HAL, GetShellWindow(),
@@ -593,7 +593,7 @@ STDMETHODIMP CDecCuvid::InitD3D9(int best_device, DWORD requested_device)
                 SafeRelease(&m_pD3DDevice9);
                 if (m_cudaContext) {
                     cuda.cuCtxDestroy(m_cudaContext);
-}
+                }
 
                 // Store resources
                 m_pD3DDevice9 = pDev;
@@ -603,7 +603,7 @@ STDMETHODIMP CDecCuvid::InitD3D9(int best_device, DWORD requested_device)
                 // Is this the one we want?
                 if (device == best_device) {
                     break;
-}
+                }
             }
             else
             {
@@ -639,7 +639,7 @@ STDMETHODIMP CDecCuvid::InitD3D9(int best_device, DWORD requested_device)
 STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, const MediaSideDataFFMpeg *pSideData)
 {
     DbgLog((LOG_TRACE, 10, L"CDecCuvid::InitDecoder(): Initializing CUVID decoder"));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (!m_cudaContext)
     {
@@ -654,7 +654,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
     std::memset(m_DisplayQueue.data(), 0, sizeof(m_DisplayQueue));
     for (int i{ 0 }; i < DISPLAY_DELAY; ++i) {
         m_DisplayQueue[i].picture_index = -1;
-}
+    }
     m_DisplayPos = 0;
 
     m_DisplayDelay = DISPLAY_DELAY;
@@ -662,19 +662,21 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
     // Reduce display delay for DVD decoding for lower decode latency
     if (m_pCallback->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_DVD) {
         m_DisplayDelay /= 2;
-}
+    }
 
-    cudaVideoCodec cudaCodec = (cudaVideoCodec)-1;
+    cudaVideoCodec cudaCodec{};
+    bool codecMapped = false;
     for (int i{ 0 }; i < countof(cuda_codecs); ++i)
     {
         if (cuda_codecs[i].ffcodec == codec)
         {
             cudaCodec = cuda_codecs[i].cudaCodec;
+            codecMapped = true;
             break;
         }
     }
 
-    if (cudaCodec == -1)
+    if (!codecMapped)
     {
         DbgLog((LOG_TRACE, 10, L"-> Codec id %d does not map to a CUVID codec", codec));
         return E_FAIL;
@@ -722,7 +724,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
         m_AnnexBConverter = new CAnnexBConverter();
         m_AnnexBConverter->SetNALUSize(2);
 
-        BYTE *annexBextra = nullptr;
+        BYTE *annexBextra{ nullptr };
         int size{ 0 };
 
         if (cudaCodec == cudaVideoCodec_H264)
@@ -733,7 +735,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
         {
             BYTE *bHEVCHeader = reinterpret_cast<BYTE *>(mp2vi->dwSequenceHeader);
             int const nal_len_size = (bHEVCHeader[21U] & 3) + 1;
-            if (nal_len_size != mp2vi->dwFlags)
+            if (static_cast<DWORD>(nal_len_size) != mp2vi->dwFlags)
             {
                 DbgLog((LOG_ERROR, 10, L"hvcC nal length size doesn't match media type"));
             }
@@ -816,7 +818,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
     }
     else
     {
-        m_bNeedSequenceCheck = (cudaCodec == cudaVideoCodec_H264 || cudaCodec == cudaVideoCodec_HEVC);
+        m_bNeedSequenceCheck = ((cudaCodec == cudaVideoCodec_H264) || (cudaCodec == cudaVideoCodec_HEVC));
     }
 
     oVideoParserParameters.pExtVideoInfo = &m_VideoParserExInfo;
@@ -827,7 +829,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
         return E_FAIL;
     }
 
-    BITMAPINFOHEADER *bmi = nullptr;
+    BITMAPINFOHEADER *bmi{ nullptr };
     videoFormatTypeHandler(pmt->Format(), pmt->FormatType(), &bmi);
 
     {
@@ -850,7 +852,7 @@ STDMETHODIMP CDecCuvid::CreateCUVIDDecoder(cudaVideoCodec codec, DWORD dwWidth, 
                                            bool bProgressiveSequence)
 {
     DbgLog((LOG_TRACE, 10, L"CDecCuvid::CreateCUVIDDecoder(): Creating CUVID decoder instance"));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     BOOL bDXVAMode = (m_pD3DDevice9 != nullptr);
 
     cuda.cuvidCtxLock(m_cudaCtxLock, 0);
@@ -906,8 +908,6 @@ retry:
 
 STDMETHODIMP CDecCuvid::DecodeSequenceData()
 {
-    CUresult oResult;
-
     CUVIDSOURCEDATAPACKET pCuvidPacket;
     ZeroMemory(&pCuvidPacket, sizeof(pCuvidPacket));
 
@@ -917,7 +917,7 @@ STDMETHODIMP CDecCuvid::DecodeSequenceData()
     if (pCuvidPacket.payload && pCuvidPacket.payload_size)
     {
         cuda.cuvidCtxLock(m_cudaCtxLock, 0);
-        oResult = cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
+        cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
         cuda.cuvidCtxUnlock(m_cudaCtxLock, 0);
     }
 
@@ -939,8 +939,8 @@ int CUDAAPI CDecCuvid::HandleVideoSequence(void *obj, CUVIDEOFORMAT *cuvidfmt)
 
     // Check if we should be deinterlacing
     bool bShouldDeinterlace =
-        (!cuvidfmt->progressive_sequence && filter->m_pSettings->GetDeinterlacingMode() != DeintMode_Disable &&
-         filter->m_pSettings->GetHWAccelDeintMode() != HWDeintMode_Weave);
+        (!cuvidfmt->progressive_sequence && (filter->m_pSettings->GetDeinterlacingMode() != DeintMode_Disable) &&
+         (filter->m_pSettings->GetHWAccelDeintMode() != HWDeintMode_Weave));
 
     // Re-initialize the decoder if needed
     if ((cuvidfmt->codec != dci->CodecType) || (cuvidfmt->coded_width != dci->ulWidth) ||
@@ -955,7 +955,7 @@ int CUDAAPI CDecCuvid::HandleVideoSequence(void *obj, CUVIDEOFORMAT *cuvidfmt)
                                        cuvidfmt->bit_depth_luma_minus8 + 8, cuvidfmt->progressive_sequence != 0);
         if (FAILED(hr)) {
             filter->m_bFormatIncompatible = TRUE;
-}
+        }
     }
 
     filter->m_bInterlaced = !cuvidfmt->progressive_sequence;
@@ -972,7 +972,7 @@ int CUDAAPI CDecCuvid::HandleVideoSequence(void *obj, CUVIDEOFORMAT *cuvidfmt)
             filter->m_rtAvgTimePerFrame = REFERENCE_TIME(dFrameTime + 0.5);
         } else {
             filter->m_rtAvgTimePerFrame = AV_NOPTS_VALUE; // TODO: base on media type
-}
+        }
     }
     else
     {
@@ -982,7 +982,7 @@ int CUDAAPI CDecCuvid::HandleVideoSequence(void *obj, CUVIDEOFORMAT *cuvidfmt)
     // Adjust frame time for double-rate deint
     if ((filter->m_bDoubleRateDeint) && (filter->m_rtAvgTimePerFrame != AV_NOPTS_VALUE)) {
         filter->m_rtAvgTimePerFrame /= 2;
-}
+    }
 
     filter->m_VideoFormat = *cuvidfmt;
 
@@ -993,7 +993,7 @@ int CUDAAPI CDecCuvid::HandleVideoSequence(void *obj, CUVIDEOFORMAT *cuvidfmt)
     }
 
     fillDXVAExtFormat(filter->m_DXVAExtendedFormat,
-                      (filter->m_iFullRange > 0 || cuvidfmt->video_signal_description.video_full_range_flag),
+                      ((filter->m_iFullRange > 0) || cuvidfmt->video_signal_description.video_full_range_flag),
                       cuvidfmt->video_signal_description.color_primaries,
                       cuvidfmt->video_signal_description.matrix_coefficients,
                       cuvidfmt->video_signal_description.transfer_characteristics);
@@ -1060,6 +1060,8 @@ int CUDAAPI CDecCuvid::HandlePictureDecode(void *obj, CUVIDPICPARAMS *cuvidpic)
             DbgLog((LOG_ERROR, 10, L"CDecCuvid::HandlePictureDecode(): cuvidDecodePicture returned error code %d",
                     cuStatus));
         }
+#else
+        (void)cuStatus;
 #endif
     }
     __except (1)
@@ -1127,7 +1129,7 @@ STDMETHODIMP CDecCuvid::Display(CUVIDPARSERDISPINFO *cuviddisp)
             }
             if (!m_nSoftTelecine) {
                 m_bTFF = cuviddisp->top_field_first;
-}
+            }
         }
 
         cuviddisp->progressive_frame =
@@ -1219,15 +1221,19 @@ STDMETHODIMP CDecCuvid::Deliver(CUVIDPARSERDISPINFO *cuviddisp, int field)
     cuda.cuvidCtxUnlock(m_cudaCtxLock, 0);
 
     // Setup the LAVFrame
-    LAVFrame *pFrame = nullptr;
-    AllocateFrame(&pFrame);
+    LAVFrame *pFrame{ nullptr };
+    HRESULT const hrFrame = AllocateFrame(&pFrame);
+    if (FAILED(hrFrame))
+    {
+        return hrFrame;
+    }
 
     if (m_rtAvgTimePerFrame != AV_NOPTS_VALUE)
     {
         pFrame->avgFrameDuration = m_rtAvgTimePerFrame;
         if (m_bDoubleRateDeint && (field == 2)) {
             pFrame->avgFrameDuration *= 2;
-}
+        }
     }
 
     REFERENCE_TIME rtStart = cuviddisp->timestamp, rtStop = AV_NOPTS_VALUE;
@@ -1244,19 +1250,19 @@ STDMETHODIMP CDecCuvid::Deliver(CUVIDPARSERDISPINFO *cuviddisp, int field)
             REFERENCE_TIME const rtHalfDiff = m_rtPrevDiff >> 1;
             if (field == 1) {
                 rtStart += rtHalfDiff;
-}
+            }
 
             rtStop = rtStart + rtHalfDiff;
 
             if ((field == 2) || !m_bDoubleRateDeint) {
                 rtStop += rtHalfDiff;
-}
+            }
         }
 
         // Sanity check in case the duration is null
         if (rtStop <= rtStart) {
             rtStop = AV_NOPTS_VALUE;
-}
+        }
     }
 
     pFrame->format = (m_VideoDecoderInfo.OutputFormat == cudaVideoSurfaceFormat_P016) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
@@ -1277,7 +1283,7 @@ STDMETHODIMP CDecCuvid::Deliver(CUVIDPARSERDISPINFO *cuviddisp, int field)
     }
     pFrame->ext_format = m_DXVAExtendedFormat;
     pFrame->interlaced =
-        !cuviddisp->progressive_frame && m_VideoDecoderInfo.DeinterlaceMode == cudaVideoDeinterlaceMode_Weave;
+        !cuviddisp->progressive_frame && (m_VideoDecoderInfo.DeinterlaceMode == cudaVideoDeinterlaceMode_Weave);
     pFrame->tff = cuviddisp->top_field_first;
 
     // TODO: This may be wrong for H264 where B-Frames can be references
@@ -1294,11 +1300,9 @@ STDMETHODIMP CDecCuvid::Deliver(CUVIDPARSERDISPINFO *cuviddisp, int field)
 
     if (m_bEndOfSequence) {
         pFrame->flags |= LAV_FRAME_FLAG_END_OF_SEQUENCE;
-}
+    }
 
-    m_pCallback->Deliver(pFrame);
-
-    return S_OK;
+    return m_pCallback->Deliver(pFrame);
 
 cuda_fail:
     cuda.cuvidUnmapVideoFrame(m_hDecoder, devPtr);
@@ -1352,7 +1356,7 @@ STDMETHODIMP CDecCuvid::CheckHEVCSequence(const BYTE *buffer, int buflen, int *b
         }
         if (bitdepth) {
             *bitdepth = hevcParser.sps.bitdepth;
-}
+        }
         DbgLog((LOG_TRACE, 10, L"-> Video seems compatible with CUVID"));
         return S_OK;
     }
@@ -1362,13 +1366,12 @@ STDMETHODIMP CDecCuvid::CheckHEVCSequence(const BYTE *buffer, int buflen, int *b
 STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rtStart, REFERENCE_TIME rtStop,
                                BOOL bSyncPoint, BOOL bDiscontinuity, IMediaSample *pSample)
 {
-    CUresult result;
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     CUVIDSOURCEDATAPACKET pCuvidPacket;
     ZeroMemory(&pCuvidPacket, sizeof(pCuvidPacket));
 
-    BYTE *pBuffer = nullptr;
+    BYTE *pBuffer{ nullptr };
     if (m_AnnexBConverter)
     {
         int size{ 0 };
@@ -1386,7 +1389,7 @@ STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rt
 
         if (m_VideoDecoderInfo.CodecType == cudaVideoCodec_MPEG2)
         {
-            const std::uint8_t *eosmarker = nullptr;
+            const std::uint8_t *eosmarker{ nullptr };
             const std::uint8_t *end = buffer + buflen;
             int status =
                 CheckForSequenceMarkers(AV_CODEC_ID_MPEG2VIDEO, buffer, buflen, &m_MpegParserState, &eosmarker);
@@ -1436,15 +1439,17 @@ STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rt
 
     if (bDiscontinuity) {
         pCuvidPacket.flags |= CUVID_PKT_DISCONTINUITY;
-}
+    }
 
     if (m_bUseTimestampQueue)
+    {
         m_timestampQueue.push(rtStart);
+    }
 
     cuda.cuvidCtxLock(m_cudaCtxLock, 0);
     __try
     {
-        result = cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
+        cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
     }
     __except (1)
     {
@@ -1457,7 +1462,16 @@ STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rt
     if (m_bEndOfSequence)
     {
         EndOfStream();
-        m_pCallback->Deliver(m_pCallback->GetFlushFrame());
+        LAVFrame *const pFlush = m_pCallback->GetFlushFrame();
+        if (pFlush == nullptr)
+        {
+            return E_OUTOFMEMORY;
+        }
+        HRESULT const hrFlush = m_pCallback->Deliver(pFlush);
+        if (FAILED(hrFlush))
+        {
+            return hrFlush;
+        }
         m_bEndOfSequence = FALSE;
     }
 
@@ -1524,13 +1538,13 @@ STDMETHODIMP CDecCuvid::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixel
     // Output is always NV12
     if (pPix) {
         *pPix = (m_VideoDecoderInfo.OutputFormat == cudaVideoSurfaceFormat_P016) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
-}
+    }
     if (pBpp) {
         *pBpp = m_VideoDecoderInfo.bitDepthMinus8 + 8;
-}
+    }
     if (pPixSoftware) {
         *pPixSoftware = (m_VideoDecoderInfo.OutputFormat == cudaVideoSurfaceFormat_P016) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
-}
+    }
     return S_OK;
 }
 
@@ -1541,7 +1555,7 @@ STDMETHODIMP_(REFERENCE_TIME) CDecCuvid::GetFrameDuration()
 
 STDMETHODIMP_(BOOL) CDecCuvid::IsInterlaced(BOOL bAllowGuess)
 {
-    return (m_bInterlaced || m_pSettings->GetDeinterlacingMode() == DeintMode_Force) &&
+    return (m_bInterlaced || (m_pSettings->GetDeinterlacingMode() == DeintMode_Force)) &&
            (m_VideoDecoderInfo.DeinterlaceMode == cudaVideoDeinterlaceMode_Weave);
 }
 
@@ -1551,7 +1565,7 @@ STDMETHODIMP CDecCuvid::GetHWAccelActiveDevice(BSTR *pstrDeviceName)
 
     if (std::strlen(m_cudaDeviceName.data()) == 0) {
         return E_UNEXPECTED;
-}
+    }
 
     int const len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, m_cudaDeviceName.data(), -1, nullptr, 0);
     if (len == 0) { return E_FAIL; }

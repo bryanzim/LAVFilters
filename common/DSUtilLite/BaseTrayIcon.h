@@ -62,7 +62,7 @@ class CBaseTrayIcon
     BOOL m_bPropPageOpen{ FALSE };
 
     std::array<WCHAR, 64U> m_wszClassName{};
-    const WCHAR *m_wszName = nullptr;
+    const WCHAR *m_wszName{ nullptr };
     int m_resIcon{ 0 };
 
     NOTIFYICONDATA m_NotifyIconData;

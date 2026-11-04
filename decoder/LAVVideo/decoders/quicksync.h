@@ -80,7 +80,7 @@ class CDecQuickSync : public CDecBase
         pcheck *check;
     } qs;
 
-    IQuickSyncDecoder *m_pDecoder = nullptr;
+    IQuickSyncDecoder *m_pDecoder{ nullptr };
 
     BOOL m_bNeedSequenceCheck{ FALSE };
     BOOL m_bInterlaced{ TRUE };
@@ -89,12 +89,12 @@ class CDecQuickSync : public CDecBase
     int m_nAVCNalSize{ 0 };
     BOOL m_bEndOfSequence{ FALSE };
 
-    BOOL m_bUseTimestampQueue;
+    BOOL m_bUseTimestampQueue{ FALSE };
     std::queue<REFERENCE_TIME> m_timestampQueue;
 
     DXVA2_ExtendedFormat m_DXVAExtendedFormat;
 
     FOURCC m_Codec{ 0 };
 
-    IDirect3DDeviceManager9 *m_pD3DDevMngr = nullptr;
+    IDirect3DDeviceManager9 *m_pD3DDevMngr{ nullptr };
 };

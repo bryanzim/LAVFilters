@@ -55,7 +55,7 @@ void CDeCSSPinHelper::Decrypt(IMediaSample *pSample)
 {
     long const len = pSample->GetActualDataLength();
 
-    BYTE *p = nullptr;
+    BYTE *p{ nullptr };
     if ((SUCCEEDED(pSample->GetPointer(&p))) && (len > 0))
     {
         if ((m_mt.majortype == MEDIATYPE_DVD_ENCRYPTED_PACK) && (len == 2048) && (p[0x14] & 0x30))
@@ -63,7 +63,7 @@ void CDeCSSPinHelper::Decrypt(IMediaSample *pSample)
             CSSdescramble(p, m_TitleKey);
             p[0x14] &= ~0x30;
 
-            IMediaSample2 *pMS2 = nullptr;
+            IMediaSample2 *pMS2{ nullptr };
             if ((SUCCEEDED(pSample->QueryInterface(&pMS2))) && pMS2)
             {
                 AM_SAMPLE2_PROPERTIES props;
@@ -148,7 +148,7 @@ void CDeCSSPinHelper::StripPacket(BYTE *&p, long &len)
             p += 2;
             BYTE *p0 = p;
 
-            for (int i{ 0 }; i < 16 && len > 0 && *p == 0xff; ++i, --len, ++p)
+            for (int i{ 0 }; (i < 16) && (len > 0) && (*p == 0xff); ++i, --len, ++p)
             {
                 ;
             }
@@ -407,7 +407,7 @@ STDMETHODIMP CDeCSSPinHelper::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
         AM_DVDCOPY_CHLGKEY *pChlgKey = reinterpret_cast<AM_DVDCOPY_CHLGKEY *>(pPropertyData);
         for (int i{ 0 }; i < 10; ++i)
         {
-            pChlgKey->ChlgKey[i] = 9 - (m_Challenge[i] = i);
+            pChlgKey->ChlgKey[i] = static_cast<BYTE>(9 - (m_Challenge[i] = static_cast<BYTE>(i)));
         }
         *pBytesReturned = sizeof(AM_DVDCOPY_CHLGKEY);
     }

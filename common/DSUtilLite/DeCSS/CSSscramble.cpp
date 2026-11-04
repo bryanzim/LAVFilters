@@ -133,7 +133,7 @@ void CSSdisckey(unsigned char *dkey, unsigned char *pkey)
 {
     unsigned int t1, t2, t3, t4, t5, t6;
     std::array<unsigned char, 5U> k{};
-    int i;
+    int i{ 0 };
 
     t1 = pkey[0U] | 0x100;
     t2 = pkey[1U];
@@ -164,7 +164,7 @@ void CSStitlekey(unsigned char *tkey, unsigned char *dkey)
 {
     unsigned int t1, t2, t3, t4, t5, t6;
     std::array<unsigned char, 5U> k{};
-    int i;
+    int i{ 0 };
 
     t1 = dkey[0U] | 0x100;
     t2 = dkey[1U];

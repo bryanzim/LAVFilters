@@ -94,7 +94,7 @@ void DbgSetLogFile(LPCTSTR szFile)
     {
         if (InterlockedCompareExchangePointer(&m_hOutput, hOutput, INVALID_HANDLE_VALUE) != INVALID_HANDLE_VALUE) {
             CloseHandle(hOutput);
-}
+        }
     }
 
     InterlockedIncrement(&hOutputCounter);
@@ -131,7 +131,7 @@ void split(const std::string &text, const std::string &separators, std::list<std
         stop = text.find_first_of(separators, start);
         if ((stop < 0) || (stop > n)) {
             stop = n;
-}
+        }
         words.push_back(text.substr(start, stop - start));
         start = text.find_first_not_of(separators, stop + 1);
     }
@@ -139,8 +139,8 @@ void split(const std::string &text, const std::string &separators, std::list<std
 
 IBaseFilter *FindFilter(const GUID &clsid, IFilterGraph *pFG)
 {
-    IBaseFilter *pFilter = nullptr;
-    IEnumFilters *pEnumFilters = nullptr;
+    IBaseFilter *pFilter{ nullptr };
+    IEnumFilters *pEnumFilters{ nullptr };
     if (pFG && (SUCCEEDED(pFG->EnumFilters(&pEnumFilters))))
     {
         for (IBaseFilter *pBF = nullptr; S_OK == pEnumFilters->Next(1, &pBF, nullptr);)
@@ -162,7 +162,7 @@ IBaseFilter *FindFilter(const GUID &clsid, IFilterGraph *pFG)
 BOOL FilterInGraph(const GUID &clsid, IFilterGraph *pFG)
 {
     BOOL bFound{ FALSE };
-    IBaseFilter *pFilter = nullptr;
+    IBaseFilter *pFilter{ nullptr };
 
     pFilter = FindFilter(clsid, pFG);
     bFound = (pFilter != nullptr);
@@ -174,15 +174,15 @@ BOOL FilterInGraph(const GUID &clsid, IFilterGraph *pFG)
 BOOL FilterInGraphWithInputSubtype(const GUID &clsid, IFilterGraph *pFG, const GUID &clsidSubtype)
 {
     BOOL bFound{ FALSE };
-    IBaseFilter *pFilter = nullptr;
+    IBaseFilter *pFilter{ nullptr };
 
     pFilter = FindFilter(clsid, pFG);
 
     if (pFilter)
     {
-        IEnumPins *pPinEnum = nullptr;
+        IEnumPins *pPinEnum{ nullptr };
         pFilter->EnumPins(&pPinEnum);
-        IPin *pPin = nullptr;
+        IPin *pPin{ nullptr };
         while ((S_OK == pPinEnum->Next(1, &pPin, nullptr)) && pPin)
         {
             PIN_DIRECTION dir;
@@ -202,7 +202,7 @@ BOOL FilterInGraphWithInputSubtype(const GUID &clsid, IFilterGraph *pFG, const G
 
             if (bFound) {
                 break;
-}
+            }
         }
 
         SafeRelease(&pPinEnum);
@@ -310,7 +310,7 @@ BSTR ConvertCharToBSTR(const char *sz)
 {
     if (!sz || (std::strlen(sz) == 0)) {
         return nullptr;
-}
+    }
 
     WCHAR *wide = CoTaskGetWideCharFromMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS, sz, -1);
     if (!wide) { return nullptr; }
@@ -339,10 +339,10 @@ HRESULT NukeDownstream(IFilterGraph *pGraph, IPin *pPin)
     PIN_DIRECTION dir;
     if (pPin)
     {
-        IPin *pPinTo = nullptr;
+        IPin *pPinTo{ nullptr };
         if (FAILED(pPin->QueryDirection(&dir))) {
             return E_FAIL;
-}
+        }
         if (dir == PINDIR_OUTPUT)
         {
             if ((SUCCEEDED(pPin->ConnectedTo(&pPinTo))) && pPinTo)
@@ -365,7 +365,7 @@ HRESULT NukeDownstream(IFilterGraph *pGraph, IPin *pPin)
 
 HRESULT NukeDownstream(IFilterGraph *pGraph, IBaseFilter *pFilter)
 {
-    IEnumPins *pEnumPins = nullptr;
+    IEnumPins *pEnumPins{ nullptr };
     if (pFilter && (SUCCEEDED(pFilter->EnumPins(&pEnumPins))))
     {
         for (IPin *pPin = nullptr; S_OK == pEnumPins->Next(1, &pPin, nullptr); pPin = nullptr)
@@ -387,7 +387,7 @@ HRESULT FindIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
     PIN_DIRECTION dir;
     pPin->QueryDirection(&dir);
 
-    IPin *pOtherPin = nullptr;
+    IPin *pOtherPin{ nullptr };
     if ((SUCCEEDED(pPin->ConnectedTo(&pOtherPin))) && pOtherPin)
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
@@ -396,10 +396,10 @@ HRESULT FindIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
         HRESULT hrFilter = pFilter->QueryInterface(refiid, pUnknown);
         if (FAILED(hrFilter))
         {
-            IEnumPins *pPinEnum = nullptr;
+            IEnumPins *pPinEnum{ nullptr };
             pFilter->EnumPins(&pPinEnum);
 
-            HRESULT hrPin = E_FAIL;
+            HRESULT hrPin{ E_FAIL };
             for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
             {
                 PIN_DIRECTION pinDir;
@@ -411,7 +411,7 @@ HRESULT FindIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
                 SafeRelease(&pOtherPin2);
                 if (SUCCEEDED(hrPin)) {
                     break;
-}
+                }
             }
             hrFilter = hrPin;
             SafeRelease(&pPinEnum);
@@ -434,20 +434,20 @@ HRESULT FindPinIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
     PIN_DIRECTION dir;
     pPin->QueryDirection(&dir);
 
-    IPin *pOtherPin = nullptr;
+    IPin *pOtherPin{ nullptr };
     if ((SUCCEEDED(pPin->ConnectedTo(&pOtherPin))) && pOtherPin)
     {
-        IBaseFilter *pFilter = nullptr;
+        IBaseFilter *pFilter{ nullptr };
         HRESULT hrFilter = pOtherPin->QueryInterface(refiid, pUnknown);
 
         if (FAILED(hrFilter))
         {
             pFilter = GetFilterFromPin(pOtherPin);
 
-            IEnumPins *pPinEnum = nullptr;
+            IEnumPins *pPinEnum{ nullptr };
             pFilter->EnumPins(&pPinEnum);
 
-            HRESULT hrPin = E_FAIL;
+            HRESULT hrPin{ E_FAIL };
             for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
             {
                 PIN_DIRECTION pinDir;
@@ -459,7 +459,7 @@ HRESULT FindPinIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown)
                 SafeRelease(&pOtherPin2);
                 if (SUCCEEDED(hrPin)) {
                     break;
-}
+                }
             }
             hrFilter = hrPin;
             SafeRelease(&pPinEnum);
@@ -482,12 +482,12 @@ HRESULT FindFilterSafe(IPin *pPin, const GUID &guid, IBaseFilter **ppFilter, BOO
 {
     CheckPointer(ppFilter, E_POINTER);
     CheckPointer(pPin, E_POINTER);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     PIN_DIRECTION dir;
     pPin->QueryDirection(&dir);
 
-    IPin *pOtherPin = nullptr;
+    IPin *pOtherPin{ nullptr };
     if (bReverse)
     {
         dir = (dir == PINDIR_INPUT) ? PINDIR_OUTPUT : PINDIR_INPUT;
@@ -515,10 +515,10 @@ HRESULT FindFilterSafe(IPin *pPin, const GUID &guid, IBaseFilter **ppFilter, BOO
             }
             else
             {
-                IEnumPins *pPinEnum = nullptr;
+                IEnumPins *pPinEnum{ nullptr };
                 pFilter->EnumPins(&pPinEnum);
 
-                HRESULT hrPin = E_FAIL;
+                HRESULT hrPin{ E_FAIL };
                 for (IPin *pOtherPin2 = nullptr; pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
                 {
                     PIN_DIRECTION pinDir;
@@ -530,7 +530,7 @@ HRESULT FindFilterSafe(IPin *pPin, const GUID &guid, IBaseFilter **ppFilter, BOO
                     SafeRelease(&pOtherPin2);
                     if (SUCCEEDED(hrPin)) {
                         break;
-}
+                    }
                 }
                 hrFilter = hrPin;
                 SafeRelease(&pPinEnum);
@@ -557,15 +557,15 @@ BOOL HasSourceWithType(IPin *pPin, const GUID &mediaType)
     PIN_DIRECTION dir;
     pPin->QueryDirection(&dir);
 
-    IPin *pOtherPin = nullptr;
+    IPin *pOtherPin{ nullptr };
     if ((SUCCEEDED(pPin->ConnectedTo(&pOtherPin))) && pOtherPin)
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
 
-        IEnumPins *pPinEnum = nullptr;
+        IEnumPins *pPinEnum{ nullptr };
         pFilter->EnumPins(&pPinEnum);
 
-        for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
+        for (IPin *pOtherPin2 = nullptr; !bFound && (pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK); pOtherPin2 = nullptr)
         {
             if (pOtherPin2 != pOtherPin)
             {
@@ -573,7 +573,7 @@ BOOL HasSourceWithType(IPin *pPin, const GUID &mediaType)
                 pOtherPin2->QueryDirection(&pinDir);
                 if (dir != pinDir)
                 {
-                    IEnumMediaTypes *pMediaTypeEnum = nullptr;
+                    IEnumMediaTypes *pMediaTypeEnum{ nullptr };
                     if (SUCCEEDED(pOtherPin2->EnumMediaTypes(&pMediaTypeEnum)))
                     {
                         for (AM_MEDIA_TYPE *mt = nullptr; pMediaTypeEnum->Next(1, &mt, nullptr) == S_OK; mt = nullptr)
@@ -607,22 +607,22 @@ BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &me
     // check the input pin backwards first
     if (pPinInput && HasSourceWithType(pPinInput, mediaType)) {
         return true;
-}
+    }
 
     if (pPinOutput == nullptr) { return false; }
 
     // and check the tree forwards
     BOOL bFound{ FALSE };
-    IPin *pOtherPin = nullptr;
+    IPin *pOtherPin{ nullptr };
     if ((SUCCEEDED(pPinOutput->ConnectedTo(&pOtherPin))) && pOtherPin)
     {
         IBaseFilter *pFilter = GetFilterFromPin(pOtherPin);
 
-        IEnumPins *pPinEnum = nullptr;
+        IEnumPins *pPinEnum{ nullptr };
         pFilter->EnumPins(&pPinEnum);
 
         // Iterate over pins of the filter..
-        for (IPin *pOtherPin2 = nullptr; !bFound && pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK; pOtherPin2 = nullptr)
+        for (IPin *pOtherPin2 = nullptr; !bFound && (pPinEnum->Next(1, &pOtherPin2, nullptr) == S_OK); pOtherPin2 = nullptr)
         {
             // ignore the pint we're connected to
             if (pOtherPin2 != pOtherPin)
@@ -653,7 +653,7 @@ BOOL HasSourceWithTypeAdvanced(IPin *pPinInput, IPin *pPinOutput, const GUID &me
 
 BOOL FilterInGraphSafe(IPin *pPin, const GUID &guid, BOOL bReverse)
 {
-    IBaseFilter *pFilter = nullptr;
+    IBaseFilter *pFilter{ nullptr };
     HRESULT const hr = FindFilterSafe(pPin, guid, &pFilter, bReverse);
     if (SUCCEEDED(hr) && pFilter)
     {
@@ -673,7 +673,7 @@ unsigned int lav_xiphlacing(unsigned char *s, unsigned int v)
         v -= 0xff;
         ++n;
     }
-    *s = v;
+    *s = static_cast<unsigned char>(v);
     ++n;
     return n;
 }
@@ -688,12 +688,12 @@ void videoFormatTypeHandler(const BYTE *format, const GUID *formattype, BITMAPIN
                             REFERENCE_TIME *prtAvgTime, DWORD *pDwAspectX, DWORD *pDwAspectY)
 {
     REFERENCE_TIME rtAvg{ 0 };
-    BITMAPINFOHEADER *bmi = nullptr;
+    BITMAPINFOHEADER *bmi{ nullptr };
     DWORD dwAspectX = 0, dwAspectY = 0;
 
     if (!format) {
         goto done;
-}
+    }
 
     if (*formattype == FORMAT_VideoInfo)
     {
@@ -756,7 +756,7 @@ void audioFormatTypeHandler(const BYTE *format, const GUID *formattype, DWORD *p
 
     if (!format) {
         goto done;
-}
+    }
 
     if (*formattype == FORMAT_WaveFormatEx)
     {
@@ -784,22 +784,22 @@ void audioFormatTypeHandler(const BYTE *format, const GUID *formattype, DWORD *p
 done:
     if (pnSamples) {
         *pnSamples = nSamples;
-}
+    }
     if (pnChannels) {
         *pnChannels = nChannels;
-}
+    }
     if (pnBitsPerSample) {
         *pnBitsPerSample = nBitsPerSample;
-}
+    }
     if (pnBlockAlign) {
         *pnBlockAlign = nBlockAlign;
-}
+    }
     if (pnBytesPerSec) {
         *pnBytesPerSec = nBytesPerSec;
-}
+    }
     if (pnChannelMask) {
         *pnChannelMask = nChannelMask;
-}
+    }
 }
 
 void getExtraData(const AM_MEDIA_TYPE &mt, BYTE *extra, std::size_t *extralen)
@@ -809,11 +809,10 @@ void getExtraData(const AM_MEDIA_TYPE &mt, BYTE *extra, std::size_t *extralen)
 
 void getExtraData(const BYTE *format, const GUID *formattype, const std::size_t formatlen, BYTE *extra, std::size_t *extralen)
 {
-    const BYTE *extraposition = nullptr;
+    const BYTE *extraposition{ nullptr };
     std::size_t extralength{ 0U };
     if (*formattype == FORMAT_WaveFormatEx)
     {
-        WAVEFORMATEX *wfex = const_cast<WAVEFORMATEX *>(reinterpret_cast<const WAVEFORMATEX *>(format));
         extraposition = format + sizeof(WAVEFORMATEX);
         // Protected against over-reads
         extralength = formatlen - sizeof(WAVEFORMATEX);
@@ -840,10 +839,10 @@ void getExtraData(const BYTE *format, const GUID *formattype, const std::size_t 
 
         if (extra && extralength) {
             std::memcpy(extra, format + sizeof(VORBISFORMAT2), extralength);
-}
+        }
         if (extralen) {
             *extralen = extralength + offset;
-}
+        }
 
         return;
     }
@@ -878,17 +877,17 @@ void getExtraData(const BYTE *format, const GUID *formattype, const std::size_t 
 
     if (extra && extralength) {
         std::memcpy(extra, extraposition, extralength);
-}
+    }
     if (extralen) {
         *extralen = extralength;
-}
+    }
 }
 
 void CopyMediaSideDataFF(AVPacket *dst, const MediaSideDataFFMpeg **sd)
 {
     if (!dst) {
         return;
-}
+    }
 
     if (!sd || !*sd)
     {
@@ -909,12 +908,12 @@ void CopyMediaSideDataFF(AVPacket *dst, const MediaSideDataFFMpeg **sd)
 
 BOOL IsWindows7OrNewer()
 {
-    return (g_osInfo.dwMajorVersion == 6 && g_osInfo.dwMinorVersion >= 1) || (g_osInfo.dwMajorVersion > 6);
+    return ((g_osInfo.dwMajorVersion == 6) && (g_osInfo.dwMinorVersion >= 1)) || (g_osInfo.dwMajorVersion > 6);
 }
 
 BOOL IsWindows8OrNewer()
 {
-    return (g_osInfo.dwMajorVersion == 6 && g_osInfo.dwMinorVersion >= 2) || (g_osInfo.dwMajorVersion > 6);
+    return ((g_osInfo.dwMajorVersion == 6) && (g_osInfo.dwMinorVersion >= 2)) || (g_osInfo.dwMajorVersion > 6);
 }
 
 BOOL IsWindows10OrNewer()
@@ -924,14 +923,14 @@ BOOL IsWindows10OrNewer()
 
 BOOL IsWindows10BuildOrNewer(DWORD dwBuild)
 {
-    return (g_osInfo.dwMajorVersion > 10 || (g_osInfo.dwMajorVersion == 10 && g_osInfo.dwBuildNumber >= dwBuild));
+    return ((g_osInfo.dwMajorVersion > 10) || (g_osInfo.dwMajorVersion == 10 && g_osInfo.dwBuildNumber >= dwBuild));
 }
 
 void __cdecl debugprintf(LPCWSTR format, ...)
 {
     WCHAR buf[4096U], *p = buf;
     va_list args;
-    int n;
+    int n{ 0 };
 
     va_start(args, format);
     n = _vsnwprintf_s(p, 4096, 4096 - 3, format, args); // buf-3 is room for CR/LF/NUL
@@ -941,7 +940,7 @@ void __cdecl debugprintf(LPCWSTR format, ...)
 
     while ((p > buf) && std::isspace(p[-1])) {
         *--p = L'\0';
-}
+    }
 
     *p++ = L'\r';
     *p++ = L'\n';
@@ -952,14 +951,14 @@ void __cdecl debugprintf(LPCWSTR format, ...)
 
 BOOL CheckApplicationBlackList(LPCTSTR subkey)
 {
-    HRESULT hr;
-    DWORD dwVal;
+    HRESULT hr{ S_OK };
+    DWORD dwVal{ 0U };
     std::array<WCHAR, 1024U> fileName{};
     GetModuleFileName(nullptr, fileName.data(), 1024);
     WCHAR *processName = PathFindFileName(fileName.data());
 
     // Check local machine path
-    CRegistry regLM = CRegistry(HKEY_LOCAL_MACHINE, subkey, hr, TRUE);
+    CRegistry regLM{ HKEY_LOCAL_MACHINE, subkey, hr, TRUE };
     if (SUCCEEDED(hr))
     {
         dwVal = regLM.ReadDWORD(processName, hr);
@@ -967,7 +966,7 @@ BOOL CheckApplicationBlackList(LPCTSTR subkey)
     }
 
     // Check current user path
-    CRegistry regCU = CRegistry(HKEY_CURRENT_USER, subkey, hr, TRUE);
+    CRegistry regCU{ HKEY_CURRENT_USER, subkey, hr, TRUE };
     if (SUCCEEDED(hr))
     {
         dwVal = regCU.ReadDWORD(processName, hr);

@@ -122,7 +122,7 @@ fi
 # FFmpeg's config.h defines HAVE_UNISTD_H as 0. zlib treats any definition
 # as "the header exists" and then includes unistd.h, which the Windows SDK
 # does not provide.
-sed -i 's/^#ifdef HAVE_UNISTD_H$/#if defined(HAVE_UNISTD_H) \&\& HAVE_UNISTD_H/' \
+sed -i 's/^#ifdef HAVE_UNISTD_H/#if defined(HAVE_UNISTD_H) \&\& HAVE_UNISTD_H/' \
     "$ZLIB_SRC_U/zconf.h"
 if [ ! -f "$ZLIB_OUT_U/zlib.lib" ]; then
     mkdir -p "$ZLIB_OUT_U"
@@ -186,8 +186,23 @@ if ! git -C "$FFMPEG_REPO" apply --reverse --check "$FFMPEG_PATCH" >/dev/null 2>
 fi
 
 if [ ! -f config.h ]; then
+    # cl.exe and rc.exe get the source path exactly as configure recorded it,
+    # and this build disables MSYS path conversion, so an /f/ path never
+    # reaches them in a usable form. A src link in the build directory keeps
+    # every source path relative; configure uses it when src/configure exists.
+    if [ ! -e src ]; then
+        MSYS="$MSYS winsymlinks:nativestrict" ln -s -f "$ROOT_U/ffmpeg" src 2>/dev/null || true
+        if [ -L src ] && [ ! -f src/configure ]; then
+            rm -f src
+        fi
+    fi
+    if [ -f src/configure ]; then
+        CONFIGURE=./src/configure
+    else
+        CONFIGURE="$ROOT_U/ffmpeg/configure"
+    fi
     # shellcheck disable=SC2086
-    "$ROOT_U/ffmpeg/configure" \
+    "$CONFIGURE" \
         --toolchain=msvc \
         $CC_ARGS \
         --extra-cflags="${EXTRA_CFLAGS}" \

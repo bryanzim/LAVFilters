@@ -35,7 +35,9 @@ inline void *gpu_memcpy(void *d, const void *s, std::size_t size)
     static const std::size_t regsInLoop = sizeof(std::size_t) * 2; // 8 or 16
 
     if ((d == nullptr) || (s == nullptr))
+    {
         return nullptr;
+    }
 
     // If memory is not aligned, use memcpy
     bool isAligned = ((static_cast<std::size_t>((s)) | static_cast<std::size_t>((d))) & 0xF) == 0;

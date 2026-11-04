@@ -63,7 +63,7 @@ class CDXVA2Sample
     // Sets the pointer to the Direct3D surface.
     void SetSurface(DWORD surfaceId, IDirect3DSurface9 *pSurf);
 
-    IDirect3DSurface9 *m_pSurface = nullptr;
+    IDirect3DSurface9 *m_pSurface{ nullptr };
     DWORD m_dwSurfaceId{ 0U };
 };
 
@@ -99,8 +99,8 @@ class CDXVA2SurfaceAllocator
     STDMETHODIMP_(void) DecoderDestruct() { m_pDec = nullptr; }
 
   private:
-    CDecDXVA2 *m_pDec = nullptr;
+    CDecDXVA2 *m_pDec{ nullptr };
 
-    IDirect3DSurface9 **m_ppRTSurfaceArray = nullptr;
+    IDirect3DSurface9 **m_ppRTSurfaceArray{ nullptr };
     UINT m_nSurfaceArrayCount{ 0U };
 };

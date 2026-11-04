@@ -35,18 +35,18 @@
 
 struct scmap_t
 {
-    WORD nChannels;
-    DWORD dwChannelMask;
+    WORD nChannels{ 0U };
+    DWORD dwChannelMask{ 0U };
 };
 
 #define MAX_NUM_CC_CODECS 5
 
 struct codec_config_t
 {
-    int nCodecs;
+    int nCodecs{ 0 };
     std::array<AVCodecID, MAX_NUM_CC_CODECS> codecs{};
-    const char *name;
-    const char *description;
+    const char *name{ nullptr };
+    const char *description{ nullptr };
 };
 
 const codec_config_t *get_codec_config(LAVAudioCodec codec);

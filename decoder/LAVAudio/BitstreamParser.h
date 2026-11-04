@@ -47,6 +47,6 @@ class CBitstreamParser
     DTSHeader m_DTSHeader;
 
   private:
-    GetBitContext *m_gb = nullptr;
-    void *m_pParserContext = nullptr;
+    GetBitContext *m_gb{ nullptr };
+    void *m_pParserContext{ nullptr };
 };

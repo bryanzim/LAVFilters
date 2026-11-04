@@ -132,7 +132,7 @@ DEFINE_GUID(MEDIASUBTYPE_DRAC, 0x63617264, 0x000, 0x0010, 0x80, 0x00, 0x00, 0xaa
 struct DIRACINFOHEADER
 {
     VIDEOINFOHEADER2 hdr;
-    DWORD cbSequenceHeader;
+    DWORD cbSequenceHeader{ 0U };
     std::array<DWORD, 1U> dwSequenceHeader{};
 };
 
@@ -310,7 +310,7 @@ DEFINE_GUID(MEDIASUBTYPE_PS2_ADPCM, WAVE_FORMAT_PS2_ADPCM, 0x0000, 0x0010, 0x80,
 
 struct WAVEFORMATEXPS2 : public WAVEFORMATEX
 {
-    DWORD dwInterleave;
+    DWORD dwInterleave{ 0U };
 
     explicit WAVEFORMATEXPS2()
     {
@@ -388,12 +388,12 @@ DEFINE_GUID(FORMAT_VorbisFormat, 0x6bddfa7e, 0x9f22, 0x46a9, 0xab, 0x5e, 0x88, 0
 
 typedef struct tagVORBISFORMAT
 {
-    WORD nChannels;
-    DWORD nSamplesPerSec;
-    DWORD nMinBitsPerSec;
-    DWORD nAvgBitsPerSec;
-    DWORD nMaxBitsPerSec;
-    float fQuality;
+    WORD nChannels{ 0U };
+    DWORD nSamplesPerSec{ 0U };
+    DWORD nMinBitsPerSec{ 0U };
+    DWORD nAvgBitsPerSec{ 0U };
+    DWORD nMaxBitsPerSec{ 0U };
+    float fQuality{ 0.0 };
 } VORBISFORMAT, *PVORBISFORMAT, FAR *LPVORBISFORMAT;
 
 // {8D2FD10B-5841-4a6b-8905-588FEC1ADED9}
@@ -404,9 +404,9 @@ DEFINE_GUID(FORMAT_VorbisFormat2, 0xb36e107f, 0xa938, 0x4387, 0x93, 0xc7, 0x55, 
 
 typedef struct tagVORBISFORMAT2
 {
-    DWORD Channels;
-    DWORD SamplesPerSec;
-    DWORD BitsPerSample;
+    DWORD Channels{ 0U };
+    DWORD SamplesPerSec{ 0U };
+    DWORD BitsPerSample{ 0U };
     std::array<DWORD, 3U> HeaderSize{}; // 0: Identification, 1: Comment, 2: Setup
 } VORBISFORMAT2, *PVORBISFORMAT2, FAR *LPVORBISFORMAT2;
 
@@ -451,12 +451,12 @@ DEFINE_GUID(MEDIASUBTYPE_HDMVSUB, 0x4eba53e, 0x9330, 0x436c, 0x91, 0x33, 0x55, 0
 DEFINE_GUID(MEDIASUBTYPE_WEBVTT, 0xc886d215, 0xf485, 0x40bb, 0x8d, 0xb6, 0xfa, 0xdb, 0xc6, 0x19, 0xa4, 0x5d);
 
 #pragma pack(push, 1)
-typedef struct
+struct SUBTITLEINFO
 {
-    DWORD dwOffset;
+    DWORD dwOffset{ 0U };
     std::array<CHAR, 4U> IsoLang{}; // three letter lang code + terminating zero
     std::array<WCHAR, 256U> TrackName{}; // 256 chars ought to be enough for everyone :)
-} SUBTITLEINFO;
+};
 #pragma pack(pop)
 
 // SUBTITLEINFO structure content starting at dwOffset (also the content of CodecPrivate)
@@ -1390,7 +1390,7 @@ DEFINE_GUID(MEDIASUBTYPE_DSD8, WAVE_FORMAT_DSD8, 0x000, 0x0010, 0x80, 0x00, 0x00
 
 struct WAVEFORMATEX_HDMV_LPCM : public WAVEFORMATEX
 {
-    BYTE channel_conf;
+    BYTE channel_conf{ 0U };
 
     explicit WAVEFORMATEX_HDMV_LPCM()
     {
@@ -1407,7 +1407,7 @@ DEFINE_GUID(FORMAT_WaveFormatExFFMPEG, 0x35189950, 0xcac9, 0x4c8d, 0x81, 0x9d, 0
 
 struct WAVEFORMATEXFFMPEG
 {
-    int nCodecId;
+    int nCodecId{ 0 };
     WAVEFORMATEX wfex;
 
     explicit WAVEFORMATEXFFMPEG()

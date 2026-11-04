@@ -54,8 +54,8 @@ class CD3D11MediaSample
     STDMETHODIMP GetAVFrameBuffer(AVFrame *pFrame);
 
   private:
-    AVFrame *m_pFrame = nullptr;
-    void *m_pAllocatorCookie = nullptr;
+    AVFrame *m_pFrame{ nullptr };
+    void *m_pAllocatorCookie{ nullptr };
 };
 
 class CD3D11SurfaceAllocator : public CBaseAllocator
@@ -91,8 +91,8 @@ class CD3D11SurfaceAllocator : public CBaseAllocator
     virtual HRESULT Alloc(void);
 
   private:
-    CDecD3D11 *m_pDec = nullptr;
-    AVBufferRef *m_pFramesCtx = nullptr;
+    CDecD3D11 *m_pDec{ nullptr };
+    AVBufferRef *m_pFramesCtx{ nullptr };
 
     friend class CD3D11MediaSample;
 };

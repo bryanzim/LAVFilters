@@ -44,14 +44,14 @@ template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     if (inputFormat == LAVPixFmt_YUV420bX) {
         chromaHeight = chromaHeight >> 1;
-}
+    }
     if ((inputFormat == LAVPixFmt_YUV420bX) || (inputFormat == LAVPixFmt_YUV422bX)) {
         chromaWidth = (chromaWidth + 1) >> 1;
-}
+    }
 
     std::ptrdiff_t line, i;
 
@@ -72,7 +72,7 @@ template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
@@ -145,7 +145,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv420_px1x_le)
     const std::ptrdiff_t outYStride = dstStride[0U];
     const std::ptrdiff_t outUVStride = dstStride[1U];
     const std::ptrdiff_t uvHeight =
-        (outputFormat == LAVOutPixFmt_P010 || outputFormat == LAVOutPixFmt_P016) ? (height >> 1) : height;
+        ((outputFormat == LAVOutPixFmt_P010) || (outputFormat == LAVOutPixFmt_P016)) ? (height >> 1) : height;
     const std::ptrdiff_t uvWidth = (width + 1) >> 1;
 
     std::ptrdiff_t line, i;
@@ -211,10 +211,10 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_yv)
 
     if (inputFormat == LAVPixFmt_YUV420) {
         chromaHeight = chromaHeight >> 1;
-}
+    }
     if ((inputFormat == LAVPixFmt_YUV420) || (inputFormat == LAVPixFmt_YUV422)) {
         chromaWidth = (chromaWidth + 1) >> 1;
-}
+    }
 
     // Copy planes
 
@@ -404,7 +404,7 @@ template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv422_yuy2_uyvy_dither_le)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     std::ptrdiff_t line, i;
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
@@ -428,7 +428,7 @@ template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv422_yuy2_uyvy_dither_le)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
@@ -538,7 +538,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     __m128i xmm0, xmm1, xmm2, xmm3;
 
@@ -556,7 +556,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, ditherCoeffs);
             xmm3 = xmm2;
         }
 
@@ -589,7 +589,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, ditherCoeffs);
             xmm3 = xmm2;
         }
 

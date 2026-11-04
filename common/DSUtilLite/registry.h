@@ -47,5 +47,5 @@ class CRegistry
     HRESULT DeleteKey(LPCTSTR pszKey);
 
   private:
-    HKEY *m_key = nullptr;
+    HKEY *m_key{ nullptr };
 };

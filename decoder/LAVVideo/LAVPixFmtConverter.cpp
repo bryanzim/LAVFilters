@@ -64,12 +64,12 @@
  * possible, just not optimized (ugly and/or slow)
  */
 
-typedef struct
+struct LAV_INOUT_PIXFMT_MAP
 {
     LAVPixelFormat in_pix_fmt;
-    int maxbpp;
+    int maxbpp{ 0 };
     LAVOutPixFmts lav_pix_fmts[LAVOutPixFmt_NB + 1];
-} LAV_INOUT_PIXFMT_MAP;
+};
 
 #define PIXOUT_420_8 LAVOutPixFmt_NV12, LAVOutPixFmt_YV12
 #define PIXOUT_422_8 LAVOutPixFmt_YUY2, LAVOutPixFmt_UYVY, LAVOutPixFmt_YV16
@@ -190,7 +190,7 @@ LAVOutPixFmts CLAVPixFmtConverter::GetOutputBySubtype(const GUID *guid)
     {
         if (lav_pixfmt_desc[i].subtype == *guid)
         {
-            return (LAVOutPixFmts)i;
+            return static_cast<LAVOutPixFmts>(i);
         }
     }
     return LAVOutPixFmt_None;
@@ -204,12 +204,12 @@ int CLAVPixFmtConverter::GetFilteredFormatCount()
     {
         if (m_pSettings->GetPixelFormat(pixFmtMap->lav_pix_fmts[i])) {
             ++count;
-}
+        }
     }
 
     if (count == 0) {
         count = LAVOutPixFmt_NB;
-}
+    }
 
     return count;
 }
@@ -222,14 +222,14 @@ LAVOutPixFmts CLAVPixFmtConverter::GetFilteredFormat(int index)
     {
         if (m_pSettings->GetPixelFormat(pixFmtMap->lav_pix_fmts[i])) {
             ++actualIndex;
-}
+        }
         if (index == actualIndex) { return pixFmtMap->lav_pix_fmts[i]; }
     }
 
     // If no format is enabled, we use the fallback formats to avoid catastrophic failure
     if (index >= LAVOutPixFmt_NB) {
         index = 0;
-}
+    }
     return lav_pixfmt_map[0U].lav_pix_fmts[index];
 }
 
@@ -248,7 +248,7 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
 {
     if ((index < 0) || (index >= GetFilteredFormatCount())) {
         index = 0;
-}
+    }
 
     LAVOutPixFmts const pixFmt = GetFilteredFormat(index);
 
@@ -257,7 +257,7 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
     mt->SetType(&MEDIATYPE_Video);
     mt->SetSubtype(&guid);
 
-    BITMAPINFOHEADER *pBIH = nullptr;
+    BITMAPINFOHEADER *pBIH{ nullptr };
     if (bVIH1)
     {
         mt->SetFormatType(&FORMAT_VideoInfo);
@@ -297,7 +297,7 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
 
         if (bInterlaced) {
             vih2->dwInterlaceFlags = AMINTERLACE_IsInterlaced | AMINTERLACE_DisplayModeBobOrWeave;
-}
+        }
 
         pBIH = &vih2->bmiHeader;
     }
@@ -305,7 +305,7 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
     pBIH->biSize = sizeof(BITMAPINFOHEADER);
     pBIH->biWidth = biWidth;
     pBIH->biHeight = biHeight;
-    pBIH->biBitCount = lav_pixfmt_desc[pixFmt].bpp;
+    pBIH->biBitCount = static_cast<WORD>(lav_pixfmt_desc[pixFmt].bpp);
     pBIH->biPlanes = 1;
     pBIH->biSizeImage = GetImageSize(biWidth, (std::abs)(biHeight), pixFmt);
     pBIH->biCompression = guid.Data1;
@@ -329,7 +329,7 @@ DWORD CLAVPixFmtConverter::GetImageSize(int width, int height, LAVOutPixFmts pix
 {
     if (pixFmt == LAVOutPixFmt_None) {
         pixFmt = m_OutputPixFmt;
-}
+    }
 
     if (pixFmt == LAVOutPixFmt_None)
     {
@@ -350,7 +350,7 @@ BOOL CLAVPixFmtConverter::IsAllowedSubtype(const GUID *guid)
     {
         if (lav_pixfmt_desc[GetFilteredFormat(i)].subtype == *guid) {
             return TRUE;
-}
+        }
     }
 
     return FALSE;
@@ -368,7 +368,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
         // We assume that every filter that understands v210 will also properly handle it
         m_RequiredAlignment = 0;
     }
-    else if ((m_OutputPixFmt == LAVOutPixFmt_RGB32 &&
+    else if (((m_OutputPixFmt == LAVOutPixFmt_RGB32) &&
               (m_InputPixFmt == LAVPixFmt_RGB32 || m_InputPixFmt == LAVPixFmt_ARGB32)) ||
              (m_OutputPixFmt == LAVOutPixFmt_RGB24 && m_InputPixFmt == LAVPixFmt_RGB24) ||
              (m_OutputPixFmt == LAVOutPixFmt_RGB48 && m_InputPixFmt == LAVPixFmt_RGB48) ||
@@ -384,7 +384,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
             convert = &CLAVPixFmtConverter::plane_copy_sse2;
         } else {
             convert = &CLAVPixFmtConverter::plane_copy;
-}
+        }
         m_RequiredAlignment = 0;
     }
     else if ((m_InputPixFmt == LAVPixFmt_RGB48) && (m_OutputPixFmt == LAVOutPixFmt_RGB32) && (cpu & AV_CPU_FLAG_SSSE3))
@@ -405,8 +405,8 @@ void CLAVPixFmtConverter::SelectConvertFunction()
         {
             convert = &CLAVPixFmtConverter::convert_yuv444_y410;
         }
-        else if (((m_OutputPixFmt == LAVOutPixFmt_YV12 || m_OutputPixFmt == LAVOutPixFmt_NV12) &&
-                  m_InputPixFmt == LAVPixFmt_YUV420bX) ||
+        else if ((((m_OutputPixFmt == LAVOutPixFmt_YV12) || (m_OutputPixFmt == LAVOutPixFmt_NV12)) &&
+                  (m_InputPixFmt == LAVPixFmt_YUV420bX)) ||
                  (m_OutputPixFmt == LAVOutPixFmt_YV16 && m_InputPixFmt == LAVPixFmt_YUV422bX) ||
                  (m_OutputPixFmt == LAVOutPixFmt_YV24 && m_InputPixFmt == LAVPixFmt_YUV444bX))
         {
@@ -420,8 +420,8 @@ void CLAVPixFmtConverter::SelectConvertFunction()
             }
             m_RequiredAlignment = 32;
         }
-        else if (((m_OutputPixFmt == LAVOutPixFmt_P010 || m_OutputPixFmt == LAVOutPixFmt_P016) &&
-                  m_InputPixFmt == LAVPixFmt_YUV420bX) ||
+        else if ((((m_OutputPixFmt == LAVOutPixFmt_P010) || (m_OutputPixFmt == LAVOutPixFmt_P016)) &&
+                  (m_InputPixFmt == LAVPixFmt_YUV420bX)) ||
                  ((m_OutputPixFmt == LAVOutPixFmt_P210 || m_OutputPixFmt == LAVOutPixFmt_P216) &&
                   m_InputPixFmt == LAVPixFmt_YUV422bX))
         {
@@ -442,7 +442,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
             convert = &CLAVPixFmtConverter::convert_yuv422_yuy2_uyvy<1>;
             m_RequiredAlignment = 32;
         }
-        else if ((m_OutputPixFmt == LAVOutPixFmt_RGB32 || m_OutputPixFmt == LAVOutPixFmt_RGB24) &&
+        else if (((m_OutputPixFmt == LAVOutPixFmt_RGB32) || (m_OutputPixFmt == LAVOutPixFmt_RGB24)) &&
                  (m_InputPixFmt == LAVPixFmt_YUV420 || m_InputPixFmt == LAVPixFmt_YUV420bX ||
                   m_InputPixFmt == LAVPixFmt_YUV422 || m_InputPixFmt == LAVPixFmt_YUV422bX ||
                   m_InputPixFmt == LAVPixFmt_YUV444 || m_InputPixFmt == LAVPixFmt_YUV444bX ||
@@ -460,7 +460,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
             convert = &CLAVPixFmtConverter::convert_nv12_yv12;
             m_RequiredAlignment = 32;
         }
-        else if ((m_OutputPixFmt == LAVOutPixFmt_YUY2 || m_OutputPixFmt == LAVOutPixFmt_UYVY) &&
+        else if (((m_OutputPixFmt == LAVOutPixFmt_YUY2) || (m_OutputPixFmt == LAVOutPixFmt_UYVY)) &&
                  (m_InputPixFmt == LAVPixFmt_YUV420 || m_InputPixFmt == LAVPixFmt_NV12 ||
                   m_InputPixFmt == LAVPixFmt_YUV420bX) &&
                  (m_InBpp <= 14))
@@ -475,7 +475,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
             }
             m_RequiredAlignment = 8; // Pixel alignment of 8 guarantees a byte alignment of 16
         }
-        else if ((m_OutputPixFmt == LAVOutPixFmt_YUY2 || m_OutputPixFmt == LAVOutPixFmt_UYVY) &&
+        else if (((m_OutputPixFmt == LAVOutPixFmt_YUY2) || (m_OutputPixFmt == LAVOutPixFmt_UYVY)) &&
                  (m_InputPixFmt == LAVPixFmt_YUV422bX))
         {
             if (m_OutputPixFmt == LAVOutPixFmt_YUY2)
@@ -489,7 +489,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
 
             m_RequiredAlignment = 8; // Pixel alignment of 8 guarantees a byte alignment of 16
         }
-        else if ((m_OutputPixFmt == LAVOutPixFmt_YV12 && m_InputPixFmt == LAVPixFmt_YUV420) ||
+        else if (((m_OutputPixFmt == LAVOutPixFmt_YV12) && (m_InputPixFmt == LAVPixFmt_YUV420)) ||
                  (m_OutputPixFmt == LAVOutPixFmt_YV16 && m_InputPixFmt == LAVPixFmt_YUV422) ||
                  (m_OutputPixFmt == LAVOutPixFmt_YV24 && m_InputPixFmt == LAVPixFmt_YUV444))
         {
@@ -503,7 +503,7 @@ void CLAVPixFmtConverter::SelectConvertFunction()
                 convert = &CLAVPixFmtConverter::convert_rgb48_rgb<1>;
             } else {
                 convert = &CLAVPixFmtConverter::convert_rgb48_rgb<0>;
-}
+            }
         }
         else if ((m_InputPixFmt == LAVPixFmt_P016) && (m_OutputPixFmt == LAVOutPixFmt_NV12))
         {
@@ -536,7 +536,7 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
     m_bDirectMode = FALSE;
 
     int const cpu = av_get_cpu_flags();
-    if ((m_InputPixFmt == LAVPixFmt_NV12 && m_OutputPixFmt == LAVOutPixFmt_NV12) ||
+    if (((m_InputPixFmt == LAVPixFmt_NV12) && (m_OutputPixFmt == LAVOutPixFmt_NV12)) ||
         (m_InputPixFmt == LAVPixFmt_P016 &&
          (m_OutputPixFmt == LAVOutPixFmt_P010 || m_OutputPixFmt == LAVOutPixFmt_P016)))
     {
@@ -546,9 +546,9 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
             convert_direct = &CLAVPixFmtConverter::plane_copy_sse2;
         } else {
             convert_direct = &CLAVPixFmtConverter::plane_copy;
-}
+        }
     }
-    else if ((m_InputPixFmt == LAVPixFmt_YUY2 && m_OutputPixFmt == LAVOutPixFmt_YUY2) ||
+    else if (((m_InputPixFmt == LAVPixFmt_YUY2) && (m_OutputPixFmt == LAVOutPixFmt_YUY2)) ||
         (m_InputPixFmt == LAVPixFmt_AYUV && m_OutputPixFmt == LAVOutPixFmt_AYUV) ||
         (m_InputPixFmt == LAVPixFmt_Y410 && m_OutputPixFmt == LAVOutPixFmt_Y410) ||
         (m_InputPixFmt == LAVPixFmt_Y416 && m_OutputPixFmt == LAVOutPixFmt_Y416))
@@ -559,7 +559,7 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
             convert_direct = &CLAVPixFmtConverter::plane_copy_sse2;
         } else {
             convert_direct = &CLAVPixFmtConverter::plane_copy;
-}
+        }
     }
     else if ((m_InputPixFmt == LAVPixFmt_P016) && (m_OutputPixFmt == LAVOutPixFmt_NV12))
     {
@@ -567,7 +567,7 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
             convert_direct = &CLAVPixFmtConverter::convert_p010_nv12_direct_sse4;
         } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::convert_p010_nv12_sse2;
-}
+        }
     }
     else if ((m_InputPixFmt == LAVPixFmt_NV12) && (m_OutputPixFmt == LAVOutPixFmt_YV12))
     {
@@ -575,13 +575,13 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
             convert_direct = &CLAVPixFmtConverter::convert_nv12_yv12_direct_sse4;
         } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::convert_nv12_yv12;
-}
+        }
     }
     else if ((m_InputPixFmt == LAVPixFmt_Y216) && (m_OutputPixFmt == LAVOutPixFmt_P210 || m_OutputPixFmt == LAVOutPixFmt_P216))
     {
         if (cpu & AV_CPU_FLAG_SSE4) {
             convert_direct = &CLAVPixFmtConverter::convert_y210_p210_direct_sse4;
-}
+        }
     }
     else if ((m_InputPixFmt == LAVPixFmt_YUY2) && (m_OutputPixFmt == LAVOutPixFmt_YV16))
     {
@@ -589,12 +589,12 @@ void CLAVPixFmtConverter::SelectConvertFunctionDirect()
             convert_direct = &CLAVPixFmtConverter::convert_yuy2_yv16_direct_sse4;
         } else if (cpu & AV_CPU_FLAG_SSE2) {
             convert_direct = &CLAVPixFmtConverter::convert_yuy2_yv16_sse2;
-}
+        }
     }
 
     if (convert_direct != nullptr) {
         m_bDirectMode = TRUE;
-}
+    }
 }
 
 HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst, int width,
@@ -649,17 +649,17 @@ HRESULT CLAVPixFmtConverter::Convert(const BYTE *const src[4U], const std::ptrdi
 
 BOOL CLAVPixFmtConverter::IsDirectModeSupported(std::uintptr_t dst, std::ptrdiff_t stride)
 {
-    const int stride_align = ((m_OutputPixFmt == LAVOutPixFmt_YV12 || m_OutputPixFmt == LAVOutPixFmt_YV16) ? 32 : 16);
+    const int stride_align = (((m_OutputPixFmt == LAVOutPixFmt_YV12) || (m_OutputPixFmt == LAVOutPixFmt_YV16)) ? 32 : 16);
     if ((FFALIGN(stride, stride_align) != stride) || (dst % 16u)) {
         return false;
-}
+    }
     return m_bDirectMode;
 }
 
 HRESULT CLAVPixFmtConverter::ConvertDirect(LAVFrame *pFrame, std::uint8_t *dst, int width, int height, std::ptrdiff_t dstStride,
                                            int planeHeight)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     planeHeight = max(height, planeHeight);
     ASSERT((pFrame->direct && pFrame->direct_lock && pFrame->direct_unlock));
 
@@ -728,14 +728,14 @@ const std::uint16_t *CLAVPixFmtConverter::GetRandomDitherCoeffs(int height, int 
 {
     if (m_pSettings->GetDitherMode() != LAVDither_Random) {
         return nullptr;
-}
+    }
 
     int const totalWidth = 8 * coeffs;
     if (!m_pRandomDithers || (totalWidth > m_ditherWidth) || (height > m_ditherHeight) || (bits != m_ditherBits))
     {
         if (m_pRandomDithers) {
             _aligned_free(m_pRandomDithers);
-}
+        }
         m_pRandomDithers = nullptr;
         m_ditherWidth = totalWidth;
         m_ditherHeight = height;
@@ -763,10 +763,10 @@ const std::uint16_t *CLAVPixFmtConverter::GetRandomDitherCoeffs(int height, int 
             {
                 std::array<int, 4U> rnds{};
                 rand_sse(rnds.data());
-                ditherline[j + 0] = rnds[0U] % bits;
-                ditherline[j + 1] = rnds[1U] % bits;
-                ditherline[j + 2] = rnds[2U] % bits;
-                ditherline[j + 3] = rnds[3U] % bits;
+                ditherline[j + 0] = static_cast<std::uint16_t>(rnds[0U] % bits);
+                ditherline[j + 1] = static_cast<std::uint16_t>(rnds[1U] % bits);
+                ditherline[j + 2] = static_cast<std::uint16_t>(rnds[2U] % bits);
+                ditherline[j + 3] = static_cast<std::uint16_t>(rnds[3U] % bits);
             }
         }
 #ifdef DEBUG
@@ -778,7 +778,7 @@ const std::uint16_t *CLAVPixFmtConverter::GetRandomDitherCoeffs(int height, int 
 
     if ((line < 0) || (line >= m_ditherHeight)) {
         line = std::rand() % m_ditherHeight;
-}
+    }
 
     return &m_pRandomDithers[line * m_ditherWidth];
 }

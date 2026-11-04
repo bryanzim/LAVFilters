@@ -90,13 +90,13 @@ STDMETHODIMP CLAVSubtitleConsumer::Disconnect(void)
     return S_OK;
 }
 
-STDMETHODIMP CLAVSubtitleConsumer::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID context,
+STDMETHODIMP CLAVSubtitleConsumer::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID frameContext,
                                                 ISubRenderFrame *subtitleFrame)
 {
     ASSERT(m_SubtitleFrame == nullptr);
     if (subtitleFrame) {
         subtitleFrame->AddRef();
-}
+    }
     m_SubtitleFrame = subtitleFrame;
     m_evFrame.Set();
 
@@ -168,11 +168,11 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
         RECT subRect;
         m_SubtitleFrame->GetOutputRect(&subRect);
 
-        ULONGLONG id;
+        ULONGLONG id{ 0U };
         POINT position;
         SIZE size;
         const std::uint8_t *rgbData;
-        int pitch;
+        int pitch{ 0 };
         for (int i{ 0 }; i < count; ++i)
         {
             if (FAILED(m_SubtitleFrame->GetBitmap(i, &id, &position, &size, reinterpret_cast<LPCVOID *>(&rgbData), &pitch)))
@@ -185,7 +185,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessFrame(LAVFrame *pFrame)
 
         if (pSurface) {
             pSurface->UnlockRect();
-}
+        }
 
         SafeRelease(&m_SubtitleFrame);
         return S_OK;
@@ -293,7 +293,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
     // P010/P016 is always handled like its 16 bpp to compensate for having the data in the high bits
     if (pixFmt == LAVPixFmt_P016) {
         bpp = 16;
-}
+    }
 
     BYTE *subData[4U] = {nullptr, nullptr, nullptr, nullptr};
     std::array<std::ptrdiff_t, 4U> subStride{0, 0, 0, 0};
@@ -301,7 +301,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
     // If we need scaling (either scaling or pixel conversion), do it here before starting the blend process
     if (bNeedScaling)
     {
-        std::uint8_t *tmpBuf = nullptr;
+        std::uint8_t *tmpBuf{ nullptr };
         const AVPixelFormat avPixFmt = getFFPixFmtForSubtitle(pixFmt);
 
         // Calculate scaled size
@@ -310,7 +310,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
         // HACK: Scale to video size. In the future, we should take AR and the likes into account
         RECT const newRect = videoRect;
         /*
-        float subAR = (float)subRect.right / (float)subRect.bottom;
+        float subAR = static_cast<float>(subRect.right) / static_cast<float>(subRect.bottom);
         if (newRect.right != videoRect.right) {
           newRect.right = videoRect.right;
           newRect.bottom = (LONG)(newRect.right / subAR);
@@ -345,7 +345,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
             subData[plane] = reinterpret_cast<BYTE *>(av_mallocz(size + AV_INPUT_BUFFER_PADDING_SIZE));
             if (subData[plane] == nullptr) {
                 goto fail;
-}
+            }
         }
 
         // Un-pre-multiply alpha for YUV formats
@@ -355,7 +355,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
             tmpBuf = reinterpret_cast<std::uint8_t *>(av_malloc(pitch * subSize.cy));
             if (tmpBuf == nullptr) {
                 goto fail;
-}
+            }
 
             std::memcpy(tmpBuf, rgbData, pitch * subSize.cy);
             for (int line{ 0 }; line < subSize.cy; ++line)
@@ -380,7 +380,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
 
         if (tmpBuf) {
             av_free(tmpBuf);
-}
+        }
     }
     else
     {
@@ -393,7 +393,7 @@ STDMETHODIMP CLAVSubtitleConsumer::ProcessSubtitleBitmap(LAVPixelFormat pixFmt, 
 
     if (blend) {
         (this->*blend)(videoData, videoStride, videoRect, subData, subStride.data(), subPosition, subSize, pixFmt, bpp);
-}
+    }
 
     if (bNeedScaling)
     {

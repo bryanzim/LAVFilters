@@ -45,15 +45,15 @@
 
 // Important, when adding new pixel formats, they need to be added in LAVPixFmtConverter.cpp as well to the format
 // descriptors
-typedef struct
+struct LAVOutPixFmtDesc
 {
     GUID subtype;
-    int bpp;
-    int codedbytes;
-    int planes;
+    int bpp{ 0 };
+    int codedbytes{ 0 };
+    int planes{ 0 };
     std::array<int, 4U> planeHeight{};
     std::array<int, 4U> planeWidth{};
-} LAVOutPixFmtDesc;
+};
 
 typedef struct _RGBCoeffs
 {
@@ -83,7 +83,7 @@ class CLAVPixFmtConverter
 
     BOOL SetInputFmt(enum LAVPixelFormat pixfmt, int bpp)
     {
-        ASSERT((pixfmt != LAVPixFmt_None && pixfmt != LAVPixFmt_D3D11 && pixfmt != LAVPixFmt_DXVA2));
+        ASSERT(((pixfmt != LAVPixFmt_None) && (pixfmt != LAVPixFmt_D3D11) && (pixfmt != LAVPixFmt_DXVA2)));
         if ((m_InputPixFmt != pixfmt) || (m_InBpp != bpp))
         {
             m_InputPixFmt = pixfmt;
@@ -162,15 +162,15 @@ class CLAVPixFmtConverter
     {
         if (m_pSwsContext) {
             sws_freeContext(m_pSwsContext);
-}
+        }
         m_pSwsContext = nullptr;
         if (m_rgbCoeffs) {
             _aligned_free(m_rgbCoeffs);
-}
+        }
         m_rgbCoeffs = nullptr;
         if (m_pRandomDithers) {
             _aligned_free(m_pRandomDithers);
-}
+        }
         m_pRandomDithers = nullptr;
     };
     SwsContext *GetSWSContext(int width, int height, enum AVPixelFormat srcPix, enum AVPixelFormat dstPix, int flags);
@@ -235,23 +235,23 @@ class CLAVPixFmtConverter
 
     std::ptrdiff_t m_RequiredAlignment{ 0 };
 
-    SwsContext *m_pSwsContext = nullptr;
+    SwsContext *m_pSwsContext{ nullptr };
 
     std::size_t m_nAlignedBufferSize{ 0U };
-    std::uint8_t *m_pAlignedBuffer = nullptr;
+    std::uint8_t *m_pAlignedBuffer{ nullptr };
 
     int m_NumThreads{ 1 };
 
-    ILAVVideoSettings *m_pSettings = nullptr;
+    ILAVVideoSettings *m_pSettings{ nullptr };
 
-    RGBCoeffs *m_rgbCoeffs = nullptr;
+    RGBCoeffs *m_rgbCoeffs{ nullptr };
     BOOL m_bRGBConverter{ FALSE };
     BOOL m_bRGBConvInit{ FALSE };
 
     // [out32][dithermode][ycgco][format][shift]
     YUVRGBConversionFunc m_RGBConvFuncs[2U][2U][2U][LAVPixFmt_NB][9U];
 
-    std::uint16_t *m_pRandomDithers = nullptr;
+    std::uint16_t *m_pRandomDithers{ nullptr };
     int m_ditherWidth{ 0 };
     int m_ditherHeight{ 0 };
     int m_ditherBits{ 0 };

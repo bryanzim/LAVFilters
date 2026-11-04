@@ -35,7 +35,7 @@ CD3D11MediaSample::CD3D11MediaSample(CD3D11SurfaceAllocator *pAllocator, AVFrame
     : CMediaSampleSideData(NAME("CD3D11MediaSample"), static_cast<CBaseAllocator *>(pAllocator), phr, nullptr, 0)
     , m_pFrame{pFrame}
 {
-    ASSERT((m_pFrame && m_pFrame->format == AV_PIX_FMT_D3D11));
+    ASSERT((m_pFrame && (m_pFrame->format == AV_PIX_FMT_D3D11)));
     pAllocator->AddRef();
 
     m_pAllocatorCookie = pAllocator->m_pFramesCtx;
@@ -154,7 +154,7 @@ CD3D11SurfaceAllocator::~CD3D11SurfaceAllocator()
 HRESULT CD3D11SurfaceAllocator::Alloc(void)
 {
     DbgLog((LOG_TRACE, 10, L"CD3D11SurfaceAllocator::Alloc()"));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     CAutoLock const cObjectLock(this);
 
@@ -163,7 +163,7 @@ HRESULT CD3D11SurfaceAllocator::Alloc(void)
     hr = __super::Alloc();
     if (FAILED(hr)) {
         return hr;
-}
+    }
 
     // free old resources
     // m_pDec->FlushFromAllocator();
@@ -208,7 +208,7 @@ HRESULT CD3D11SurfaceAllocator::Alloc(void)
 void CD3D11SurfaceAllocator::Free(void)
 {
     CAutoLock const lock(this);
-    CMediaSample *pSample = nullptr;
+    CMediaSample *pSample{ nullptr };
 
     do
     {
@@ -245,7 +245,7 @@ STDMETHODIMP_(void) CD3D11SurfaceAllocator::ForceDecommit()
 
         if (m_bCommitted || !m_bDecommitInProgress) {
             return;
-}
+        }
 
         // actually free all the samples that are already back
         Free();

@@ -307,7 +307,7 @@ AVCodecID FindCodecId(const CMediaType *mt)
 static const struct s_ffmpeg_codec_overrides
 {
     AVCodecID codec;
-    const char *override;
+    const char *override{ nullptr };
 } ffmpeg_codec_overrides[] = {
     {AV_CODEC_ID_MP1, "mp1float"},
     {AV_CODEC_ID_MP2, "mp2float"},
@@ -354,7 +354,7 @@ const char *get_sample_format_desc(LAVAudioSampleFormat sfFormat)
 
 const char *get_sample_format_desc(CMediaType  const&mt)
 {
-    LAVAudioSampleFormat format;
+    LAVAudioSampleFormat format{ SampleFormat_16 };
     if (mt.subtype == MEDIASUBTYPE_IEEE_FLOAT)
     {
         format = SampleFormat_FP32;
@@ -369,7 +369,10 @@ const char *get_sample_format_desc(CMediaType  const&mt)
         case 16: format = SampleFormat_16; break;
         case 24: format = SampleFormat_24; break;
         case 32: format = SampleFormat_32; break;
-        default: ASSERT(false);
+        default:
+            ASSERT(false);
+            format = SampleFormat_16;
+            break;
         }
     }
     return get_sample_format_desc(format);
@@ -403,7 +406,7 @@ LAVAudioSampleFormat get_lav_sample_fmt(AVSampleFormat sample_fmt, int bits)
             lav_sample_fmt = SampleFormat_24;
         } else {
             lav_sample_fmt = SampleFormat_16;
-}
+        }
         break;
     case AV_SAMPLE_FMT_DBL:
     case AV_SAMPLE_FMT_DBLP:
@@ -418,7 +421,7 @@ LAVAudioSampleFormat get_lav_sample_fmt(AVSampleFormat sample_fmt, int bits)
 
 AVSampleFormat get_ff_sample_fmt(LAVAudioSampleFormat sample_fmt)
 {
-    AVSampleFormat ff_sample_fmt;
+    AVSampleFormat ff_sample_fmt{ AV_SAMPLE_FMT_S16 };
     switch (sample_fmt)
     {
     case SampleFormat_16: ff_sample_fmt = AV_SAMPLE_FMT_S16; break;
@@ -426,7 +429,10 @@ AVSampleFormat get_ff_sample_fmt(LAVAudioSampleFormat sample_fmt)
     case SampleFormat_32: ff_sample_fmt = AV_SAMPLE_FMT_S32; break;
     case SampleFormat_FP32: ff_sample_fmt = AV_SAMPLE_FMT_FLT; break;
     case SampleFormat_U8: ff_sample_fmt = AV_SAMPLE_FMT_U8; break;
-    default: assert(0); break;
+    default:
+        assert(0);
+        ff_sample_fmt = AV_SAMPLE_FMT_S16;
+        break;
     }
     return ff_sample_fmt;
 }
@@ -477,8 +483,8 @@ static BYTE get_dvdlpcm_sample_rate_index(int sample_rate)
 void CLAVAudio::CreateDVDLPCMHeader(BYTE *const pBuf, const WAVEFORMATEX *const wfex) const
 {
     pBuf[0U] = 0;
-    pBuf[1U] = (((wfex->wBitsPerSample - 16) / 4) << 6) | (get_dvdlpcm_sample_rate_index(wfex->nSamplesPerSec) << 4) |
-              ((wfex->nChannels - 1) & 7);
+    pBuf[1U] = static_cast<BYTE>((((wfex->wBitsPerSample - 16) / 4) << 6) | (get_dvdlpcm_sample_rate_index(wfex->nSamplesPerSec) << 4) |
+                                   ((wfex->nChannels - 1) & 7));
     pBuf[2U] = 0;
 }
 
@@ -492,7 +498,7 @@ HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const std::size_t ext
     const std::uint8_t *const end = extra + extralen;
     const std::uint8_t *fmt = extra + 4;
     auto need = [&](std::size_t count) -> bool {
-        return fmt <= end && static_cast<std::size_t>(end - fmt) >= count;
+        return (fmt <= end) && (static_cast<std::size_t>(end - fmt) >= count);
     };
     auto skip = [&](std::size_t count) -> bool {
         if (!need(count))
@@ -622,11 +628,12 @@ template <class T> T get_sample_from_buffer(const BYTE *const pBuffer, LAVAudioS
         fSample += pBuffer[0U] << 8;
         fSample += pBuffer[1U] << 16;
         fSample += pBuffer[2U] << 24;
-        fSample /= INT32_MAX;
+        // 2^31 is the full-scale divisor. INT32_MAX is not exact as a float.
+        fSample /= static_cast<T>(2147483648.0);
         break;
     case SampleFormat_32:
         fSample = (T)(*const_cast<std::int32_t *>(reinterpret_cast<const std::int32_t *>(pBuffer)));
-        fSample /= INT32_MAX;
+        fSample /= static_cast<T>(2147483648.0);
         break;
     case SampleFormat_FP32: fSample = (T) * const_cast<float *>(reinterpret_cast<const float *>(pBuffer)); break;
     }
@@ -683,7 +690,7 @@ WORD get_channel_from_flag(DWORD dwMask, DWORD dwFlag)
                 break;
             } else {
                 ++nChannel;
-}
+            }
         }
     }
     return nChannel;
@@ -701,7 +708,7 @@ DWORD get_flag_from_channel(DWORD dwMask, WORD wChannel)
         {
             if (nChannel == wChannel) { return flag; } else {
                 ++nChannel;
-}
+            }
         }
     }
     return 0;
@@ -791,7 +798,7 @@ static std::array<std::array<LAVAudioSampleFormat, 5U>, 5U> sampleFormatMapping{
 
 LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleFormat inFormat, int *bits, BOOL bNoFallback)
 {
-    ASSERT((inFormat >= 0 && inFormat < SampleFormat_Bitstream));
+    ASSERT(((inFormat >= 0) && (inFormat < SampleFormat_Bitstream)));
 
     if ((m_FallbackFormat != SampleFormat_None) && !bNoFallback) { return m_FallbackFormat; }
 
@@ -807,7 +814,7 @@ LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleForma
 
     if (bits && (outFormat != inFormat)) {
         *bits = get_byte_per_sample(outFormat) << 3;
-}
+    }
 
     return outFormat;
 }
@@ -815,7 +822,7 @@ LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleForma
 // Copy of ff_spdif_bswap_buf16, which sadly is a private symbol
 void lav_spdif_bswap_buf16(std::uint16_t *dst, const std::uint16_t *src, int w)
 {
-    int i;
+    int i{ 0 };
 
     for (i = 0; i + 8 <= w; i += 8)
     {
@@ -830,5 +837,5 @@ void lav_spdif_bswap_buf16(std::uint16_t *dst, const std::uint16_t *src, int w)
     }
     for (; i < w; ++i) {
         dst[i + 0] = av_bswap16(src[i + 0]);
-}
+    }
 }

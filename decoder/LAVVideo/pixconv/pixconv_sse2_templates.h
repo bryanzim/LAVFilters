@@ -128,22 +128,22 @@
         const std::uint8_t *const srcLinePtr = (src);           \
         std::uint8_t *const dstLinePtr = (dst);                 \
         __m128i r1, r2, r3, r4;                            \
-        std::ptrdiff_t i;                                       \
-        for (i = 0; i < (len - 63); i += 64)               \
+        std::ptrdiff_t copyOffset;                              \
+        for (copyOffset = 0; copyOffset < (len - 63); copyOffset += 64) \
         {                                                  \
-            PIXCONV_LOAD_ALIGNED(r1, srcLinePtr + i + 0)   \
-            PIXCONV_LOAD_ALIGNED(r2, srcLinePtr + i + 16); \
-            PIXCONV_LOAD_ALIGNED(r3, srcLinePtr + i + 32); \
-            PIXCONV_LOAD_ALIGNED(r4, srcLinePtr + i + 48); \
-            PIXCONV_PUT_STREAM(dstLinePtr + i + 0, r1);    \
-            PIXCONV_PUT_STREAM(dstLinePtr + i + 16, r2);   \
-            PIXCONV_PUT_STREAM(dstLinePtr + i + 32, r3);   \
-            PIXCONV_PUT_STREAM(dstLinePtr + i + 48, r4);   \
+            PIXCONV_LOAD_ALIGNED(r1, srcLinePtr + copyOffset + 0)   \
+            PIXCONV_LOAD_ALIGNED(r2, srcLinePtr + copyOffset + 16); \
+            PIXCONV_LOAD_ALIGNED(r3, srcLinePtr + copyOffset + 32); \
+            PIXCONV_LOAD_ALIGNED(r4, srcLinePtr + copyOffset + 48); \
+            PIXCONV_PUT_STREAM(dstLinePtr + copyOffset + 0, r1);    \
+            PIXCONV_PUT_STREAM(dstLinePtr + copyOffset + 16, r2);   \
+            PIXCONV_PUT_STREAM(dstLinePtr + copyOffset + 32, r3);   \
+            PIXCONV_PUT_STREAM(dstLinePtr + copyOffset + 48, r4);   \
         }                                                  \
-        for (; i < len; i += 16)                           \
+        for (; copyOffset < len; copyOffset += 16)         \
         {                                                  \
-            PIXCONV_LOAD_ALIGNED(r1, srcLinePtr + i);      \
-            PIXCONV_PUT_STREAM(dstLinePtr + i, r1);        \
+            PIXCONV_LOAD_ALIGNED(r1, srcLinePtr + copyOffset);      \
+            PIXCONV_PUT_STREAM(dstLinePtr + copyOffset, r1);        \
         }                                                  \
     }
 
@@ -161,31 +161,31 @@
         std::uint8_t *const dst1LinePtr = (dst1);                    \
         std::uint8_t *const dst2LinePtr = (dst2);                    \
         __m128i r1, r2, r3, r4, r5, r6, r7, r8;                 \
-        std::ptrdiff_t i;                                            \
-        for (i = 0; i < (len - 63); i += 64)                    \
+        std::ptrdiff_t copyOffset;                                   \
+        for (copyOffset = 0; copyOffset < (len - 63); copyOffset += 64) \
         {                                                       \
-            PIXCONV_LOAD_ALIGNED(r1, src1LinePtr + i + 0);      \
-            PIXCONV_LOAD_ALIGNED(r2, src1LinePtr + i + 16);     \
-            PIXCONV_LOAD_ALIGNED(r3, src1LinePtr + i + 32);     \
-            PIXCONV_LOAD_ALIGNED(r4, src1LinePtr + i + 48);     \
-            PIXCONV_LOAD_ALIGNED(r5, src2LinePtr + i + 0);      \
-            PIXCONV_LOAD_ALIGNED(r6, src2LinePtr + i + 16);     \
-            PIXCONV_LOAD_ALIGNED(r7, src2LinePtr + i + 32);     \
-            PIXCONV_LOAD_ALIGNED(r8, src2LinePtr + i + 48);     \
-            PIXCONV_PUT_STREAM(dst1LinePtr + i + 0, r1);        \
-            PIXCONV_PUT_STREAM(dst1LinePtr + i + 16, r2);       \
-            PIXCONV_PUT_STREAM(dst1LinePtr + i + 32, r3);       \
-            PIXCONV_PUT_STREAM(dst1LinePtr + i + 48, r4);       \
-            PIXCONV_PUT_STREAM(dst2LinePtr + i + 0, r5);        \
-            PIXCONV_PUT_STREAM(dst2LinePtr + i + 16, r6);       \
-            PIXCONV_PUT_STREAM(dst2LinePtr + i + 32, r7);       \
-            PIXCONV_PUT_STREAM(dst2LinePtr + i + 48, r8);       \
+            PIXCONV_LOAD_ALIGNED(r1, src1LinePtr + copyOffset + 0);      \
+            PIXCONV_LOAD_ALIGNED(r2, src1LinePtr + copyOffset + 16);     \
+            PIXCONV_LOAD_ALIGNED(r3, src1LinePtr + copyOffset + 32);     \
+            PIXCONV_LOAD_ALIGNED(r4, src1LinePtr + copyOffset + 48);     \
+            PIXCONV_LOAD_ALIGNED(r5, src2LinePtr + copyOffset + 0);      \
+            PIXCONV_LOAD_ALIGNED(r6, src2LinePtr + copyOffset + 16);     \
+            PIXCONV_LOAD_ALIGNED(r7, src2LinePtr + copyOffset + 32);     \
+            PIXCONV_LOAD_ALIGNED(r8, src2LinePtr + copyOffset + 48);     \
+            PIXCONV_PUT_STREAM(dst1LinePtr + copyOffset + 0, r1);        \
+            PIXCONV_PUT_STREAM(dst1LinePtr + copyOffset + 16, r2);       \
+            PIXCONV_PUT_STREAM(dst1LinePtr + copyOffset + 32, r3);       \
+            PIXCONV_PUT_STREAM(dst1LinePtr + copyOffset + 48, r4);       \
+            PIXCONV_PUT_STREAM(dst2LinePtr + copyOffset + 0, r5);        \
+            PIXCONV_PUT_STREAM(dst2LinePtr + copyOffset + 16, r6);       \
+            PIXCONV_PUT_STREAM(dst2LinePtr + copyOffset + 32, r7);       \
+            PIXCONV_PUT_STREAM(dst2LinePtr + copyOffset + 48, r8);       \
         }                                                       \
-        for (; i < len; i += 16)                                \
+        for (; copyOffset < len; copyOffset += 16)              \
         {                                                       \
-            PIXCONV_LOAD_ALIGNED(r1, src1LinePtr + i);          \
-            PIXCONV_LOAD_ALIGNED(r2, src2LinePtr + i);          \
-            PIXCONV_PUT_STREAM(dst1LinePtr + i, r1);            \
-            PIXCONV_PUT_STREAM(dst2LinePtr + i, r2);            \
+            PIXCONV_LOAD_ALIGNED(r1, src1LinePtr + copyOffset);          \
+            PIXCONV_LOAD_ALIGNED(r2, src2LinePtr + copyOffset);          \
+            PIXCONV_PUT_STREAM(dst1LinePtr + copyOffset, r1);            \
+            PIXCONV_PUT_STREAM(dst2LinePtr + copyOffset, r2);            \
         }                                                       \
     }

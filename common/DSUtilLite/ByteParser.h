@@ -66,8 +66,8 @@ class CByteParser
     void BitByteAlign();
 
   private:
-    GetBitContext *m_gbCtx = nullptr;
+    GetBitContext *m_gbCtx{ nullptr };
 
-    const BYTE *m_pData = nullptr;
-    const BYTE *m_pEnd = nullptr;
+    const BYTE *m_pData{ nullptr };
+    const BYTE *m_pEnd{ nullptr };
 };

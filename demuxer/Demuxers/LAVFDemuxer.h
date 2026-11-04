@@ -151,7 +151,7 @@ class CLAVFDemuxer
         HRESULT hr = GetBSTRMetadata("comment", pbstrDescription);
         if (hr == VFW_E_NOT_FOUND) {
             hr = GetBSTRMetadata("description", pbstrDescription);
-}
+        }
         return hr;
     }
     STDMETHODIMP get_Copyright(BSTR *pbstrCopyright) { return GetBSTRMetadata("copyright", pbstrCopyright); }
@@ -222,8 +222,8 @@ class CLAVFDemuxer
 
   private:
     friend class CBDDemuxer;
-    AVFormatContext *m_avFormat = nullptr;
-    const char *m_pszInputFormat = nullptr;
+    AVFormatContext *m_avFormat{ nullptr };
+    const char *m_pszInputFormat{ nullptr };
 
     BOOL m_bMatroska{ FALSE };
     BOOL m_bOgg{ FALSE };
@@ -250,14 +250,14 @@ class CLAVFDemuxer
 
     REFERENCE_TIME m_rtCurrent{ 0 };
 
-    AVStreamParseType *m_stOrigParser = nullptr;
+    AVStreamParseType *m_stOrigParser{ nullptr };
 
-    CFontInstaller *m_pFontInstaller = nullptr;
-    ILAVFSettingsInternal *m_pSettings = nullptr;
+    CFontInstaller *m_pFontInstaller{ nullptr };
+    ILAVFSettingsInternal *m_pSettings{ nullptr };
 
     BOOL m_bEnableTrackInfo{ TRUE };
 
-    CBDDemuxer *m_pBluRay = nullptr;
+    CBDDemuxer *m_pBluRay{ nullptr };
 
     LONG m_Abort{ 0 };
     std::time_t m_timeAbort{ 0 };
@@ -273,7 +273,7 @@ class CLAVFDemuxer
 
     struct
     {
-        AVBSFContext *bsf = nullptr;
+        AVBSFContext *bsf{ nullptr };
 
         int nBLStreamId{ -1 };
         int nELStreamId{ -1 };

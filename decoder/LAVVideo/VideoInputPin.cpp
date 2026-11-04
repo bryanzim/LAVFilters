@@ -44,7 +44,7 @@ STDMETHODIMP CVideoInputPin::NotifyAllocator(IMemAllocator *pAllocator, BOOL bRe
     m_bDynamicAllocator = FALSE;
     if (SUCCEEDED(hr) && pAllocator)
     {
-        ILAVDynamicAllocator *pDynamicAllocator = nullptr;
+        ILAVDynamicAllocator *pDynamicAllocator{ nullptr };
         if (SUCCEEDED(pAllocator->QueryInterface(&pDynamicAllocator)))
         {
             m_bDynamicAllocator = pDynamicAllocator->IsDynamicAllocator();

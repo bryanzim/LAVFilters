@@ -33,7 +33,7 @@ void CPacketQueue::Queue(Packet *pPacket)
 
     if (pPacket) {
         m_dataSize += static_cast<std::size_t>(pPacket->GetDataSize());
-}
+    }
 
     m_queue.push_back(pPacket);
 }
@@ -52,7 +52,7 @@ Packet *CPacketQueue::Get()
 
     if (pPacket) {
         m_dataSize -= static_cast<std::size_t>(pPacket->GetDataSize());
-}
+    }
 
     return pPacket;
 }

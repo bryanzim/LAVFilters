@@ -45,7 +45,7 @@ bool DeleteRegKey(std::wstring szKey, std::wstring szSubkey)
     {
         if (szSubkey.length() > 0) {
             ec = ::RegDeleteKey(hKey, szSubkey.c_str());
-}
+        }
 
         bOK = (ec == ERROR_SUCCESS);
 
@@ -61,7 +61,7 @@ bool SetRegKeyValue(std::wstring szKey, std::wstring szSubkey, std::wstring szVa
 
     if (szSubkey.length() > 0) {
         szKey += _T("\\") + szSubkey;
-}
+    }
 
     HKEY hKey;
     LONG ec =
@@ -102,7 +102,7 @@ void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, LPCWSTR chkb
     va_list extensions;
     va_start(extensions, chkbytes);
     LPCWSTR ext{ nullptr };
-    while (ext = va_arg(extensions, LPCWSTR))
+    while ((ext = va_arg(extensions, LPCWSTR)) != nullptr)
     {
         DeleteRegKey(_T("Media Type\\Extensions"), ext);
     }
@@ -142,7 +142,7 @@ void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, std::list<LP
     va_list extensions;
     va_start(extensions, chkbytes);
     LPCWSTR ext{ nullptr };
-    while (ext = va_arg(extensions, LPCWSTR))
+    while ((ext = va_arg(extensions, LPCWSTR)) != nullptr)
     {
         DeleteRegKey(_T("Media Type\\Extensions"), ext);
     }

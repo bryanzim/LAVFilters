@@ -94,7 +94,10 @@ HRESULT CLAVAudio::ShutdownBitstreaming()
 int CLAVAudio::BSWriteBuffer(void *opaque, const std::uint8_t *buf, int buf_size)
 {
     CLAVAudio *filter = reinterpret_cast<CLAVAudio *>(opaque);
-    filter->m_bsOutput.Append(buf, buf_size);
+    if (FAILED(filter->m_bsOutput.Append(buf, static_cast<DWORD>(buf_size))))
+    {
+        return -1;
+    }
     return buf_size;
 }
 
@@ -104,7 +107,7 @@ HRESULT CLAVAudio::CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe)
 
     if (m_avBSContext) {
         FreeBitstreamContext();
-}
+    }
     m_bsParser.Reset();
 
     DbgLog((LOG_TRACE, 20, "Creating Bistreaming Context..."));
@@ -163,7 +166,7 @@ HRESULT CLAVAudio::UpdateBitstreamContext()
 {
     if (!m_pInput || (!m_pInput->IsConnected())) {
         return E_UNEXPECTED;
-}
+    }
 
     BOOL const bBitstream = IsBitstreaming(m_nCodecId);
     if ((bBitstream && !m_avBSContext) || (!bBitstream && m_avBSContext))
@@ -217,7 +220,10 @@ HRESULT CLAVAudio::FreeBitstreamContext()
     av_packet_free(&m_pBitstreamPacket);
 
     // Dump any remaining data
-    m_bsOutput.SetSize(0);
+    if (FAILED(m_bsOutput.SetSize(0)))
+    {
+        return E_OUTOFMEMORY;
+    }
 
     // reset TrueHD MAT state
     std::memset(&m_TrueHDMATState, 0, sizeof(m_TrueHDMATState));
@@ -330,13 +336,13 @@ void CLAVAudio::ActivateDTSHDMuxing()
 
 HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consumed, HRESULT *hrDeliver)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     int ret{ 0 };
     BOOL const bFlush = (pDataBuffer == nullptr);
 
     if (m_pBitstreamPacket == nullptr) {
         m_pBitstreamPacket = av_packet_alloc();
-}
+    }
 
     m_pBitstreamPacket->duration = 1;
 
@@ -345,9 +351,9 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
     {
         if (bFlush) {
             buffsize = 0;
-}
+        }
 
-        BYTE *pOut = nullptr;
+        BYTE *pOut{ nullptr };
         int pOut_size{ 0 };
         int const used_bytes = av_parser_parse2(m_pParser, m_pAVCtx, &pOut, &pOut_size, pDataBuffer, buffsize, AV_NOPTS_VALUE,
                                           AV_NOPTS_VALUE, 0);
@@ -396,7 +402,7 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                 // in m_rtStart
                 if (m_rtBitstreamCache == AV_NOPTS_VALUE) {
                     m_rtBitstreamCache = m_rtStartInputCache != AV_NOPTS_VALUE ? m_rtStartInputCache : m_rtStart;
-}
+                }
 
                 BitstreamTrueHD(pOut, pOut_size, hrDeliver);
             }
@@ -407,7 +413,7 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                     DTSBitstreamMode const mode = GetDTSHDBitstreamMode();
                     if ((mode != DTS_Core) && (mode != m_DTSBitstreamMode)) {
                         ActivateDTSHDMuxing();
-}
+                    }
                 }
 
                 m_pBitstreamPacket->data = pOut;
@@ -418,7 +424,10 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                 if (ret < 0)
                 {
                     DbgLog((LOG_ERROR, 20, "::Bitstream(): av_write_frame returned error code (%d)", -ret));
-                    m_bsOutput.SetSize(0);
+                    if (FAILED(m_bsOutput.SetSize(0)))
+                    {
+                        return E_OUTOFMEMORY;
+                    }
                     continue;
                 }
 
@@ -429,14 +438,17 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                 // in m_rtStart
                 if (m_rtBitstreamCache == AV_NOPTS_VALUE) {
                     m_rtBitstreamCache = m_rtStartInputCache != AV_NOPTS_VALUE ? m_rtStartInputCache : m_rtStart;
-}
+                }
 
                 // Deliver frame
                 if (m_bsOutput.GetCount() > 0)
                 {
                     *hrDeliver = DeliverBitstream(m_nCodecId, m_bsOutput.Ptr(), m_bsOutput.GetCount(),
                                                   m_rtStartInputCache, m_rtStopInputCache);
-                    m_bsOutput.SetSize(0);
+                    if (FAILED(m_bsOutput.SetSize(0)))
+                    {
+                        return E_OUTOFMEMORY;
+                    }
                 }
             }
 
@@ -451,7 +463,7 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
 HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD dwSize, REFERENCE_TIME rtStartInput,
                                     REFERENCE_TIME rtStopInput, BOOL bSwap, int nSamplesOffset)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (m_bFlushing) { return S_FALSE; }
 
@@ -463,7 +475,7 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
     }
 
     IMediaSample *pOut;
-    BYTE *pDataOut = nullptr;
+    BYTE *pDataOut{ nullptr };
     if (FAILED(GetDeliveryBuffer(&pOut, &pDataOut)))
     {
         return E_FAIL;
@@ -475,12 +487,12 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
             m_rtStart = m_rtBitstreamCache;
         } else {
             m_rtStart = rtStartInput;
-}
+        }
         m_bResyncTimestamp = FALSE;
     }
 
     REFERENCE_TIME rtStart = m_rtStart, rtStop = AV_NOPTS_VALUE;
-    REFERENCE_TIME const rtOffset = static_cast<REFERENCE_TIME>(std::round(DBL_SECOND_MULT * (double)nSamplesOffset / m_bsParser.m_dwSampleRate / m_dRate));
+    REFERENCE_TIME const rtOffset = static_cast<REFERENCE_TIME>(std::round(DBL_SECOND_MULT * static_cast<double>(nSamplesOffset) / m_bsParser.m_dwSampleRate / m_dRate));
     double const dDuration = DBL_SECOND_MULT * static_cast<double>(m_bsParser.m_dwSamples) / m_bsParser.m_dwSampleRate / m_dRate;
     m_dStartOffset += std::fmod(dDuration, 1.0);
 
@@ -498,7 +510,7 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
     REFERENCE_TIME rtJitter{ 0 };
     if (m_rtBitstreamCache != AV_NOPTS_VALUE) {
         rtJitter = rtStart - m_rtBitstreamCache + rtOffset;
-}
+    }
     m_faJitter.Sample(rtJitter);
 
     REFERENCE_TIME const rtJitterMin = m_faJitter.AbsMinimum();

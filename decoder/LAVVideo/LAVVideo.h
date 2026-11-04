@@ -51,11 +51,11 @@ extern "C"
 #define DEBUG_FRAME_TIMINGS 0
 #define DEBUG_PIXELCONV_TIMINGS 0
 
-typedef struct
+struct TimingCache
 {
-    REFERENCE_TIME rtStart;
-    REFERENCE_TIME rtStop;
-} TimingCache;
+    REFERENCE_TIME rtStart{ 0 };
+    REFERENCE_TIME rtStop{ 0 };
+};
 
 class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     : public CTransformFilter
@@ -189,7 +189,7 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     {
         if (dir == PINDIR_INPUT) { return FilterInGraphSafe(m_pInput, clsid); } else {
             return FilterInGraphSafe(m_pOutput, clsid);
-}
+        }
     }
     STDMETHODIMP_(DWORD) GetDecodeFlags() { return m_dwDecodeFlags; }
     STDMETHODIMP_(CMediaType &) GetInputMediaType() { return m_pInput->CurrentMediaType(); }
@@ -290,24 +290,25 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     BOOL m_bFlushing{ FALSE };
     BOOL m_bForceFormatNegotiation{ FALSE };
 
-    HRESULT m_hrDeliver = S_OK;
+    HRESULT m_hrDeliver{ S_OK };
 
     CLAVPixFmtConverter m_PixFmtConverter;
     std::wstring m_strExtension;
 
     BOOL m_bDXVAExtFormatSupport{ TRUE };
-    DWORD m_bMadVR = -1;
-    DWORD m_bJRVR = -1;
-    DWORD m_bOverlayMixer = -1;
+    DWORD m_bMadVR{ static_cast<DWORD>(-1) };
+    DWORD m_bJRVR{ static_cast<DWORD>(-1) };
+    DWORD m_bOverlayMixer{ static_cast<DWORD>(-1) };
     DWORD m_dwDecodeFlags{ 0U };
 
     BOOL m_bInDVDMenu{ FALSE };
 
-    AVFilterGraph *m_pFilterGraph = nullptr;
-    AVFilterContext *m_pFilterBufferSrc = nullptr;
-    AVFilterContext *m_pFilterBufferSink = nullptr;
+    AVFilterGraph *m_pFilterGraph{ nullptr };
+    AVFilterContext *m_pFilterBufferSrc{ nullptr };
+    AVFilterContext *m_pFilterBufferSink{ nullptr };
 
     LAVPixelFormat m_filterPixFmt = LAVPixFmt_None;
+    int m_filterBpp{ 0 };
     int m_filterWidth{ 0 };
     int m_filterHeight{ 0 };
     LAVFrame m_FilterPrevFrame;
@@ -322,48 +323,48 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
         AVContentLightMetadata ContentLight;
     } m_SideData;
 
-    CLAVVideoSubtitleInputPin *m_pSubtitleInput = nullptr;
-    CLAVSubtitleConsumer *m_SubtitleConsumer = nullptr;
+    CLAVVideoSubtitleInputPin *m_pSubtitleInput{ nullptr };
+    CLAVSubtitleConsumer *m_SubtitleConsumer{ nullptr };
 
-    CCCOutputPin *m_pCCOutputPin = nullptr;
+    CCCOutputPin *m_pCCOutputPin{ nullptr };
 
-    LAVFrame *m_pLastSequenceFrame = nullptr;
+    LAVFrame *m_pLastSequenceFrame{ nullptr };
 
     AM_SimpleRateChange m_DVDRate = AM_SimpleRateChange{AV_NOPTS_VALUE, 10000};
 
     BOOL m_bRuntimeConfig{ FALSE };
     struct VideoSettings
     {
-        BOOL TrayIcon;
-        DWORD StreamAR;
-        DWORD NumThreads;
+        BOOL TrayIcon{ FALSE };
+        DWORD StreamAR{ 0U };
+        DWORD NumThreads{ 0U };
         std::array<BOOL, Codec_VideoNB> bFormats{};
-        BOOL bMSWMV9DMO;
+        BOOL bMSWMV9DMO{ FALSE };
         std::array<BOOL, LAVOutPixFmt_NB> bPixFmts{};
-        DWORD RGBRange;
-        DWORD HWAccel;
+        DWORD RGBRange{ 0U };
+        DWORD HWAccel{ 0U };
         std::array<BOOL, HWCodec_NB> bHWFormats{};
-        DWORD HWAccelResFlags;
-        BOOL HWAccelCUVIDXVA;
-        DWORD HWDeintMode;
-        DWORD HWDeintOutput;
-        DWORD DeintFieldOrder;
+        DWORD HWAccelResFlags{ 0U };
+        BOOL HWAccelCUVIDXVA{ FALSE };
+        DWORD HWDeintMode{ 0U };
+        DWORD HWDeintOutput{ 0U };
+        DWORD DeintFieldOrder{ 0U };
         LAVDeintMode DeintMode;
-        DWORD SWDeintMode;
-        DWORD SWDeintOutput;
-        DWORD DitherMode;
-        BOOL bDVDVideo;
-        DWORD HWAccelDeviceDXVA2;
-        DWORD HWAccelDeviceDXVA2Desc;
-        DWORD HWAccelDeviceD3D11;
-        DWORD HWAccelDeviceD3D11Desc;
-        BOOL bH264MVCOverride;
-        BOOL bCCOutputPinEnabled;
+        DWORD SWDeintMode{ 0U };
+        DWORD SWDeintOutput{ 0U };
+        DWORD DitherMode{ 0U };
+        BOOL bDVDVideo{ FALSE };
+        DWORD HWAccelDeviceDXVA2{ 0U };
+        DWORD HWAccelDeviceDXVA2Desc{ 0U };
+        DWORD HWAccelDeviceD3D11{ 0U };
+        DWORD HWAccelDeviceD3D11Desc{ 0U };
+        BOOL bH264MVCOverride{ FALSE };
+        BOOL bCCOutputPinEnabled{ FALSE };
     } m_settings;
 
     DWORD m_dwGPUDeviceIndex = DWORD_MAX;
 
-    CBaseTrayIcon *m_pTrayIcon = nullptr;
+    CBaseTrayIcon *m_pTrayIcon{ nullptr };
 
 #ifdef DEBUG
     FloatingAverage<double> m_pixFmtTimingAvg;

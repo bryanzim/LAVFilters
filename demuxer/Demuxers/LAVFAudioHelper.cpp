@@ -110,13 +110,13 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
         {
             if (audio_map[i].subtype) {
                 mediaType.subtype = *audio_map[i].subtype;
-}
+            }
             if (audio_map[i].codecTag) {
                 codecTag = audio_map[i].codecTag;
-}
+            }
             if (audio_map[i].format) {
                 mediaType.formattype = *audio_map[i].format;
-}
+            }
             break;
         }
     }
@@ -128,7 +128,7 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
         // Qt PCM
         if (codecTag == MKTAG('f', 'l', '6', '4')) {
             mediaType.subtype = MEDIASUBTYPE_PCM_FL64_le;
-}
+        }
         break;
     }
     return mediaType;
@@ -140,9 +140,9 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
     if (!wvfmt) { return nullptr; }
     std::memset(wvfmt, 0, sizeof(WAVEFORMATEX));
 
-    wvfmt->wFormatTag = avstream->codecpar->codec_tag;
+    wvfmt->wFormatTag = static_cast<WORD>(avstream->codecpar->codec_tag);
 
-    wvfmt->nChannels = avstream->codecpar->ch_layout.nb_channels ? avstream->codecpar->ch_layout.nb_channels : 2;
+    wvfmt->nChannels = static_cast<WORD>(avstream->codecpar->ch_layout.nb_channels ? avstream->codecpar->ch_layout.nb_channels : 2);
     wvfmt->nSamplesPerSec = avstream->codecpar->sample_rate ? avstream->codecpar->sample_rate : 48000;
     wvfmt->nAvgBytesPerSec = static_cast<DWORD>((avstream->codecpar->bit_rate / 8));
 
@@ -153,11 +153,11 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
     }
     else
     {
-        wvfmt->wBitsPerSample = get_bits_per_sample(avstream->codecpar);
+        wvfmt->wBitsPerSample = static_cast<WORD>(get_bits_per_sample(avstream->codecpar));
 
         if (avstream->codecpar->block_align > 0)
         {
-            wvfmt->nBlockAlign = avstream->codecpar->block_align;
+            wvfmt->nBlockAlign = static_cast<WORD>(avstream->codecpar->block_align);
         }
         else
         {
@@ -166,16 +166,16 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
                 DbgOutString(L"BitsPerSample is 0, no good!");
             }
             wvfmt->nBlockAlign =
-                static_cast<WORD>((wvfmt->nChannels * av_get_bytes_per_sample((AVSampleFormat)avstream->codecpar->format)));
+                static_cast<WORD>((wvfmt->nChannels * av_get_bytes_per_sample(static_cast<AVSampleFormat>(avstream->codecpar->format))));
         }
     }
     if (!wvfmt->nAvgBytesPerSec) {
         wvfmt->nAvgBytesPerSec = (wvfmt->nSamplesPerSec * wvfmt->nChannels * wvfmt->wBitsPerSample) >> 3;
-}
+    }
 
     if (avstream->codecpar->extradata_size > 0)
     {
-        wvfmt->cbSize = avstream->codecpar->extradata_size;
+        wvfmt->cbSize = static_cast<WORD>(avstream->codecpar->extradata_size);
         std::memcpy(reinterpret_cast<BYTE *>(wvfmt) + sizeof(WAVEFORMATEX), avstream->codecpar->extradata, avstream->codecpar->extradata_size);
     }
 
@@ -264,17 +264,17 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
 
     WAVEFORMATEX *wfe = &wfex->Format;
     wfe->wFormatTag = static_cast<WORD>(subtype.Data1);
-    wfe->nChannels = avstream->codecpar->ch_layout.nb_channels;
+    wfe->nChannels = static_cast<WORD>(avstream->codecpar->ch_layout.nb_channels);
     wfe->nSamplesPerSec = avstream->codecpar->sample_rate;
     if ((avstream->codecpar->format == AV_SAMPLE_FMT_S32) && (avstream->codecpar->bits_per_raw_sample > 0))
     {
-        wfe->wBitsPerSample = avstream->codecpar->bits_per_raw_sample > 24
-                                  ? 32
-                                  : (avstream->codecpar->bits_per_raw_sample > 16 ? 24 : 16);
+        wfe->wBitsPerSample = static_cast<WORD>(avstream->codecpar->bits_per_raw_sample > 24
+                                                    ? 32
+                                                    : (avstream->codecpar->bits_per_raw_sample > 16 ? 24 : 16));
     }
     else
     {
-        wfe->wBitsPerSample = av_get_bytes_per_sample((AVSampleFormat)avstream->codecpar->format) << 3;
+        wfe->wBitsPerSample = static_cast<WORD>(av_get_bytes_per_sample(static_cast<AVSampleFormat>(avstream->codecpar->format)) << 3);
     }
     wfe->nBlockAlign = wfe->nChannels * wfe->wBitsPerSample / 8;
     wfe->nAvgBytesPerSec = wfe->nSamplesPerSec * wfe->nBlockAlign;
@@ -288,7 +288,7 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
 
         if (avstream->codecpar->ch_layout.order == AV_CHANNEL_ORDER_NATIVE) {
             dwChannelMask = static_cast<DWORD>(avstream->codecpar->ch_layout.u.mask);
-}
+        }
 
         if (!dwChannelMask)
         {
@@ -299,9 +299,9 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
 
         if (dwChannelMask && (av_popcount(dwChannelMask) != wfe->nChannels)) {
             dwChannelMask = 0;
-}
+        }
     }
-    else if ((wfe->wBitsPerSample > 16 || wfe->nSamplesPerSec > 48000) && (wfe->nChannels <= 2))
+    else if (((wfe->wBitsPerSample > 16) || (wfe->nSamplesPerSec > 48000)) && (wfe->nChannels <= 2))
     {
         bUseExtensible = true;
         dwChannelMask = wfe->nChannels == 2 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT) : SPEAKER_FRONT_CENTER;
@@ -314,7 +314,7 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
         wfex->dwChannelMask = dwChannelMask;
         if ((avstream->codecpar->format == AV_SAMPLE_FMT_S32) && (avstream->codecpar->bits_per_raw_sample > 0))
         {
-            wfex->Samples.wValidBitsPerSample = avstream->codecpar->bits_per_raw_sample;
+            wfex->Samples.wValidBitsPerSample = static_cast<WORD>(avstream->codecpar->bits_per_raw_sample);
         }
         else
         {
@@ -370,7 +370,7 @@ VORBISFORMAT *CLAVFAudioHelper::CreateVorbis(const AVStream *avstream, ULONG *si
     if (!vfmt) { return nullptr; }
     std::memset(vfmt, 0, sizeof(VORBISFORMAT));
 
-    vfmt->nChannels = avstream->codecpar->ch_layout.nb_channels;
+    vfmt->nChannels = static_cast<WORD>(avstream->codecpar->ch_layout.nb_channels);
     vfmt->nSamplesPerSec = avstream->codecpar->sample_rate;
     vfmt->nAvgBitsPerSec = static_cast<DWORD>(avstream->codecpar->bit_rate);
     vfmt->nMinBitsPerSec = vfmt->nMaxBitsPerSec = static_cast<DWORD>(-1);
@@ -386,19 +386,19 @@ VORBISFORMAT2 *CLAVFAudioHelper::CreateVorbis2(const AVStream *avstream, ULONG *
     // read the number of blocks, and then the sizes of the individual blocks
     for (BYTE n = *p++; n > 0; --n)
     {
-        int size{ 0 };
+        int blockSize{ 0 };
         // Xiph Lacing
         do
         {
-            size += *p;
+            blockSize += *p;
         } while (*p++ == 0xFF);
-        sizes.push_back(size);
+        sizes.push_back(blockSize);
     }
 
     int totalsize{ 0 };
     for (unsigned int i{ 0U }; i < sizes.size(); ++i) {
         totalsize += sizes[i];
-}
+    }
 
     // Get the size of the last block
     sizes.push_back(avstream->codecpar->extradata_size - static_cast<int>((p - avstream->codecpar->extradata)) - totalsize);

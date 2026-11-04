@@ -50,15 +50,14 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
     BOOL const bFlush = pFrame->flags & LAV_FRAME_FLAG_FLUSH;
     if (m_Decoder.IsInterlaced(FALSE) && (m_settings.DeintMode != DeintMode_Disable) &&
         (m_settings.SWDeintMode != SWDeintMode_None) &&
-        ((bFlush && m_pFilterGraph) || pFrame->format == LAVPixFmt_YUV420 || pFrame->format == LAVPixFmt_YUV422 ||
-         pFrame->format == LAVPixFmt_NV12))
+        ((bFlush && m_pFilterGraph) || (pFrame->format == LAVPixFmt_YUV420) || (pFrame->format == LAVPixFmt_YUV422) ||
+         (pFrame->format == LAVPixFmt_NV12) || (pFrame->format == LAVPixFmt_YUV422bX)))
     {
-        AVPixelFormat const ff_pixfmt = (pFrame->format == LAVPixFmt_YUV420)
-                                      ? AV_PIX_FMT_YUV420P
-                                      : (pFrame->format == LAVPixFmt_YUV422) ? AV_PIX_FMT_YUV422P : AV_PIX_FMT_NV12;
+        AVPixelFormat const ff_pixfmt = bFlush ? AV_PIX_FMT_NONE : getFFPixelFormatFromLAV(pFrame->format, pFrame->bpp);
 
-        if (!bFlush && (!m_pFilterGraph || pFrame->format != m_filterPixFmt || pFrame->width != m_filterWidth ||
-                        pFrame->height != m_filterHeight))
+        // the bit depth selects the FFmpeg pixel format of the 422bX frames, so it needs a new graph as well
+        if (!bFlush && (!m_pFilterGraph || (pFrame->format != m_filterPixFmt) || (pFrame->bpp != m_filterBpp) ||
+                        (pFrame->width != m_filterWidth) || (pFrame->height != m_filterHeight)))
         {
             DbgLog((LOG_TRACE, 10, L":Filter()(init) Initializing software deinterlacing filter..."));
             if (m_pFilterGraph)
@@ -69,6 +68,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             }
 
             m_filterPixFmt = pFrame->format;
+            m_filterBpp = pFrame->bpp;
             m_filterWidth = pFrame->width;
             m_filterHeight = pFrame->height;
 
@@ -88,7 +88,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             AVRational aspect_ratio = pFrame->aspect_ratio;
             if ((aspect_ratio.num == 0) || (aspect_ratio.den == 0)) {
                 aspect_ratio = {0, 1};
-}
+            }
 
             _snprintf_s(args.data(), args.size(), sizeof(args), "video_size=%dx%d:pix_fmt=%s:time_base=1/10000000:pixel_aspect=%d/%d",
                         pFrame->width, pFrame->height, av_get_pix_fmt_name(ff_pixfmt), pFrame->aspect_ratio.num,
@@ -158,7 +158,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
         if (!m_pFilterGraph) {
             goto deliver;
-}
+        }
 
         if (pFrame->direct)
         {
@@ -170,7 +170,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             }
         }
 
-        AVFrame *in_frame = nullptr;
+        AVFrame *in_frame{ nullptr };
         BOOL const refcountedFrame = (m_Decoder.HasThreadSafeBuffers() == S_OK);
         // When flushing, we feed a NULL frame
         if (!bFlush)
@@ -194,12 +194,12 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             if (refcountedFrame)
             {
                 AVBufferRef *pFrameBuf = av_buffer_create(nullptr, 0, lav_free_lavframe, pFrame, 0);
-                const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)in_frame->format);
+                const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(in_frame->format));
                 int const planes = (in_frame->format == AV_PIX_FMT_NV12) ? 2 : desc->nb_components;
 
                 for (int i{ 0 }; i < planes; ++i)
                 {
-                    int const h_shift = (i == 1 || i == 2) ? desc->log2_chroma_h : 0;
+                    int const h_shift = ((i == 1) || (i == 2)) ? desc->log2_chroma_h : 0;
                     int const plane_size = (in_frame->height >> h_shift) * in_frame->linesize[i];
 
                     AVBufferRef *planeRef = av_buffer_ref(pFrameBuf);
@@ -217,7 +217,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
         {
             if (!m_FilterPrevFrame.height) { // if height is not set, the frame is most likely not valid
                 return S_OK;
-}
+            }
             *pFrame = m_FilterPrevFrame;
         }
 
@@ -228,26 +228,36 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
         }
 
         BOOL const bFramePerField =
-            (m_settings.SWDeintMode != SWDeintMode_None && m_settings.SWDeintOutput == DeintOutput_FramePerField);
+            ((m_settings.SWDeintMode != SWDeintMode_None) && (m_settings.SWDeintOutput == DeintOutput_FramePerField));
 
         AVFrame *out_frame = av_frame_alloc();
-        HRESULT hrDeliver = S_OK;
+        HRESULT hrDeliver{ S_OK };
         while (SUCCEEDED(hrDeliver) && (av_buffersink_get_frame(m_pFilterBufferSink, out_frame) >= 0))
         {
-            LAVFrame *outFrame = nullptr;
-            AllocateFrame(&outFrame);
+            LAVFrame *outFrame{ nullptr };
+            HRESULT const hrFrame = AllocateFrame(&outFrame);
+            if (FAILED(hrFrame))
+            {
+                av_frame_free(&out_frame);
+                av_frame_free(&in_frame);
+                if (!refcountedFrame)
+                {
+                    ReleaseFrame(&pFrame);
+                }
+                return hrFrame;
+            }
 
             REFERENCE_TIME rtDuration = pFrame->rtStop - pFrame->rtStart;
             if (bFramePerField) {
                 rtDuration >>= 1;
-}
+            }
 
             // Copy most settings over
-            outFrame->format = (out_frame->format == AV_PIX_FMT_YUV420P)
-                                   ? LAVPixFmt_YUV420
-                                   : (out_frame->format == AV_PIX_FMT_YUV422P) ? LAVPixFmt_YUV422 : LAVPixFmt_NV12;
+            AVPixelFormatMapping const map = getFFToLAVPixFmtMapping(static_cast<AVPixelFormat>(out_frame->format));
+            ASSERT(map.conversion == false);
+            outFrame->format = map.lavpixfmt;
+            outFrame->bpp = map.bpp;
             outFrame->sw_format = outFrame->format;
-            outFrame->bpp = pFrame->bpp;
             outFrame->ext_format = pFrame->ext_format;
             outFrame->avgFrameDuration = pFrame->avgFrameDuration;
             outFrame->flags = pFrame->flags;
@@ -266,7 +276,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             {
                 if (outFrame->avgFrameDuration != AV_NOPTS_VALUE) {
                     outFrame->avgFrameDuration /= 2;
-}
+                }
             }
 
             for (int i{ 0 }; i < 4; ++i)
@@ -281,9 +291,16 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
             hrDeliver = DeliverToRenderer(outFrame);
         }
-        if (!refcountedFrame) {
-            ReleaseFrame(&pFrame);
-}
+        if (!refcountedFrame)
+        {
+            HRESULT const hrRelease = ReleaseFrame(&pFrame);
+            if (FAILED(hrRelease))
+            {
+                av_frame_free(&in_frame);
+                av_frame_free(&out_frame);
+                return hrRelease;
+            }
+        }
         av_frame_free(&in_frame);
         av_frame_free(&out_frame);
 

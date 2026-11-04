@@ -1,0 +1,2 @@
+# MSYS bash reads these, and a carriage return ends up inside every command.
+*.sh text eol=lf

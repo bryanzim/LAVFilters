@@ -38,7 +38,7 @@ int Packet::SetDataSize(int len)
 {
     if (len < 0) { return -1; }
 
-    if (len <= GetDataSize())
+    if (m_Packet && (len <= m_Packet->size))
     {
         av_shrink_packet(m_Packet, len);
         return 0;
@@ -49,13 +49,13 @@ int Packet::SetDataSize(int len)
         m_Packet = av_packet_alloc();
         if (av_new_packet(m_Packet, len) < 0) {
             return -1;
-}
+        }
     }
     else
     {
         if (av_grow_packet(m_Packet, (len - m_Packet->size)) < 0) {
             return -1;
-}
+        }
     }
 
     return 0;
@@ -116,9 +116,11 @@ bool Packet::CopyProperties(const Packet *src)
     rtStop = src->rtStop;
     rtPTS = src->rtPTS;
     rtDTS = src->rtDTS;
-    if (src->pmt) {
+    if (src->pmt)
+    {
+        DeleteMediaType(pmt);
         pmt = CreateMediaType(src->pmt);
-}
+    }
     dwFlags = src->dwFlags;
 
     return true;

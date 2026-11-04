@@ -49,13 +49,13 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
     CheckPointer(m_pFilter, nullptr);
     CPopupMenu menu;
 
-    IAMStreamSelect *pStreamSelect = nullptr;
+    IAMStreamSelect *pStreamSelect{ nullptr };
     if (SUCCEEDED(m_pFilter->QueryInterface(&pStreamSelect)))
     {
         DWORD dwStreams{ 0U };
         if (FAILED(pStreamSelect->Count(&dwStreams))) {
             dwStreams = 0;
-}
+        }
         DWORD dwLastGroup = DWORD_MAX;
         for (DWORD i{ 0U }; i < dwStreams; ++i)
         {
@@ -63,7 +63,7 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
             LPWSTR pszName{ nullptr };
             if (FAILED(pStreamSelect->Info(i, nullptr, &dwFlags, nullptr, &dwGroup, &pszName, nullptr, nullptr))) {
                 continue;
-}
+            }
 
             if (dwGroup != dwLastGroup)
             {
@@ -82,36 +82,36 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
         }
         if (dwStreams) {
             menu.AddSeparator();
-}
+        }
         m_NumStreams = dwStreams;
         SafeRelease(&pStreamSelect);
     }
 
     // Chapters
-    IAMExtendedSeeking *pExSeeking = nullptr;
+    IAMExtendedSeeking *pExSeeking{ nullptr };
     if (SUCCEEDED(m_pFilter->QueryInterface(IID_IAMExtendedSeeking, reinterpret_cast<void **>(&pExSeeking))))
     {
         long count = 0, current = 0;
         if (FAILED(pExSeeking->get_MarkerCount(&count))) {
             count = 0;
-}
+        }
 
         if (FAILED(pExSeeking->get_CurrentMarker(&current))) {
             current = 0;
-}
+        }
 
         CPopupMenu chapters;
         for (long i{ 1 }; i <= count; ++i)
         {
-            double markerTime;
+            double markerTime{ 0.0 };
             if (FAILED(pExSeeking->GetMarkerTime(i, &markerTime))) {
                 continue;
-}
+            }
 
             BSTR bstrName{ nullptr };
             if (FAILED(pExSeeking->GetMarkerName(i, &bstrName))) {
                 continue;
-}
+            }
 
             // Create compound chapter name
             int const total_seconds = static_cast<int>((markerTime + 0.5));
@@ -124,7 +124,7 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
             // Sanitize any tab chars in the chapter name (replace by space)
             // More then one tab in the string messes with the popup menu rendering
             WCHAR *nextMatch, *tabMatch = std::wcsstr(chapterName.data(), L"\t");
-            while (nextMatch = std::wcsstr(tabMatch + 1, L"\t"))
+            while ((nextMatch = std::wcsstr(tabMatch + 1, L"\t")) != nullptr)
             {
                 *tabMatch = L' ';
                 tabMatch = nextMatch;
@@ -154,7 +154,7 @@ HRESULT CLAVSplitterTrayIcon::ProcessMenuCommand(HMENU hMenu, int cmd)
     DbgLog((LOG_TRACE, 10, L"Menu Command %d", cmd));
     if ((cmd >= STREAM_CMD_OFFSET) && (cmd < m_NumStreams + STREAM_CMD_OFFSET))
     {
-        IAMStreamSelect *pStreamSelect = nullptr;
+        IAMStreamSelect *pStreamSelect{ nullptr };
         if (SUCCEEDED(m_pFilter->QueryInterface(&pStreamSelect)))
         {
             pStreamSelect->Enable(cmd - STREAM_CMD_OFFSET, AMSTREAMSELECTENABLE_ENABLE);
@@ -163,13 +163,13 @@ HRESULT CLAVSplitterTrayIcon::ProcessMenuCommand(HMENU hMenu, int cmd)
     }
     else if ((cmd > CHAPTER_CMD_OFFSET) && (cmd <= m_NumChapters + CHAPTER_CMD_OFFSET))
     {
-        IAMExtendedSeeking *pExSeeking = nullptr;
+        IAMExtendedSeeking *pExSeeking{ nullptr };
         if (SUCCEEDED(m_pFilter->QueryInterface(IID_IAMExtendedSeeking, reinterpret_cast<void **>(&pExSeeking))))
         {
-            double markerTime;
+            double markerTime{ 0.0 };
             if (FAILED(pExSeeking->GetMarkerTime(cmd - CHAPTER_CMD_OFFSET, &markerTime))) {
                 goto failchapterseek;
-}
+            }
 
             REFERENCE_TIME rtMarkerTime = static_cast<REFERENCE_TIME>((markerTime * 10000000.0));
 
@@ -177,9 +177,9 @@ HRESULT CLAVSplitterTrayIcon::ProcessMenuCommand(HMENU hMenu, int cmd)
             FILTER_INFO info;
             if ((FAILED(m_pFilter->QueryFilterInfo(&info))) || !info.pGraph) {
                 goto failchapterseek;
-}
+            }
 
-            IMediaSeeking *pSeeking = nullptr;
+            IMediaSeeking *pSeeking{ nullptr };
             if (SUCCEEDED(info.pGraph->QueryInterface(&pSeeking)))
             {
                 pSeeking->SetPositions(&rtMarkerTime, AM_SEEKING_AbsolutePositioning, nullptr,

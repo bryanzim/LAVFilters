@@ -55,7 +55,7 @@ class CDecWMV9MFT : public CDecBase
 {
     typedef struct _Buffer
     {
-        IMFMediaBuffer *pBuffer = nullptr;
+        IMFMediaBuffer *pBuffer{ nullptr };
         DWORD size{ 0U };
         bool used{ false };
     } Buffer;
@@ -91,7 +91,7 @@ class CDecWMV9MFT : public CDecBase
     void ReleaseBuffer(IMFMediaBuffer *pBuffer);
 
   private:
-    IMFTransform *m_pMFT = nullptr;
+    IMFTransform *m_pMFT{ nullptr };
 
     BOOL m_bInterlaced{ TRUE };
 
@@ -107,7 +107,7 @@ class CDecWMV9MFT : public CDecBase
     REFERENCE_TIME m_rtReorderBuffer = AV_NOPTS_VALUE;
     std::queue<REFERENCE_TIME> m_timestampQueue;
 
-    CVC1HeaderParser *m_vc1Header = nullptr;
+    CVC1HeaderParser *m_vc1Header{ nullptr };
 
     struct
     {

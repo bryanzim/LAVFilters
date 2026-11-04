@@ -88,8 +88,8 @@ extern void DbgCloseLogFile();
     {                \
         goto done;   \
     }
-#define QI(i) (riid == __uuidof(i)) ? GetInterface((i *)this, ppv):
-#define QI2(i) (riid == IID_##i) ? GetInterface((i *)this, ppv):
+#define QI(i) (riid == __uuidof(i)) ? GetInterface(static_cast<i *>(this), ppv):
+#define QI2(i) (riid == IID_##i) ? GetInterface(static_cast<i *>(this), ppv):
 #define countof(array) (sizeof(array) / sizeof(array[0U]))
 
 // Gennenric IUnknown creation function

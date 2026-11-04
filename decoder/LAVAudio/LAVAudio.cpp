@@ -128,7 +128,7 @@ STDMETHODIMP CLAVAudio::CreateTrayIcon()
     if (m_pTrayIcon) { return E_UNEXPECTED; }
     if (CBaseTrayIcon::ProcessBlackList()) {
         return S_FALSE;
-}
+    }
     m_pTrayIcon = new CBaseTrayIcon(this, TEXT(LAV_AUDIO), IDI_ICON1);
     return S_OK;
 }
@@ -158,7 +158,7 @@ HRESULT CLAVAudio::LoadDefaults()
     // Default all Codecs to enabled
     for (int i{ 0 }; i < Codec_AudioNB; ++i) {
         m_settings.bFormats[i] = TRUE;
-}
+    }
 
     // Disable WMA codecs by default
     m_settings.bFormats[Codec_WMA2] = FALSE;
@@ -180,7 +180,7 @@ HRESULT CLAVAudio::LoadDefaults()
     // Default all Sample Formats to enabled
     for (int i{ 0 }; i < SampleFormat_NB; ++i) {
         m_settings.bSampleFormats[i] = TRUE;
-}
+    }
     m_settings.SampleConvertDither = TRUE;
 
     m_settings.AudioDelayEnabled = FALSE;
@@ -214,28 +214,28 @@ HRESULT CLAVAudio::LoadSettings()
 
 HRESULT CLAVAudio::ReadSettings(HKEY rootKey)
 {
-    HRESULT hr;
-    DWORD dwVal;
-    BOOL bFlag;
-    BYTE *pBuf = nullptr;
+    HRESULT hr{ S_OK };
+    DWORD dwVal{ 0U };
+    BOOL bFlag{ FALSE };
+    BYTE *pBuf{ nullptr };
 
-    CRegistry reg = CRegistry(rootKey, LAVC_AUDIO_REGISTRY_KEY, hr, TRUE);
+    CRegistry reg{ rootKey, LAVC_AUDIO_REGISTRY_KEY, hr, TRUE };
     if (SUCCEEDED(hr))
     {
         bFlag = reg.ReadDWORD(L"TrayIcon", hr);
         if (SUCCEEDED(hr)) {
             m_settings.TrayIcon = bFlag;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"DRCEnabled", hr);
         if (SUCCEEDED(hr)) {
             m_settings.DRCEnabled = bFlag;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"DRCLevel", hr);
         if (SUCCEEDED(hr)) {
             m_settings.DRCLevel = static_cast<int>(dwVal);
-}
+        }
 
         // Deprecated format storage
         pBuf = reg.ReadBinary(L"Formats", dwVal, hr);
@@ -256,76 +256,76 @@ HRESULT CLAVAudio::ReadSettings(HKEY rootKey)
         bFlag = reg.ReadBOOL(L"DTSHDFraming", hr);
         if (SUCCEEDED(hr)) {
             m_settings.DTSHDFraming = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"BitstreamingFallback", hr);
         if (SUCCEEDED(hr)) {
             m_settings.bBitstreamingFallback = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"AutoAVSync", hr);
         if (SUCCEEDED(hr)) {
             m_settings.AutoAVSync = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"ExpandMono", hr);
         if (SUCCEEDED(hr)) {
             m_settings.ExpandMono = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"Expand61", hr);
         if (SUCCEEDED(hr)) {
             m_settings.Expand61 = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"OutputStandardLayout", hr);
         if (SUCCEEDED(hr)) {
             m_settings.OutputStandardLayout = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"Output51Legacy", hr);
         if (SUCCEEDED(hr)) {
             m_settings.Output51Legacy = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"Mixing", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingEnabled = bFlag;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"MixingLayout", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingLayout = dwVal;
-}
+        }
 
         if (m_settings.MixingLayout == AV_CH_LAYOUT_5POINT1_BACK) {
             m_settings.MixingLayout = AV_CH_LAYOUT_5POINT1;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"MixingFlags", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingFlags = dwVal;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"MixingMode", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingMode = dwVal;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"MixingCenterLevel", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingCenterLevel = dwVal;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"MixingSurroundLevel", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingSurroundLevel = dwVal;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"MixingLFELevel", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MixingLFELevel = dwVal;
-}
+        }
 
         // Deprecated sample format storage
         pBuf = reg.ReadBinary(L"SampleFormats", dwVal, hr);
@@ -338,12 +338,12 @@ HRESULT CLAVAudio::ReadSettings(HKEY rootKey)
         bFlag = reg.ReadBOOL(L"AudioDelayEnabled", hr);
         if (SUCCEEDED(hr)) {
             m_settings.AudioDelayEnabled = bFlag;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"AudioDelay", hr);
         if (SUCCEEDED(hr)) {
             m_settings.AudioDelay = static_cast<int>(dwVal);
-}
+        }
 
         for (int i{ 0 }; i < Bitstream_NB; ++i)
         {
@@ -351,7 +351,7 @@ HRESULT CLAVAudio::ReadSettings(HKEY rootKey)
             bFlag = reg.ReadBOOL(key.c_str(), hr);
             if (SUCCEEDED(hr)) {
                 m_settings.bBitstream[i] = bFlag;
-}
+            }
         }
 
         for (int i{ 0 }; i < SampleFormat_Bitstream; ++i)
@@ -360,26 +360,26 @@ HRESULT CLAVAudio::ReadSettings(HKEY rootKey)
             bFlag = reg.ReadBOOL(key.c_str(), hr);
             if (SUCCEEDED(hr)) {
                 m_settings.bSampleFormats[i] = bFlag;
-}
+            }
         }
 
         bFlag = reg.ReadBOOL(L"SampleConvertDither", hr);
         if (SUCCEEDED(hr)) {
             m_settings.SampleConvertDither = bFlag;
-}
+        }
     }
 
-    CRegistry regF = CRegistry(rootKey, LAVC_AUDIO_REGISTRY_KEY_FORMATS, hr, TRUE);
+    CRegistry regF{ rootKey, LAVC_AUDIO_REGISTRY_KEY_FORMATS, hr, TRUE };
     if (SUCCEEDED(hr))
     {
         for (int i{ 0 }; i < Codec_AudioNB; ++i)
         {
-            const codec_config_t *info = get_codec_config((LAVAudioCodec)i);
+            const codec_config_t *info = get_codec_config(static_cast<LAVAudioCodec>(i));
             ATL::CA2W name(info->name);
             bFlag = regF.ReadBOOL(name, hr);
             if (SUCCEEDED(hr)) {
                 m_settings.bFormats[i] = bFlag;
-}
+            }
         }
     }
 
@@ -390,9 +390,9 @@ HRESULT CLAVAudio::SaveSettings()
 {
     if (m_bRuntimeConfig) { return S_FALSE; }
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     CreateRegistryKey(HKEY_CURRENT_USER, LAVC_AUDIO_REGISTRY_KEY);
-    CRegistry reg = CRegistry(HKEY_CURRENT_USER, LAVC_AUDIO_REGISTRY_KEY, hr);
+    CRegistry reg{ HKEY_CURRENT_USER, LAVC_AUDIO_REGISTRY_KEY, hr };
     if (SUCCEEDED(hr))
     {
         reg.WriteBOOL(L"TrayIcon", m_settings.TrayIcon);
@@ -418,10 +418,10 @@ HRESULT CLAVAudio::SaveSettings()
 
         reg.DeleteKey(L"Formats");
         CreateRegistryKey(HKEY_CURRENT_USER, LAVC_AUDIO_REGISTRY_KEY_FORMATS);
-        CRegistry regF = CRegistry(HKEY_CURRENT_USER, LAVC_AUDIO_REGISTRY_KEY_FORMATS, hr);
+        CRegistry regF{ HKEY_CURRENT_USER, LAVC_AUDIO_REGISTRY_KEY_FORMATS, hr };
         for (int i{ 0 }; i < Codec_AudioNB; ++i)
         {
-            const codec_config_t *info = get_codec_config((LAVAudioCodec)i);
+            const codec_config_t *info = get_codec_config(static_cast<LAVAudioCodec>(i));
             ATL::CA2W name(info->name);
             regF.WriteBOOL(name, m_settings.bFormats[i]);
         }
@@ -507,37 +507,58 @@ STDMETHODIMP CLAVAudio::GetPages(CAUUID *pPages)
     pPages->pElems[2U] = CLSID_LAVAudioFormatsProp;
     if (bShowStatusPage) {
         pPages->pElems[3U] = CLSID_LAVAudioStatusProp;
-}
+    }
     return S_OK;
 }
 
 STDMETHODIMP CLAVAudio::CreatePage(const GUID &guid, IPropertyPage **ppPage)
 {
     CheckPointer(ppPage, E_POINTER);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (*ppPage != nullptr) { return E_INVALIDARG; }
 
     if (guid == CLSID_LAVAudioSettingsProp) {
-        *ppPage = new CLAVAudioSettingsProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVAudioMixingProp) {
-        *ppPage = new CLAVAudioMixingProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVAudioFormatsProp) {
-        *ppPage = new CLAVAudioFormatsProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVAudioStatusProp) {
-        *ppPage = new CLAVAudioStatusProp(nullptr, &hr);
-}
-
-    if (SUCCEEDED(hr) && *ppPage)
-    {
-        (*ppPage)->AddRef();
+        auto *pProp = new CLAVAudioSettingsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
         return S_OK;
     }
-    else
-    {
-        SAFE_DELETE(*ppPage);
-        return E_FAIL;
+    if (guid == CLSID_LAVAudioMixingProp) {
+        auto *pProp = new CLAVAudioMixingProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
     }
+    if (guid == CLSID_LAVAudioFormatsProp) {
+        auto *pProp = new CLAVAudioFormatsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
+    }
+    if (guid == CLSID_LAVAudioStatusProp) {
+        auto *pProp = new CLAVAudioStatusProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
+    }
+    return E_FAIL;
 }
 
 // ILAVAudioSettings
@@ -634,7 +655,7 @@ STDMETHODIMP CLAVAudio::SetDTSHDFraming(BOOL bHDFraming)
 
     if (m_nCodecId == AV_CODEC_ID_DTS) {
         m_bBitStreamingSettingsChanged = TRUE;
-}
+    }
 
     return S_OK;
 }
@@ -733,10 +754,10 @@ STDMETHODIMP CLAVAudio::GetAudioDelay(BOOL *pbEnabled, int *pDelay)
 {
     if (pbEnabled) {
         *pbEnabled = m_settings.AudioDelayEnabled;
-}
+    }
     if (pDelay) {
         *pDelay = m_settings.AudioDelay;
-}
+    }
     return S_OK;
 }
 
@@ -806,7 +827,7 @@ STDMETHODIMP CLAVAudio::SetMixingMode(LAVAudioMixingMode mixingMode)
 
 STDMETHODIMP_(LAVAudioMixingMode) CLAVAudio::GetMixingMode()
 {
-    return (LAVAudioMixingMode)m_settings.MixingMode;
+    return static_cast<LAVAudioMixingMode>(m_settings.MixingMode);
 }
 
 STDMETHODIMP CLAVAudio::SetMixingLevels(DWORD dwCenterLevel, DWORD dwSurroundLevel, DWORD dwLFELevel)
@@ -825,13 +846,13 @@ STDMETHODIMP CLAVAudio::GetMixingLevels(DWORD *dwCenterLevel, DWORD *dwSurroundL
 {
     if (dwCenterLevel) {
         *dwCenterLevel = m_settings.MixingCenterLevel;
-}
+    }
     if (dwSurroundLevel) {
         *dwSurroundLevel = m_settings.MixingSurroundLevel;
-}
+    }
     if (dwLFELevel) {
         *dwLFELevel = m_settings.MixingLFELevel;
-}
+    }
 
     return S_OK;
 }
@@ -939,11 +960,11 @@ HRESULT CLAVAudio::GetDecodeDetails(const char **pCodec, const char **pDecodeFor
                         *pCodec = DTSProfiles[index];
                     } else {
                         *pCodec = "dts";
-}
+                    }
                 }
                 else {
                     *pCodec = m_pAVCodec->name;
-}
+                }
             }
         }
         if (pnChannels)
@@ -960,7 +981,7 @@ HRESULT CLAVAudio::GetDecodeDetails(const char **pCodec, const char **pDecodeFor
                 *pDecodeFormat = get_sample_format_desc(m_DecodeFormat);
             } else {
                 *pDecodeFormat = "Not Running";
-}
+            }
         }
         if (pChannelMask)
         {
@@ -968,7 +989,7 @@ HRESULT CLAVAudio::GetDecodeDetails(const char **pCodec, const char **pDecodeFor
                 *pChannelMask = static_cast<DWORD>(m_DecodeLayout.u.mask);
             } else {
                 *pChannelMask = 0;
-}
+            }
         }
     }
     return S_OK;
@@ -1006,7 +1027,7 @@ HRESULT CLAVAudio::GetOutputDetails(const char **pOutputFormat, int *pnChannels,
             *pChannelMask = static_cast<DWORD>(m_OutputQueue.layout.u.mask);
         } else {
             *pChannelMask = 0;
-}
+        }
     }
     return S_OK;
 }
@@ -1100,7 +1121,7 @@ HRESULT CLAVAudio::GetMediaType(int iPosition, CMediaType *pMediaType)
     DWORD dwChannelMask = get_lav_channel_layout(&m_pAVCtx->ch_layout);
     if (dwChannelMask == 0) {
         dwChannelMask = get_channel_mask(nChannels);
-}
+    }
 
     AVSampleFormat sample_fmt = m_pAVCtx->sample_fmt;
     if (sample_fmt == AV_SAMPLE_FMT_NONE)
@@ -1112,12 +1133,12 @@ HRESULT CLAVAudio::GetMediaType(int iPosition, CMediaType *pMediaType)
 
         if ((ret >= 0) && (num_configs > 0) && SampleFormats) {
             sample_fmt = SampleFormats[0U];
-}
+        }
     }
 
     if (sample_fmt == AV_SAMPLE_FMT_NONE) {
         sample_fmt = AV_SAMPLE_FMT_S32; // this gets mapped to S16/S24/S32 in get_lav_sample_fmt based on the bits per sample
-}
+    }
 
     // Prefer bits_per_raw_sample if set, but if not, try to do a better guess with bits per coded sample
     int bits = m_pAVCtx->bits_per_raw_sample ? m_pAVCtx->bits_per_raw_sample : m_pAVCtx->bits_per_coded_sample;
@@ -1154,7 +1175,7 @@ HRESULT CLAVAudio::GetMediaType(int iPosition, CMediaType *pMediaType)
     // map to legacy 5.1 if user requested
     if ((dwChannelMask == AV_CH_LAYOUT_5POINT1) && m_settings.Output51Legacy) {
         dwChannelMask = AV_CH_LAYOUT_5POINT1_BACK;
-}
+    }
 
     if ((dwChannelMask == AV_CH_LAYOUT_5POINT1) && (iPosition > 1) && (iPosition < 4)) {
         dwChannelMask = AV_CH_LAYOUT_5POINT1_BACK;
@@ -1165,7 +1186,7 @@ HRESULT CLAVAudio::GetMediaType(int iPosition, CMediaType *pMediaType)
     }
     else if (iPosition > 1) {
         return VFW_S_NO_MORE_ITEMS;
-}
+    }
 
     if (iPosition % 2)
     {
@@ -1177,16 +1198,16 @@ HRESULT CLAVAudio::GetMediaType(int iPosition, CMediaType *pMediaType)
         lav_sample_fmt = GetBestAvailableSampleFormat(lav_sample_fmt, &bits, TRUE);
     }
 
-    *pMediaType = CreateMediaType(lav_sample_fmt, nSamplesPerSec, nChannels, dwChannelMask, bits);
+    *pMediaType = CreateMediaType(lav_sample_fmt, nSamplesPerSec, static_cast<WORD>(nChannels), dwChannelMask, static_cast<WORD>(bits));
     return S_OK;
 }
 
 HRESULT CLAVAudio::ReconnectOutput(long cbBuffer, CMediaType &mt)
 {
-    HRESULT hr = S_FALSE;
+    HRESULT hr{ S_FALSE };
 
-    IMemInputPin *pPin = nullptr;
-    IMemAllocator *pAllocator = nullptr;
+    IMemInputPin *pPin{ nullptr };
+    IMemAllocator *pAllocator{ nullptr };
 
     CHECK_HR(hr = m_pOutput->GetConnected()->QueryInterface(&pPin));
 
@@ -1263,8 +1284,8 @@ CMediaType CLAVAudio::CreateMediaType(LAVAudioSampleFormat outputFormat, DWORD n
     BOOL bUseExtensible{ FALSE };
 
     // non-standard mono/stereo
-    if ((dwChannelMask != 0) && (nChannels == 1 && dwChannelMask != KSAUDIO_SPEAKER_MONO ||
-                               nChannels == 2 && dwChannelMask != KSAUDIO_SPEAKER_STEREO)) {
+    if ((dwChannelMask != 0) && ((nChannels == 1 && dwChannelMask != KSAUDIO_SPEAKER_MONO) ||
+                                 (nChannels == 2 && dwChannelMask != KSAUDIO_SPEAKER_STEREO))) {
         bUseExtensible = TRUE;
     } else if (nChannels > 2) { // more then two channels
         bUseExtensible = TRUE;
@@ -1272,7 +1293,7 @@ CMediaType CLAVAudio::CreateMediaType(LAVAudioSampleFormat outputFormat, DWORD n
         bUseExtensible = TRUE;
     } else if (wfe->nSamplesPerSec > 48000) { // high sample rate
         bUseExtensible = TRUE;
-}
+    }
 
     if (bUseExtensible)
     {
@@ -1282,9 +1303,9 @@ CMediaType CLAVAudio::CreateMediaType(LAVAudioSampleFormat outputFormat, DWORD n
         if ((wBitsPerSample > 0) && (outputFormat == SampleFormat_24 || outputFormat == SampleFormat_32))
         {
             WORD wBpp = wBitsPerSample;
-            if ((outputFormat == SampleFormat_24 && wBpp <= 16) || (outputFormat == SampleFormat_32 && wBpp < 24)) {
+            if (((outputFormat == SampleFormat_24) && (wBpp <= 16)) || ((outputFormat == SampleFormat_32) && (wBpp < 24))) {
                 wBpp = 24;
-}
+            }
             wfex.Samples.wValidBitsPerSample = wBpp;
         }
         else
@@ -1316,7 +1337,7 @@ HRESULT CLAVAudio::CheckTransform(const CMediaType *mtIn, const CMediaType *mtOu
         if (!m_avBSContext && m_pAVCtx && (*mtOut != m_pOutput->CurrentMediaType()))
         {
             WAVEFORMATEX *wfex = reinterpret_cast<WAVEFORMATEX *>(mtOut->pbFormat);
-            if (wfex->nSamplesPerSec != m_pAVCtx->sample_rate)
+            if (static_cast<int>(wfex->nSamplesPerSec) != m_pAVCtx->sample_rate)
             {
                 return VFW_E_TYPE_NOT_ACCEPTED;
             }
@@ -1342,14 +1363,14 @@ HRESULT CLAVAudio::DecideBufferSize(IMemAllocator *pAllocator, ALLOCATOR_PROPERT
     pProperties->cbAlign = 1;
     pProperties->cbPrefix = 0;
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     ALLOCATOR_PROPERTIES Actual;
     if (FAILED(hr = pAllocator->SetProperties(pProperties, &Actual)))
     {
         return hr;
     }
 
-    return pProperties->cBuffers > Actual.cBuffers || pProperties->cbBuffer > Actual.cbBuffer ? E_FAIL : NOERROR;
+    return (pProperties->cBuffers > Actual.cBuffers) || (pProperties->cbBuffer > Actual.cbBuffer) ? E_FAIL : NOERROR;
 }
 
 HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID format_type, DWORD formatlen)
@@ -1376,22 +1397,22 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
         if (format_type == FORMAT_WaveFormatEx)
         {
             WAVEFORMATEX *wfein = const_cast<WAVEFORMATEX *>(reinterpret_cast<const WAVEFORMATEX *>(format));
-            ASSERT((wfein->wBitsPerSample == 8 || wfein->wBitsPerSample == 16));
-            switch (codec)
+            ASSERT(((wfein->wBitsPerSample == 8) || (wfein->wBitsPerSample == 16)));
+            switch (static_cast<int>(codec))
             {
-            case AV_CODEC_ID_PCM_QTRAW:
+            case static_cast<int>(AV_CODEC_ID_PCM_QTRAW):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_U8 : AV_CODEC_ID_PCM_S16BE;
                 break;
-            case AV_CODEC_ID_PCM_SxxBE:
+            case static_cast<int>(AV_CODEC_ID_PCM_SxxBE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_S8 : AV_CODEC_ID_PCM_S16BE;
                 break;
-            case AV_CODEC_ID_PCM_SxxLE:
+            case static_cast<int>(AV_CODEC_ID_PCM_SxxLE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_S8 : AV_CODEC_ID_PCM_S16LE;
                 break;
-            case AV_CODEC_ID_PCM_UxxBE:
+            case static_cast<int>(AV_CODEC_ID_PCM_UxxBE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_U8 : AV_CODEC_ID_PCM_U16BE;
                 break;
-            case AV_CODEC_ID_PCM_UxxLE:
+            case static_cast<int>(AV_CODEC_ID_PCM_UxxLE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_U8 : AV_CODEC_ID_PCM_U16LE;
                 break;
             }
@@ -1404,7 +1425,7 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
 
     for (int i{ 0 }; i < Codec_AudioNB; ++i)
     {
-        const codec_config_t *config = get_codec_config((LAVAudioCodec)i);
+        const codec_config_t *config = get_codec_config(static_cast<LAVAudioCodec>(i));
         bool bMatched{ false };
         for (int k{ 0 }; k < config->nCodecs; ++k)
         {
@@ -1427,7 +1448,7 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
 
         if (wfe) {
             CreateBitstreamContext(codec, wfe);
-}
+        }
     }
 
     m_pAVCodec = nullptr;
@@ -1436,21 +1457,21 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
     const char *codec_override = find_codec_override(codec);
     if (codec_override) {
         m_pAVCodec = avcodec_find_decoder_by_name(codec_override);
-}
+    }
 
     // Fallback to default
     if (!m_pAVCodec) {
         m_pAVCodec = avcodec_find_decoder(codec);
-}
+    }
     CheckPointer(m_pAVCodec, VFW_E_UNSUPPORTED_AUDIO);
 
     m_pAVCtx = avcodec_alloc_context3(m_pAVCodec);
     CheckPointer(m_pAVCtx, E_POINTER);
 
-    if ((codec != AV_CODEC_ID_AAC || m_pInput->CurrentMediaType().subtype == MEDIASUBTYPE_MPEG_ADTS_AAC) &&
+    if (((codec != AV_CODEC_ID_AAC) || (m_pInput->CurrentMediaType().subtype == MEDIASUBTYPE_MPEG_ADTS_AAC)) &&
         (codec != AV_CODEC_ID_FLAC) && (codec != AV_CODEC_ID_COOK)) {
         m_pParser = av_parser_init(codec);
-}
+    }
 
     if (codec == AV_CODEC_ID_OPUS)
     {
@@ -1511,7 +1532,7 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
                 av_freep(&extra);
                 if (FAILED(hr)) {
                     return hr;
-}
+                }
 
                 if (codec == AV_CODEC_ID_SIPR)
                 {
@@ -1598,7 +1619,7 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
         // full FLAC header
         if (ret && (AV_RL32(m_pAVCtx->extradata) == MKTAG('f','L','a','C')))
         {
-            AVDictionary *metadata = nullptr;
+            AVDictionary *metadata{ nullptr };
             int metadata_last = 0, metadata_type, metadata_size;
             std::uint8_t *header = m_pAVCtx->extradata + 4, *end = m_pAVCtx->extradata + m_pAVCtx->extradata_size;
             while ((header + 4 < end) && !metadata_last)
@@ -1607,7 +1628,7 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
                 header += 4;
                 if (header + metadata_size > end) {
                     break;
-}
+                }
                 switch (metadata_type)
                 {
                 case FLAC_METADATA_TYPE_VORBIS_COMMENT:
@@ -1649,7 +1670,7 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
         return VFW_E_UNSUPPORTED_AUDIO;
     }
 
-    m_bFindDTSInPCM = (codec == AV_CODEC_ID_PCM_S16LE && m_settings.bFormats[Codec_DTS]);
+    m_bFindDTSInPCM = ((codec == AV_CODEC_ID_PCM_S16LE) && m_settings.bFormats[Codec_DTS]);
     m_FallbackFormat = SampleFormat_None;
     av_channel_layout_uninit(&m_chOverrideMixer);
     av_channel_layout_uninit(&m_SuppressLayout);
@@ -1673,7 +1694,7 @@ HRESULT CLAVAudio::SetMediaType(PIN_DIRECTION dir, const CMediaType *pmt)
         if ((pmt->subtype == MEDIASUBTYPE_FFMPEG_AUDIO) && (pmt->formattype == FORMAT_WaveFormatExFFMPEG))
         {
             WAVEFORMATEXFFMPEG *wfexff = reinterpret_cast<WAVEFORMATEXFFMPEG *>(pmt->Format());
-            codec = (AVCodecID)wfexff->nCodecId;
+            codec = static_cast<AVCodecID>(wfexff->nCodecId);
             format = &wfexff->wfex;
             format_type = FORMAT_WaveFormatEx;
             formatlen -= sizeof(WAVEFORMATEXFFMPEG) - sizeof(WAVEFORMATEX);
@@ -1716,8 +1737,8 @@ HRESULT CLAVAudio::SetMediaType(PIN_DIRECTION dir, const CMediaType *pmt)
             return hr;
         }
 
-        m_bDVDPlayback = (pmt->majortype == MEDIATYPE_DVD_ENCRYPTED_PACK || pmt->majortype == MEDIATYPE_MPEG2_PACK ||
-                          pmt->majortype == MEDIATYPE_MPEG2_PES);
+        m_bDVDPlayback = ((pmt->majortype == MEDIATYPE_DVD_ENCRYPTED_PACK) || (pmt->majortype == MEDIATYPE_MPEG2_PACK) ||
+                          (pmt->majortype == MEDIATYPE_MPEG2_PES));
     }
     return __super::SetMediaType(dir, pmt);
 }
@@ -1729,7 +1750,7 @@ HRESULT CLAVAudio::CheckConnect(PIN_DIRECTION dir, IPin *pPin)
     {
         if (!m_bRuntimeConfig && CheckApplicationBlackList(LAVC_AUDIO_REGISTRY_KEY L"\\Blacklist")) {
             return E_FAIL;
-}
+        }
 
         // TODO: Check if the upstream source filter is LAVFSplitter, and store that somewhere
         // Validate that this is called before any media type negotiation
@@ -1757,12 +1778,12 @@ HRESULT CLAVAudio::CompleteConnect(PIN_DIRECTION dir, IPin *pReceivePin)
                 WAVEFORMATEXTENSIBLE *wfex = reinterpret_cast<WAVEFORMATEXTENSIBLE *>(wfe);
                 if ((wfex->SubFormat == MEDIASUBTYPE_IEEE_FLOAT) || (wfex->SubFormat == MEDIASUBTYPE_PCM)) {
                     bPCM = true;
-}
+                }
             }
 
             if (bPCM) {
                 BitstreamFallbackToPCM();
-}
+            }
         }
     }
     return __super::CompleteConnect(dir, pReceivePin);
@@ -1789,7 +1810,10 @@ HRESULT CLAVAudio::PerformFlush()
     FlushOutput(FALSE);
     FlushDecoder();
 
-    m_bsOutput.SetSize(0);
+    if (FAILED(m_bsOutput.SetSize(0)))
+    {
+        return E_OUTOFMEMORY;
+    }
 
     m_rtStart = 0;
     m_bQueueResync = TRUE;
@@ -1817,7 +1841,7 @@ HRESULT CLAVAudio::EndFlush()
 
     if (m_bDVDPlayback) {
         PerformFlush();
-}
+    }
 
     HRESULT const hr = __super::EndFlush();
     m_bFlushing = FALSE;
@@ -1835,7 +1859,7 @@ HRESULT CLAVAudio::NewSegment(REFERENCE_TIME tStart, REFERENCE_TIME tStop, doubl
         m_dRate = dRate;
     } else {
         m_dRate = 1.0;
-}
+    }
     return __super::NewSegment(tStart, tStop, dRate);
 }
 
@@ -1864,7 +1888,7 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
 {
     CAutoLock const cAutoLock(&m_csReceive);
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
 
     AM_SAMPLE2_PROPERTIES const *pProps = m_pInput->SampleProps();
     if (pProps->dwStreamId != AM_STREAM_MEDIA)
@@ -1896,7 +1920,7 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
         return E_FAIL;
     }
 
-    BYTE *pDataIn = nullptr;
+    BYTE *pDataIn{ nullptr };
     if (FAILED(hr = pIn->GetPointer(&pDataIn)))
     {
         return hr;
@@ -1918,7 +1942,7 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
     REFERENCE_TIME rtStart = _I64_MIN, rtStop = _I64_MIN;
     hr = pIn->GetTime(&rtStart, &rtStop);
 
-    if ((pIn->IsDiscontinuity() == S_OK || (m_bNeedSyncpoint && pIn->IsSyncPoint() == S_OK)))
+    if (((pIn->IsDiscontinuity() == S_OK) || (m_bNeedSyncpoint && pIn->IsSyncPoint() == S_OK)))
     {
         DbgLog((LOG_ERROR, 10, L"::Receive(): Discontinuity, flushing decoder.."));
         m_buff.Clear();
@@ -1945,7 +1969,7 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
         FlushOutput();
         if ((m_rtStart != AV_NOPTS_VALUE) && (rtStart != m_rtStart)) {
             m_bDiscontinuity = TRUE;
-}
+        }
 
         m_rtStart = rtStart;
         m_rtStartInputCache = AV_NOPTS_VALUE;
@@ -1966,14 +1990,20 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
     CMediaType const inMt(m_pInput->CurrentMediaType());
     if ((inMt.subtype == MEDIASUBTYPE_HDMV_LPCM_AUDIO) && (inMt.formattype == FORMAT_WaveFormatEx))
     {
-        m_buff.SetSize(bufflen + 4);
+        if (FAILED(m_buff.SetSize(bufflen + 4)))
+        {
+            return E_OUTOFMEMORY;
+        }
         BYTE *buf = m_buff.Ptr() + bufflen;
         CreateBDLPCMHeader(buf, reinterpret_cast<WAVEFORMATEX_HDMV_LPCM *>(inMt.pbFormat));
         bufflen = m_buff.GetCount();
     }
     else if ((inMt.subtype == MEDIASUBTYPE_DVD_LPCM_AUDIO) && (inMt.formattype == FORMAT_WaveFormatEx))
     {
-        m_buff.SetSize(bufflen + 3);
+        if (FAILED(m_buff.SetSize(bufflen + 3)))
+        {
+            return E_OUTOFMEMORY;
+        }
         BYTE *buf = m_buff.Ptr() + bufflen;
         CreateDVDLPCMHeader(buf, reinterpret_cast<WAVEFORMATEX *>(inMt.pbFormat));
         bufflen = m_buff.GetCount();
@@ -1988,14 +2018,17 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
         return E_FAIL;
     }
 
-    m_buff.Allocate(bufflen + len + AV_INPUT_BUFFER_PADDING_SIZE);
-    m_buff.Append(pDataIn, len);
+    if (FAILED(m_buff.Allocate(bufflen + len + AV_INPUT_BUFFER_PADDING_SIZE)) ||
+        FAILED(m_buff.Append(pDataIn, len)))
+    {
+        return E_OUTOFMEMORY;
+    }
 
     hr = ProcessBuffer(pIn);
 
     if (FAILED(hr)) {
         return hr;
-}
+    }
 
     return S_OK;
 }
@@ -2009,11 +2042,11 @@ static int check_mpegaudio_header(std::uint8_t *buf, std::uint32_t *retheader)
 
     if (avpriv_mpegaudio_decode_header(&sd, header) != 0) {
         return -1;
-}
+    }
 
     if (retheader) {
         *retheader = header;
-}
+    }
 
     return sd.frame_size;
 }
@@ -2066,12 +2099,12 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
         if (m_bFindDTSInPCM)
         {
             int i = 0, count = 0;
-            std::uint32_t state = -1;
+            std::uint32_t state = static_cast<std::uint32_t>(-1);
             for (i = 0; i < buffer_size; ++i)
             {
                 state = (state << 8) | p[i];
-                if ((state == DCA_MARKER_14B_LE && (i < buffer_size - 2) && (p[i + 1] & 0xF0) == 0xF0 &&
-                     p[i + 2] == 0x07) ||
+                if (((state == DCA_MARKER_14B_LE) && (i < buffer_size - 2) && ((p[i + 1] & 0xF0) == 0xF0) &&
+                     (p[i + 2] == 0x07)) ||
                     (state == DCA_MARKER_14B_BE && (i < buffer_size - 2) && p[i + 1] == 0x07 &&
                      (p[i + 2] & 0xF0) == 0xF0) ||
                     (state == DCA_MARKER_RAW_LE) || (state == DCA_MARKER_RAW_BE))
@@ -2099,7 +2132,7 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
             {
                 if (m_rtStartInputCache == AV_NOPTS_VALUE) {
                     m_rtStartInputCache = m_rtStartInput;
-}
+                }
                 return S_FALSE;
             }
 
@@ -2114,7 +2147,6 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
             std::uint16_t const word2 = AV_RL16(p + 2);
             if ((word1 == SYNCWORD1) && (word2 == SYNCWORD2))
             {
-                std::uint16_t const type = AV_RL16(p + 4);
                 int const spdif_buffer_size = AV_RL16(p + 6) >> 3;
 
                 p += BURST_HEADER_SIZE;
@@ -2134,7 +2166,10 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
 
                 // adjust buffer size to strip off spdif padding
                 consumed_header = BURST_HEADER_SIZE;
-                m_buff.SetSize(buffer_size + BURST_HEADER_SIZE);
+                if (FAILED(m_buff.SetSize(buffer_size + BURST_HEADER_SIZE)))
+                {
+                    return E_OUTOFMEMORY;
+                }
             }
         }
 
@@ -2142,7 +2177,7 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
         {
             if (ResyncMPEGAudio() != S_OK) {
                 return S_FALSE;
-}
+            }
 
             m_bMPEGAudioResync = FALSE;
             return ProcessBuffer(pMediaSample, FALSE);
@@ -2232,23 +2267,23 @@ static DWORD get_lav_channel_layout(AVChannelLayout *layout)
     {
         if (mask & AV_CH_WIDE_LEFT) {
             mask = (mask & ~AV_CH_WIDE_LEFT) | AV_CH_FRONT_LEFT_OF_CENTER;
-}
+        }
         if (mask & AV_CH_WIDE_RIGHT) {
             mask = (mask & ~AV_CH_WIDE_RIGHT) | AV_CH_FRONT_RIGHT_OF_CENTER;
-}
+        }
 
         if (mask & AV_CH_SURROUND_DIRECT_LEFT) {
             mask = (mask & ~AV_CH_SURROUND_DIRECT_LEFT) | AV_CH_SIDE_LEFT;
-}
+        }
         if (mask & AV_CH_SURROUND_DIRECT_RIGHT) {
             mask = (mask & ~AV_CH_SURROUND_DIRECT_RIGHT) | AV_CH_SIDE_RIGHT;
-}
+        }
     }
 
     // sanity check
     if ((av_popcount64(mask) != layout->nb_channels) || (mask > DWORD_MAX)) {
         return 0;
-}
+    }
 
     return static_cast<DWORD>(mask);
 }
@@ -2256,17 +2291,16 @@ static DWORD get_lav_channel_layout(AVChannelLayout *layout)
 HRESULT CLAVAudio::Decode(const BYTE *pDataBuffer, int buffsize, int &consumed, HRESULT *hrDeliver,
                           IMediaSample *pMediaSample)
 {
-    int got_frame{ 0 };
-    BYTE *tmpProcessBuf = nullptr;
-    HRESULT hr = S_FALSE;
+    BYTE *tmpProcessBuf{ nullptr };
+    HRESULT hr{ S_FALSE };
 
     BOOL const bFlush = (pDataBuffer == nullptr);
 
     if (m_pDecodePacket == nullptr) {
         m_pDecodePacket = av_packet_alloc();
-}
+    }
 
-    const MediaSideDataFFMpeg *pFFSideData = nullptr;
+    const MediaSideDataFFMpeg *pFFSideData{ nullptr };
 
     if (!bFlush &&
         (m_raData.deint_id == MKBETAG('g', 'e', 'n', 'r') || m_raData.deint_id == MKBETAG('s', 'i', 'p', 'r')))
@@ -2309,7 +2343,7 @@ HRESULT CLAVAudio::Decode(const BYTE *pDataBuffer, int buffsize, int &consumed, 
         {
             if (m_rtStartInputCache == AV_NOPTS_VALUE) {
                 m_rtStartInputCache = m_rtStartInput;
-}
+            }
             return S_FALSE;
         }
     }
@@ -2324,7 +2358,7 @@ HRESULT CLAVAudio::Decode(const BYTE *pDataBuffer, int buffsize, int &consumed, 
 
     if (pMediaSample)
     {
-        IMediaSideData *pSideData = nullptr;
+        IMediaSideData *pSideData{ nullptr };
         if (SUCCEEDED(pMediaSample->QueryInterface(&pSideData)))
         {
             std::size_t nFFSideDataSize{ 0U };
@@ -2342,14 +2376,13 @@ HRESULT CLAVAudio::Decode(const BYTE *pDataBuffer, int buffsize, int &consumed, 
     consumed = 0;
     while ((buffsize > 0) || bFlush)
     {
-        got_frame = 0;
         if (bFlush) {
             buffsize = 0;
-}
+        }
 
         if (m_pParser)
         {
-            BYTE *pOut = nullptr;
+            BYTE *pOut{ nullptr };
             int pOut_size{ 0 };
             int const used_bytes = av_parser_parse2(m_pParser, m_pAVCtx, &pOut, &pOut_size, pDataBuffer, buffsize,
                                               AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
@@ -2481,7 +2514,7 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             return S_OK;
         } else if (ret < 0) {
             return E_FAIL;
-}
+        }
 
         // Send current input time to the delivery function
         out.rtStart = m_pFrame->pts;
@@ -2496,7 +2529,7 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             DWORD const dwMask = get_channel_mask(out.layout.nb_channels);
             if (dwMask > 0) {
                 av_channel_layout_from_mask(&out.layout, dwMask);
-}
+            }
         }
 
         out.nSamples = m_pFrame->nb_samples;
@@ -2517,36 +2550,51 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
         switch (m_pAVCtx->sample_fmt)
         {
         case AV_SAMPLE_FMT_U8:
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             out.sfFormat = SampleFormat_U8;
             break;
         case AV_SAMPLE_FMT_S16:
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             out.sfFormat = SampleFormat_16;
             break;
         case AV_SAMPLE_FMT_S32:
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             out.sfFormat = SampleFormat_32;
-            out.wBitsPerSample = m_pAVCtx->bits_per_raw_sample;
+            out.wBitsPerSample = static_cast<WORD>(m_pAVCtx->bits_per_raw_sample);
             break;
         case AV_SAMPLE_FMT_FLT:
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             out.sfFormat = SampleFormat_FP32;
             break;
         case AV_SAMPLE_FMT_DBL: {
-            out.bBuffer->Allocate(dwPCMSizeAligned / 2);
-            out.bBuffer->SetSize(dwPCMSize / 2);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned / 2)) || FAILED(out.bBuffer->SetSize(dwPCMSize / 2)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             float *pDataOut = reinterpret_cast<float *>((out.bBuffer->Ptr()));
 
             for (std::size_t i{ 0U }; i < out.nSamples; ++i)
             {
                 for (int ch{ 0 }; ch < out.layout.nb_channels; ++ch)
                 {
-                    *pDataOut = static_cast<float>(((double *)m_pFrame->data[0U])[ch + i * m_pAVCtx->ch_layout.nb_channels]);
+                    *pDataOut = static_cast<float>((reinterpret_cast<double *>(m_pFrame->data[0U]))[ch + i * m_pAVCtx->ch_layout.nb_channels]);
                     ++pDataOut;
                 }
             }
@@ -2555,8 +2603,11 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             break;
         // Planar Formats
         case AV_SAMPLE_FMT_U8P: {
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->SetSize(dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->SetSize(dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             std::uint8_t *pOut = reinterpret_cast<std::uint8_t *>((out.bBuffer->Ptr()));
 
             for (std::size_t i{ 0U }; i < out.nSamples; ++i)
@@ -2570,8 +2621,11 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             out.sfFormat = SampleFormat_U8;
             break;
         case AV_SAMPLE_FMT_S16P: {
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->SetSize(dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->SetSize(dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             std::int16_t *pOut = reinterpret_cast<std::int16_t *>((out.bBuffer->Ptr()));
 
             for (std::size_t i{ 0U }; i < out.nSamples; ++i)
@@ -2585,8 +2639,11 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             out.sfFormat = SampleFormat_16;
             break;
         case AV_SAMPLE_FMT_S32P: {
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->SetSize(dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->SetSize(dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             std::int32_t *pOut = reinterpret_cast<std::int32_t *>((out.bBuffer->Ptr()));
 
             for (std::size_t i{ 0U }; i < out.nSamples; ++i)
@@ -2598,11 +2655,14 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             }
         }
             out.sfFormat = SampleFormat_32;
-            out.wBitsPerSample = m_pAVCtx->bits_per_raw_sample;
+            out.wBitsPerSample = static_cast<WORD>(m_pAVCtx->bits_per_raw_sample);
             break;
         case AV_SAMPLE_FMT_FLTP: {
-            out.bBuffer->Allocate(dwPCMSizeAligned);
-            out.bBuffer->SetSize(dwPCMSize);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->SetSize(dwPCMSize)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             float *pOut = reinterpret_cast<float *>((out.bBuffer->Ptr()));
 
             for (std::size_t i{ 0U }; i < out.nSamples; ++i)
@@ -2616,15 +2676,18 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             out.sfFormat = SampleFormat_FP32;
             break;
         case AV_SAMPLE_FMT_DBLP: {
-            out.bBuffer->Allocate(dwPCMSizeAligned / 2);
-            out.bBuffer->SetSize(dwPCMSize / 2);
+            if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned / 2)) || FAILED(out.bBuffer->SetSize(dwPCMSize / 2)))
+            {
+                av_frame_unref(m_pFrame);
+                return E_OUTOFMEMORY;
+            }
             float *pOut = reinterpret_cast<float *>((out.bBuffer->Ptr()));
 
             for (std::size_t i{ 0U }; i < out.nSamples; ++i)
             {
                 for (int ch{ 0 }; ch < out.layout.nb_channels; ++ch)
                 {
-                    *pOut++ = static_cast<float>(((double *)m_pFrame->extended_data[ch])[i]);
+                    *pOut++ = static_cast<float>((reinterpret_cast<double *>(m_pFrame->extended_data[ch]))[i]);
                 }
             }
         }
@@ -2634,7 +2697,7 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
         }
         av_frame_unref(m_pFrame);
 
-        m_DecodeFormat = out.sfFormat == SampleFormat_32 && out.wBitsPerSample > 0 && out.wBitsPerSample <= 24
+        m_DecodeFormat = (out.sfFormat == SampleFormat_32) && (out.wBitsPerSample > 0) && (out.wBitsPerSample <= 24)
                              ? (out.wBitsPerSample <= 16 ? SampleFormat_16 : SampleFormat_24)
                              : out.sfFormat;
         av_channel_layout_copy(&m_DecodeLayout, &out.layout);
@@ -2654,7 +2717,7 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
 
 HRESULT CLAVAudio::GetDeliveryBuffer(IMediaSample **pSample, BYTE **pData)
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
 
     *pData = nullptr;
     if ((FAILED(hr = m_pOutput->GetDeliveryBuffer(pSample, nullptr, nullptr, 0))) ||
@@ -2663,7 +2726,7 @@ HRESULT CLAVAudio::GetDeliveryBuffer(IMediaSample **pSample, BYTE **pData)
         return hr;
     }
 
-    AM_MEDIA_TYPE *pmt = nullptr;
+    AM_MEDIA_TYPE *pmt{ nullptr };
     if ((SUCCEEDED((*pSample)->GetMediaType(&pmt))) && pmt)
     {
         CMediaType const mt = *pmt;
@@ -2677,7 +2740,7 @@ HRESULT CLAVAudio::GetDeliveryBuffer(IMediaSample **pSample, BYTE **pData)
 
 HRESULT CLAVAudio::QueueOutput(BufferDetails &buffer)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     if ((av_channel_layout_compare(&m_OutputQueue.layout, &buffer.layout) != 0) ||
         (m_OutputQueue.sfFormat != buffer.sfFormat) ||
         (m_OutputQueue.dwSamplesPerSec != buffer.dwSamplesPerSec) ||
@@ -2685,7 +2748,7 @@ HRESULT CLAVAudio::QueueOutput(BufferDetails &buffer)
     {
         if (m_OutputQueue.nSamples > 0) {
             FlushOutput();
-}
+        }
 
         m_OutputQueue.sfFormat = buffer.sfFormat;
         av_channel_layout_copy(&m_OutputQueue.layout, &buffer.layout);
@@ -2696,9 +2759,9 @@ HRESULT CLAVAudio::QueueOutput(BufferDetails &buffer)
     if (m_OutputQueue.nSamples == 0) {
         m_OutputQueue.rtStart = buffer.rtStart;
     } else if ((m_OutputQueue.rtStart == AV_NOPTS_VALUE) && (buffer.rtStart != AV_NOPTS_VALUE)) {
-        m_OutputQueue.rtStart = buffer.rtStart - static_cast<REFERENCE_TIME>(((double)m_OutputQueue.nSamples /
+        m_OutputQueue.rtStart = buffer.rtStart - static_cast<REFERENCE_TIME>((static_cast<double>(m_OutputQueue.nSamples) /
                                                                   m_OutputQueue.dwSamplesPerSec * 10000000.0));
-}
+    }
 
     // Try to retain the buffer, if possible
     if (m_OutputQueue.nSamples == 0)
@@ -2707,11 +2770,18 @@ HRESULT CLAVAudio::QueueOutput(BufferDetails &buffer)
     }
     else
     {
-        m_OutputQueue.bBuffer->Append(buffer.bBuffer);
+        hr = m_OutputQueue.bBuffer->Append(buffer.bBuffer);
+        if (FAILED(hr))
+        {
+            return hr;
+        }
     }
     m_OutputQueue.nSamples += buffer.nSamples;
 
-    buffer.bBuffer->SetSize(0);
+    if (FAILED(buffer.bBuffer->SetSize(0)))
+    {
+        return E_OUTOFMEMORY;
+    }
     buffer.nSamples = 0;
 
     // Length of the current sample
@@ -2731,14 +2801,17 @@ HRESULT CLAVAudio::FlushOutput(BOOL bDeliver)
 {
     CAutoLock const cAutoLock(&m_csReceive);
 
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     if (bDeliver && (m_OutputQueue.nSamples > 0)) {
         hr = Deliver(m_OutputQueue);
-}
+    }
 
     // Clear Queue
     m_OutputQueue.nSamples = 0;
-    m_OutputQueue.bBuffer->SetSize(0);
+    if (FAILED(m_OutputQueue.bBuffer->SetSize(0)))
+    {
+        return E_OUTOFMEMORY;
+    }
     m_OutputQueue.rtStart = AV_NOPTS_VALUE;
 
     return hr;
@@ -2746,11 +2819,11 @@ HRESULT CLAVAudio::FlushOutput(BOOL bDeliver)
 
 HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (m_bFlushing) { return S_FALSE; }
 
-    CMediaType mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, buffer.layout.nb_channels,
+    CMediaType mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, static_cast<WORD>(buffer.layout.nb_channels),
                                     static_cast<DWORD>(buffer.layout.u.mask),
                                     buffer.wBitsPerSample);
     WAVEFORMATEX *wfe = reinterpret_cast<WAVEFORMATEX *>(mt.Format());
@@ -2762,7 +2835,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
     }
 
     IMediaSample *pOut;
-    BYTE *pDataOut = nullptr;
+    BYTE *pDataOut{ nullptr };
     if (FAILED(GetDeliveryBuffer(&pOut, &pDataOut)))
     {
         return E_FAIL;
@@ -2837,7 +2910,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
         {
             if (buffer.sfFormat != SampleFormat_16)
             {
-                mt = CreateMediaType(SampleFormat_16, buffer.dwSamplesPerSec, buffer.layout.nb_channels, static_cast<DWORD>(buffer.layout.u.mask),
+                mt = CreateMediaType(SampleFormat_16, buffer.dwSamplesPerSec, static_cast<WORD>(buffer.layout.nb_channels), static_cast<DWORD>(buffer.layout.u.mask),
                                      16);
                 hr = m_pOutput->GetConnected()->QueryAccept(&mt);
                 if (hr == S_OK)
@@ -2852,7 +2925,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
             {
                 DbgLog((LOG_TRACE, 1, L"-> Trying to fallback to 5.1 back"));
                 buffer.layout.u.mask = AV_CH_LAYOUT_5POINT1_BACK;
-                mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, buffer.layout.nb_channels,
+                mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, static_cast<WORD>(buffer.layout.nb_channels),
                                      static_cast<DWORD>(buffer.layout.u.mask),
                                      buffer.wBitsPerSample);
                 goto retry_qa;
@@ -2872,7 +2945,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
                     hr = m_pOutput->GetConnected()->QueryAccept(&mt);
                     if (hr == S_OK) {
                         m_FallbackFormat = SampleFormat_16;
-}
+                    }
                 }
 
                 if (hr == S_OK)
@@ -2911,7 +2984,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
                         hr = m_pOutput->GetConnected()->QueryAccept(&mt);
                         if (hr == S_OK) {
                             m_FallbackFormat = SampleFormat_16;
-}
+                        }
                     }
                     if (hr == S_OK)
                     {

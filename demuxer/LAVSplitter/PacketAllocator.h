@@ -56,8 +56,8 @@ class CMediaPacketSample
     STDMETHODIMP GetSideData(GUID guidType, const BYTE **pData, std::size_t *pSize);
 
   protected:
-    Packet *m_pPacket = nullptr;
-    MediaSideDataFFMpeg *m_pSideData = nullptr;
+    Packet *m_pPacket{ nullptr };
+    MediaSideDataFFMpeg *m_pSideData{ nullptr };
 };
 
 class CPacketAllocator

@@ -42,7 +42,7 @@ DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
     __m128i const mask = _mm_setr_epi8(4, 5, 2, 3, 0, 1, -1, -1, 10, 11, 8, 9, 6, 7, -1, -1);
@@ -61,7 +61,7 @@ DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm5 = xmm6 = xmm7;
         }
         for (i = 0; i < processWidth; i += 24)
@@ -115,11 +115,11 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 2, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     __m128i xmm0, xmm1, xmm6, xmm7;
 
-    std::uint8_t *rgb24buffer = nullptr;
+    std::uint8_t *rgb24buffer{ nullptr };
     if (out32)
     {
         rgb24buffer = reinterpret_cast<std::uint8_t *>(av_malloc(outStride + AV_INPUT_BUFFER_PADDING_SIZE));
@@ -133,7 +133,7 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
     _mm_sfence();
     for (line = 0; line < height; ++line)
     {
-        __m128i *dst128 = nullptr;
+        __m128i *dst128{ nullptr };
         if (out32)
         {
             dst128 = reinterpret_cast<__m128i *>(rgb24buffer);
@@ -151,7 +151,7 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm6 = xmm7;
         }
         for (i = 0; i < processWidth; i += 16)
@@ -190,7 +190,7 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
 
     if (out32) {
         av_freep(&rgb24buffer);
-}
+    }
     av_freep(&dstBS[0U]);
 
     return S_OK;

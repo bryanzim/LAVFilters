@@ -526,7 +526,7 @@ static struct
         {"Zaza", "zza", nullptr},
         {nullptr, nullptr, nullptr},
         {"No subtitles", "---", nullptr, nullptr, (LCID)LCID_NOSUBTITLES},
-};
+    };
 
 std::string ISO6391ToLanguage(LPCSTR code)
 {
@@ -538,11 +538,11 @@ std::string ISO6391ToLanguage(LPCSTR code)
     {
         if (s_isolangs[i].iso6391 && !std::strcmp(s_isolangs[i].iso6391, tmp))
         {
-            std::string ret = std::string(s_isolangs[i].name);
-            std::size_t const i = ret.find(';');
-            if (i != std::string::npos)
+            std::string ret{ s_isolangs[i].name };
+            std::size_t const semi = ret.find(';');
+            if (semi != std::string::npos)
             {
-                ret = ret.substr(0, i);
+                ret = ret.substr(0, semi);
             }
             return ret;
         }
@@ -561,11 +561,11 @@ std::string ISO6392ToLanguage(LPCSTR code)
         if ((s_isolangs[i].iso6392 && !std::strcmp(s_isolangs[i].iso6392, tmp)) ||
             (s_isolangs[i].iso6392_2 && !std::strcmp(s_isolangs[i].iso6392_2, tmp)))
         {
-            std::string ret = std::string(s_isolangs[i].name);
-            std::size_t const i = ret.find(';');
-            if (i != std::string::npos)
+            std::string ret{ s_isolangs[i].name };
+            std::size_t const semi = ret.find(';');
+            if (semi != std::string::npos)
             {
-                ret = ret.substr(0, i);
+                ret = ret.substr(0, semi);
             }
             return ret;
         }
@@ -642,7 +642,7 @@ std::string ProbeForISO6392(LPCSTR lang)
     }
     if (isoLang.empty()) {
         isoLang = std::string(lang);
-}
+    }
     return isoLang;
 }
 

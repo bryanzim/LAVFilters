@@ -59,30 +59,30 @@ class CLAVVideoSettingsProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVVideoSettings *m_pVideoSettings = nullptr;
-    ILAVVideoStatus *m_pVideoStatus = nullptr;
+    ILAVVideoSettings *m_pVideoSettings{ nullptr };
+    ILAVVideoStatus *m_pVideoStatus{ nullptr };
 
-    DWORD m_dwNumThreads;
-    DWORD m_StreamAR;
-    DWORD m_DeintFieldOrder;
+    DWORD m_dwNumThreads{ 0U };
+    DWORD m_StreamAR{ 0U };
+    DWORD m_DeintFieldOrder{ 0U };
     LAVDeintMode m_DeintMode;
-    DWORD m_dwRGBOutput;
+    DWORD m_dwRGBOutput{ 0U };
 
     std::array<BOOL, LAVOutPixFmt_NB> m_bPixFmts{};
-    DWORD m_HWAccel;
+    DWORD m_HWAccel{ 0U };
     std::array<BOOL, HWCodec_NB> m_HWAccelCodecs{};
-    BOOL m_HWAccelCUVIDDXVA;
+    BOOL m_HWAccelCUVIDDXVA{ FALSE };
 
-    DWORD m_HWRes;
-    DWORD m_HWDeviceIndex;
+    DWORD m_HWRes{ 0U };
+    DWORD m_HWDeviceIndex{ 0U };
 
-    DWORD m_HWDeintAlgo;
-    DWORD m_HWDeintOutMode;
+    DWORD m_HWDeintAlgo{ 0U };
+    DWORD m_HWDeintOutMode{ 0U };
     LAVSWDeintModes m_SWDeint;
-    DWORD m_SWDeintOutMode;
+    DWORD m_SWDeintOutMode{ 0U };
 
-    DWORD m_DitherMode;
-    BOOL m_TrayIcon;
+    DWORD m_DitherMode{ 0U };
+    BOOL m_TrayIcon{ FALSE };
 };
 
 class CLAVVideoFormatsProp : public CBaseDSPropPage
@@ -110,9 +110,9 @@ class CLAVVideoFormatsProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVVideoSettings *m_pVideoSettings = nullptr;
+    ILAVVideoSettings *m_pVideoSettings{ nullptr };
 
     std::array<BOOL, Codec_VideoNB> m_bFormats{};
-    BOOL m_bWMVDMO;
-    BOOL m_bDVD;
+    BOOL m_bWMVDMO{ FALSE };
+    BOOL m_bDVD{ FALSE };
 };

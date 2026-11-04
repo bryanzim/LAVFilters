@@ -75,11 +75,11 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVFormatContext *avctx, AVStr
             }
             if (!avstream->codecpar->sample_rate) {
                 avstream->codecpar->sample_rate = 48000;
-}
+            }
         }
         else {
             return E_FAIL;
-}
+        }
     }
 
     // use the variant bitrate for the stream if only one stream is available (applies to some radio streams)
@@ -88,7 +88,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVFormatContext *avctx, AVStr
         AVDictionaryEntry *dict = av_dict_get(avstream->metadata, "variant_bitrate", nullptr, 0);
         if (dict && (dict->value)) {
             avstream->codecpar->bit_rate = std::atoi(dict->value);
-}
+        }
     }
 
     CMediaType mtype =
@@ -97,7 +97,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVFormatContext *avctx, AVStr
     // The Raw PCM type is used for PCM streams which do not already have their own Extensible header
     // If the codec_tag already equals extensible, it'll be used copied as-is and we assume a valid extensible header
     // exists in extradata
-    bool const bUseRawPCMType = (mtype.subtype == MEDIASUBTYPE_PCM || mtype.subtype == MEDIASUBTYPE_IEEE_FLOAT) &&
+    bool const bUseRawPCMType = ((mtype.subtype == MEDIASUBTYPE_PCM) || (mtype.subtype == MEDIASUBTYPE_IEEE_FLOAT)) &&
                           (avstream->codecpar->codec_tag != WAVE_FORMAT_EXTENSIBLE || avstream->codecpar->extradata_size < 22);
 
     if (mtype.formattype == FORMAT_WaveFormatEx)
@@ -200,7 +200,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVFormatContext *avctx, AVStr
     {
         // With Matroska and Ogg we know how to split up the extradata
         // and put it into a VorbisFormat2
-        if ((m_containerFormat == "matroska" || m_containerFormat == "ogg") && (avstream->codecpar->extradata_size > 0))
+        if (((m_containerFormat == "matroska") || (m_containerFormat == "ogg")) && (avstream->codecpar->extradata_size > 0))
         {
             BYTE *vorbis2 = reinterpret_cast<BYTE *>(g_AudioHelper.CreateVorbis2(avstream, &mtype.cbFormat));
             if (vorbis2)
@@ -228,7 +228,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVFormatContext *avctx, AVStr
         ff_mtype.pbFormat = reinterpret_cast<BYTE *>(g_AudioHelper.CreateWFMTEX_RAW_PCM_FF(avstream, &ff_mtype.cbFormat, mtype.subtype, &ff_mtype.lSampleSize));
     } else {
         ff_mtype.pbFormat = reinterpret_cast<BYTE *>(g_AudioHelper.CreateWVFMTEX_FF(avstream, &ff_mtype.cbFormat));
-}
+    }
     mtypes.push_back(ff_mtype);
 
     return S_OK;
@@ -236,7 +236,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVFormatContext *avctx, AVStr
 
 static bool h264_is_annexb(std::string format, AVStream *avstream)
 {
-    ASSERT((avstream->codecpar->codec_id == AV_CODEC_ID_H264 || avstream->codecpar->codec_id == AV_CODEC_ID_H264_MVC));
+    ASSERT(((avstream->codecpar->codec_id == AV_CODEC_ID_H264) || (avstream->codecpar->codec_id == AV_CODEC_ID_H264_MVC)));
     if (avstream->codecpar->extradata_size < 4) { return true; }
     if (avstream->codecpar->extradata[0U] == 1) { return false; }
     if (format == "avi")
@@ -245,11 +245,11 @@ static bool h264_is_annexb(std::string format, AVStream *avstream)
         unsigned const startcode = AV_RB32(src);
         if ((startcode == 0x00000001) || ((startcode & 0xffffff00) == 0x00000100)) {
             return true;
-}
+        }
         if ((avstream->codecpar->codec_tag == MKTAG('A', 'V', 'C', '1')) ||
             (avstream->codecpar->codec_tag == MKTAG('a', 'v', 'c', '1'))) {
             return false;
-}
+        }
     }
     return true;
 }
@@ -271,7 +271,7 @@ static bool hevc_is_annexb(std::string format, AVStream *avstream)
 static int get_vpcC_chroma(AVCodecParameters *codecpar)
 {
     int chroma_w = 0, chroma_h = 0;
-    if (av_pix_fmt_get_chroma_sub_sample((AVPixelFormat)codecpar->format, &chroma_w, &chroma_h) == 0)
+    if (av_pix_fmt_get_chroma_sub_sample(static_cast<AVPixelFormat>(codecpar->format), &chroma_w, &chroma_h) == 0)
     {
         if ((chroma_w == 1) && (chroma_h == 1))
         {
@@ -335,7 +335,6 @@ static int chroma_y(AVPixelFormat pix_fmt)
 
 STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStream *avstream)
 {
-    unsigned int const origCodecTag = avstream->codecpar->codec_tag;
     if ((avstream->codecpar->codec_tag == 0) && (avstream->codecpar->codec_id != AV_CODEC_ID_DVVIDEO))
     {
         avstream->codecpar->codec_tag = av_codec_get_tag(mp_bmp_taglists, avstream->codecpar->codec_id);
@@ -369,7 +368,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
         {
             if (std::strcmp(mkvCodecId->value, "V_MS/VFW/FOURCC") != 0) {
                 mtype.formattype = FORMAT_MPEG2Video;
-}
+            }
         }
     }
 
@@ -378,6 +377,13 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
     AVRational const rc = avstream->codecpar->sample_aspect_ratio;
     if ((mtype.formattype == FORMAT_VideoInfo) && ((r.den > 0 && r.num > 0 && (r.den > 1 || r.num > 1)) ||
                                                  (rc.den > 0 && rc.num > 0 && (rc.den > 1 || rc.num > 1))))
+    {
+        mtype.formattype = FORMAT_VideoInfo2;
+    }
+
+    // Uncompressed video carries its field order in the container, so retain it in a VideoInfo2 header.
+    if (((avstream->codecpar->codec_id == AV_CODEC_ID_V210) || (avstream->codecpar->codec_id == AV_CODEC_ID_RAWVIDEO)) &&
+        (avstream->codecpar->field_order > AV_FIELD_PROGRESSIVE))
     {
         mtype.formattype = FORMAT_VideoInfo2;
     }
@@ -421,14 +427,14 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
             AV_WB32(extra, MKBETAG('v', 'p', 'c', 'C'));
             AV_WB8(extra + 4, 1);  // version
             AV_WB24(extra + 5, 0); // flags
-            AV_WB8(extra + 8, avstream->codecpar->profile);
-            AV_WB8(extra + 9, avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level);
-            AV_WB8(extra + 10, get_pixel_bitdepth((AVPixelFormat)avstream->codecpar->format) << 4 |
+            AV_WB8(extra + 8, static_cast<std::uint8_t>(avstream->codecpar->profile));
+            AV_WB8(extra + 9, static_cast<std::uint8_t>(avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level));
+            AV_WB8(extra + 10, static_cast<std::uint8_t>(get_pixel_bitdepth(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 4 |
                                    get_vpcC_chroma(avstream->codecpar) << 1 |
-                                   (avstream->codecpar->color_range == AVCOL_RANGE_JPEG));
-            AV_WB8(extra + 11, avstream->codecpar->color_primaries);
-            AV_WB8(extra + 12, avstream->codecpar->color_trc);
-            AV_WB8(extra + 13, avstream->codecpar->color_space);
+                                   (avstream->codecpar->color_range == AVCOL_RANGE_JPEG)));
+            AV_WB8(extra + 11, static_cast<std::uint8_t>(avstream->codecpar->color_primaries));
+            AV_WB8(extra + 12, static_cast<std::uint8_t>(avstream->codecpar->color_trc));
+            AV_WB8(extra + 13, static_cast<std::uint8_t>(avstream->codecpar->color_space));
             AV_WB16(extra + 14, 0); // no codec init data
         }
         else if (mtype.subtype == MEDIASUBTYPE_AV01)
@@ -436,7 +442,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
             VIDEOINFOHEADER2 *vih2 = reinterpret_cast<VIDEOINFOHEADER2 *>(mtype.pbFormat);
 
             // check if extradata is missing, and we have some basic information to share
-            if ((vih2->bmiHeader.biSize <= sizeof(BITMAPINFOHEADER) + 4 || ((mtype.pbFormat + sizeof(VIDEOINFOHEADER2))[0U] != 0x81)) && (avstream->codecpar->profile != AV_PROFILE_UNKNOWN))
+            if (((vih2->bmiHeader.biSize <= sizeof(BITMAPINFOHEADER) + 4) || ((mtype.pbFormat + sizeof(VIDEOINFOHEADER2))[0U] != 0x81)) && (avstream->codecpar->profile != AV_PROFILE_UNKNOWN))
             {
                 // if not, generate some
                 mtype.ReallocFormatBuffer(sizeof(VIDEOINFOHEADER2) + 4);
@@ -445,18 +451,18 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
 
                 BYTE *extra = mtype.pbFormat + sizeof(VIDEOINFOHEADER2);
                 AV_WB8(extra, 0x81);  // version
-                AV_WB8(extra + 1, (avstream->codecpar->profile == AV_PROFILE_UNKNOWN ? 0 : avstream->codecpar->profile) << 5 |
-                                      (avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level));
+                AV_WB8(extra + 1, static_cast<std::uint8_t>((avstream->codecpar->profile == AV_PROFILE_UNKNOWN ? 0 : avstream->codecpar->profile) << 5 |
+                                      (avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level)));
 
-                int const bpp = get_pixel_bitdepth((AVPixelFormat)avstream->codecpar->format);
-                AV_WB8(extra + 2, (0 << 7) | // seq_tier
+                int const bpp = get_pixel_bitdepth(static_cast<AVPixelFormat>(avstream->codecpar->format));
+                AV_WB8(extra + 2, static_cast<std::uint8_t>((0 << 7) | // seq_tier
                                   ((bpp > 8) << 6) | // high_bitdepth
                                   ((bpp == 12) << 5) | // twelve bit
-                                  (is_monochrome((AVPixelFormat)avstream->codecpar->format) << 4) | // monochrome
-                                  (chroma_x((AVPixelFormat)avstream->codecpar->format) << 3) |
-                                  (chroma_y((AVPixelFormat)avstream->codecpar->format) << 2) |
+                                  (is_monochrome(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 4) | // monochrome
+                                  (chroma_x(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 3) |
+                                  (chroma_y(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 2) |
                                   (0 << 1) // chroma  sample position
-                    );
+                    ));
 
                 AV_WB8(extra + 3, 0); // reserved, unusued fields
             }
@@ -481,7 +487,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
                 mtype.subtype = MEDIASUBTYPE_AVC1;
                 if (mp2vi->dwFlags == 0) {
                     mp2vi->dwFlags = 4;
-}
+                }
             }
             mp2vi->hdr.bmiHeader.biCompression = mtype.subtype.Data1;
 
@@ -494,8 +500,8 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
                 mtype.subtype = MEDIASUBTYPE_AVC1;
                 mtype.pbFormat =
                     reinterpret_cast<BYTE *>(g_VideoHelper.CreateMPEG2VI(avstream, &mtype.cbFormat, m_containerFormat, TRUE));
-                MPEG2VIDEOINFO *mp2vi = reinterpret_cast<MPEG2VIDEOINFO *>(mtype.pbFormat);
-                mp2vi->hdr.bmiHeader.biCompression = mtype.subtype.Data1;
+                MPEG2VIDEOINFO *avc1vi = reinterpret_cast<MPEG2VIDEOINFO *>(mtype.pbFormat);
+                avc1vi->hdr.bmiHeader.biCompression = mtype.subtype.Data1;
             }
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_HEVC)
@@ -622,17 +628,17 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
                 // update stream profile/level appropriately
                 if (mp2vi->dwProfile != 0) {
                     avstream->codecpar->profile = mp2vi->dwProfile;
-}
+                }
                 if (mp2vi->dwLevel != 0) {
                     avstream->codecpar->level = mp2vi->dwLevel;
-}
+                }
             }
         }
     }
 
     if (avstream->codecpar->codec_id == AV_CODEC_ID_RAWVIDEO)
     {
-        BITMAPINFOHEADER *pBMI = nullptr;
+        BITMAPINFOHEADER *pBMI{ nullptr };
         videoFormatTypeHandler(mtype.pbFormat, &mtype.formattype, &pBMI, nullptr, nullptr, nullptr);
         mtype.bFixedSizeSamples = TRUE;
         mtype.bTemporalCompression = FALSE;
@@ -693,7 +699,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
 
     if (avstream->codecpar->codec_id == AV_CODEC_ID_MJPEG)
     {
-        BITMAPINFOHEADER *pBMI = nullptr;
+        BITMAPINFOHEADER *pBMI{ nullptr };
         videoFormatTypeHandler(mtype.pbFormat, &mtype.formattype, &pBMI, nullptr, nullptr, nullptr);
 
         DWORD const fourCC = MKTAG('M', 'J', 'P', 'G');
@@ -781,7 +787,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateSubtitleMediaType(AVFormatContext *avctx, AV
         std::uint32_t const flags = AV_RB32(avstream->codecpar->extradata);
         if (flags & 0x80000000) {
             avstream->disposition |= AV_DISPOSITION_FORCED;
-}
+        }
     }
 
     if ((avstream->codecpar->codec_id == AV_CODEC_ID_MOV_TEXT) || (avstream->codecpar->codec_id == AV_CODEC_ID_TEXT) ||
@@ -815,7 +821,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateSubtitleMediaType(AVFormatContext *avctx, AV
     subInfo->dwOffset = sizeof(SUBTITLEINFO);
 
     // Find first video stream
-    AVStream *vidStream = nullptr;
+    AVStream *vidStream{ nullptr };
     for (unsigned i{ 0U }; i < avctx->nb_streams; ++i)
     {
         if (avctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
@@ -871,7 +877,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateSubtitleMediaType(AVFormatContext *avctx, AV
         {
             if (subtitle_format_map[i].subtype) {
                 mtype.subtype = *subtitle_format_map[i].subtype;
-}
+            }
             break;
         }
     }

@@ -95,9 +95,9 @@ BOOL WINAPI DllMain(HANDLE hDllHandle, DWORD dwReason, LPVOID lpReserved)
 
 void CALLBACK OpenConfiguration(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdShow)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     CUnknown *pInstance = CreateInstance<CLAVAudio>(nullptr, &hr);
-    IBaseFilter *pFilter = nullptr;
+    IBaseFilter *pFilter{ nullptr };
     pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, reinterpret_cast<void **>(&pFilter));
     if (pFilter)
     {

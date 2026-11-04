@@ -208,7 +208,7 @@ __forceinline static int yuv2rgb_convert_pixels(const std::uint8_t *&srcY, const
         // Shift the result to 12 bit
         // For 10-bit input, we need to shift one bit off, or we exceed the allowed processing depth
         // For 8-bit, we need to add one bit
-        if ((inputFormat == LAVPixFmt_YUV420 && shift > 1) || (inputFormat == LAVPixFmt_P016))
+        if (((inputFormat == LAVPixFmt_YUV420) && (shift > 1)) || (inputFormat == LAVPixFmt_P016))
         {
             if (shift >= 5)
             {
@@ -239,7 +239,7 @@ __forceinline static int yuv2rgb_convert_pixels(const std::uint8_t *&srcY, const
                 xmm3 = _mm_slli_epi16(xmm3, 3 - shift);
             }
         }
-        else if ((inputFormat == LAVPixFmt_YUV420 && shift == 0) || (inputFormat == LAVPixFmt_NV12))
+        else if (((inputFormat == LAVPixFmt_YUV420) && (shift == 0)) || (inputFormat == LAVPixFmt_NV12))
         {
             xmm1 = _mm_slli_epi16(xmm1, 1);
             xmm3 = _mm_slli_epi16(xmm3, 1);
@@ -517,7 +517,7 @@ static int __stdcall yuv2rgb_convert(const std::uint8_t *srcY, const std::uint8_
         }
         if (lastLine == height) {
             --lastLine;
-}
+        }
     }
     else if ((lastLine == height) && (lastLine & 1))
     {
@@ -529,7 +529,7 @@ static int __stdcall yuv2rgb_convert(const std::uint8_t *srcY, const std::uint8_
     {
         if (dithertype == LAVDither_Random) {
             lineDither = dithers + (line * 24 * DITHER_STEPS);
-}
+        }
         y = srcY + line * srcStrideY;
 
         if ((inputFormat == LAVPixFmt_YUV420) || (inputFormat == LAVPixFmt_NV12) || (inputFormat == LAVPixFmt_P016))
@@ -561,7 +561,7 @@ static int __stdcall yuv2rgb_convert(const std::uint8_t *srcY, const std::uint8_
         {
             if (dithertype == LAVDither_Random) {
                 lineDither = dithers + ((height - 2) * 24 * DITHER_STEPS);
-}
+            }
             y = srcY + (height - 1) * srcStrideY;
             if ((inputFormat == LAVPixFmt_YUV420) || (inputFormat == LAVPixFmt_NV12) || (inputFormat == LAVPixFmt_P016))
             {
@@ -600,7 +600,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
 
     BOOL const bYCgCo = (m_ColorProps.VideoTransferMatrix == 7);
     int shift = max(bpp - 8, 0);
-    ASSERT((shift >= 0 && shift <= 8));
+    ASSERT(((shift >= 0) && (shift <= 8)));
 
     int outFmt{ -1 };
     switch (outputFormat)
@@ -620,13 +620,13 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
 
     // Map the bX formats to their normal counter part, the shift parameter controls this now
     if ((inputFormat == LAVPixFmt_YUV420bX) || (inputFormat == LAVPixFmt_YUV422bX) || (inputFormat == LAVPixFmt_YUV444bX)) {
-        inputFormat = (LAVPixelFormat)(inputFormat - 1);
-}
+        inputFormat = static_cast<LAVPixelFormat>((inputFormat - 1));
+    }
 
     // P010 has the data in the high bits, so set shift appropriately
     if (inputFormat == LAVPixFmt_P016) {
         shift = 8;
-}
+    }
 
     YUVRGBConversionFunc convFn = m_RGBConvFuncs[outFmt][ditherMode][bYCgCo][inputFormat][shift];
     if (convFn == nullptr)
@@ -644,7 +644,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv_rgb)
     else
     {
         const int is_odd =
-            (inputFormat == LAVPixFmt_YUV420 || inputFormat == LAVPixFmt_NV12 || inputFormat == LAVPixFmt_P016);
+            ((inputFormat == LAVPixFmt_YUV420) || (inputFormat == LAVPixFmt_NV12) || (inputFormat == LAVPixFmt_P016));
         const std::ptrdiff_t lines_per_thread = (height / m_NumThreads) & ~1;
 
         Concurrency::parallel_for(0, m_NumThreads, [&](int i) {
@@ -707,10 +707,10 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
             if (m_rgbCoeffs == nullptr) { return nullptr; }
         }
 
-        DXVA2_VideoTransferMatrix matrix = (DXVA2_VideoTransferMatrix)m_ColorProps.VideoTransferMatrix;
+        DXVA2_VideoTransferMatrix matrix = static_cast<DXVA2_VideoTransferMatrix>(m_ColorProps.VideoTransferMatrix);
         if (matrix == DXVA2_VideoTransferMatrix_Unknown)
         {
-            matrix = (swsHeight > 576 || swsWidth > 1024) ? DXVA2_VideoTransferMatrix_BT709
+            matrix = ((swsHeight > 576) || (swsWidth > 1024)) ? DXVA2_VideoTransferMatrix_BT709
                                                           : DXVA2_VideoTransferMatrix_BT601;
         }
 
@@ -765,7 +765,9 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
             Kg = 0.6780;
             Kb = 0.0593;
             break;
-        default: DbgLog((LOG_TRACE, 10, L"::getRGBCoeffs(): Unknown color space: %d - defaulting to BT709", matrix));
+        default:
+            DbgLog((LOG_TRACE, 10, L"::getRGBCoeffs(): Unknown color space: %d - defaulting to BT709", matrix));
+            [[fallthrough]];
         case DXVA2_VideoTransferMatrix_BT709:
             Kr = 0.2126;
             Kg = 0.7152;
@@ -784,9 +786,9 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
         ug_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kb) * Kb / Kg;
         vg_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kr) * Kr / Kg;
         ub_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kb);
-        short const sub = min(outputBlack, inputBlack);
-        short const Ysub = inputBlack - sub;
-        short const RGB_add1 = outputBlack - sub;
+        short const sub = static_cast<short>(min(outputBlack, inputBlack));
+        short const Ysub = static_cast<short>(inputBlack - sub);
+        short const RGB_add1 = static_cast<short>(outputBlack - sub);
 
         short const cy = short(y_mul * 16384 + 0.5);
         short const crv = short(vr_mul * 8192 + 0.5);

@@ -58,7 +58,7 @@ extern "C"
 typedef struct AVCodecTag
 {
     enum AVCodecID id;
-    unsigned int tag;
+    unsigned int tag{ 0U };
 } AVCodecTag;
 
 

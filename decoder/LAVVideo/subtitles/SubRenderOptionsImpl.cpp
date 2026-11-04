@@ -35,7 +35,7 @@ static const SubRenderOption *sropt_next(const SubRenderOption *options, const S
 
 static const SubRenderOption *sropt_find_option(const SubRenderOption *options, LPCSTR name, int flags)
 {
-    const SubRenderOption *o = nullptr;
+    const SubRenderOption *o{ nullptr };
     while ((o = sropt_next(options, o)))
     {
         if ((!::_stricmp(o->name, name)) && (!(o->flags & flags)))
@@ -53,7 +53,7 @@ static const SubRenderOption *sropt_find_option(const SubRenderOption *options, 
     if (o->type != t)                                                \
         return E_INVALIDARG;
 
-#define GET_VALUE memcpy(value, ((uint8_t *)context) + o->offset, sizeof(*value));
+#define GET_VALUE std::memcpy(value, (reinterpret_cast<uint8_t *>(context)) + o->offset, sizeof(*value));
 
 #define SET_OPT_AND_VALIDATE(t)                                                        \
     const SubRenderOption *o = sropt_find_option(options, field, SROPT_FLAG_READONLY); \
@@ -112,7 +112,7 @@ STDMETHODIMP CSubRenderOptionsImpl::GetString(LPCSTR field, LPWSTR *value, int *
     GET_OPT_AND_VALIDATE(SROPT_TYPE_STRING)
     CheckPointer(chars, E_POINTER);
 
-    const LPWSTR string = *reinterpret_cast<LPWSTR *>((((std::uint8_t *)context) + o->offset));
+    const LPWSTR string = *reinterpret_cast<LPWSTR *>(((reinterpret_cast<std::uint8_t *>(context)) + o->offset));
     if (!string)
     {
         *value = nullptr;

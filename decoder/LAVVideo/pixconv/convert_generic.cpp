@@ -36,7 +36,7 @@ extern "C"
 
 DECLARE_CONV_FUNC_IMPL(convert_generic)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     AVPixelFormat const inputFmt = GetFFInput();
 
@@ -105,7 +105,7 @@ inline SwsContext *CLAVPixFmtConverter::GetSWSContext(int width, int height, enu
                                            &saturation);
         if (ret >= 0)
         {
-            const int *rgbTbl = nullptr;
+            const int *rgbTbl{ nullptr };
             if (m_ColorProps.VideoTransferMatrix != DXVA2_VideoTransferMatrix_Unknown)
             {
                 int colorspace = SWS_CS_ITU709;
@@ -119,7 +119,7 @@ inline SwsContext *CLAVPixFmtConverter::GetSWSContext(int width, int height, enu
             }
             else
             {
-                BOOL const isHD = (height >= 720 || width >= 1280);
+                BOOL const isHD = ((height >= 720) || (width >= 1280));
                 rgbTbl = sws_getCoefficients(isHD ? SWS_CS_ITU709 : SWS_CS_ITU601);
             }
             srcRange = dstRange = (m_ColorProps.NominalRange == DXVA2_NominalRange_0_255);
@@ -153,14 +153,14 @@ HRESULT CLAVPixFmtConverter::swscale_scale(enum AVPixelFormat srcPix, enum AVPix
 }
 
 HRESULT CLAVPixFmtConverter::ConvertTo422Packed(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U],
-                                                std::uint8_t *dst[], int width, int height, const std::ptrdiff_t dstStride[])
+                                                std::uint8_t *dst[4U], int width, int height, const std::ptrdiff_t dstStride[4U])
 {
-    const BYTE *y = nullptr;
-    const BYTE *u = nullptr;
-    const BYTE *v = nullptr;
+    const BYTE *y{ nullptr };
+    const BYTE *u{ nullptr };
+    const BYTE *v{ nullptr };
     std::ptrdiff_t line, i;
     std::ptrdiff_t sourceStride{ 0 };
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
     if (m_InputPixFmt != LAVPixFmt_YUV422)
     {
@@ -264,15 +264,15 @@ HRESULT CLAVPixFmtConverter::ConvertTo422Packed(const std::uint8_t *const src[4U
     return S_OK;
 }
 
-HRESULT CLAVPixFmtConverter::ConvertToAYUV(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[],
-                                           int width, int height, const std::ptrdiff_t dstStride[])
+HRESULT CLAVPixFmtConverter::ConvertToAYUV(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U],
+                                           int width, int height, const std::ptrdiff_t dstStride[4U])
 {
-    const BYTE *y = nullptr;
-    const BYTE *u = nullptr;
-    const BYTE *v = nullptr;
+    const BYTE *y{ nullptr };
+    const BYTE *u{ nullptr };
+    const BYTE *v{ nullptr };
     std::ptrdiff_t line, i = 0;
     std::ptrdiff_t sourceStride{ 0 };
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
     if (m_InputPixFmt != LAVPixFmt_YUV444)
     {
@@ -340,20 +340,20 @@ HRESULT CLAVPixFmtConverter::ConvertToAYUV(const std::uint8_t *const src[4U], co
     return S_OK;
 }
 
-HRESULT CLAVPixFmtConverter::ConvertToPX1X(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[],
-                                           int width, int height, const std::ptrdiff_t dstStride[], int chromaVertical)
+HRESULT CLAVPixFmtConverter::ConvertToPX1X(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U],
+                                           int width, int height, const std::ptrdiff_t dstStride[4U], int chromaVertical)
 {
-    const BYTE *y = nullptr;
-    const BYTE *u = nullptr;
-    const BYTE *v = nullptr;
+    const BYTE *y{ nullptr };
+    const BYTE *u{ nullptr };
+    const BYTE *v{ nullptr };
     std::ptrdiff_t line, i = 0;
     std::ptrdiff_t sourceStride{ 0 };
 
     int shift{ 0 };
 
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
-    if ((chromaVertical == 1 && m_InputPixFmt != LAVPixFmt_YUV422bX) ||
+    if (((chromaVertical == 1) && (m_InputPixFmt != LAVPixFmt_YUV422bX)) ||
         (chromaVertical == 2 && m_InputPixFmt != LAVPixFmt_YUV420bX))
     {
         std::uint8_t *tmp[4U] = {nullptr};
@@ -410,7 +410,7 @@ HRESULT CLAVPixFmtConverter::ConvertToPX1X(const std::uint8_t *const src[4U], co
                 std::uint16_t yv = AV_RL16(yc + i);
                 if (shift) {
                     yv <<= shift;
-}
+                }
                 *idst++ = yv;
             }
         }
@@ -470,16 +470,16 @@ HRESULT CLAVPixFmtConverter::ConvertToPX1X(const std::uint8_t *const src[4U], co
     out += dstStride;                                              \
     }
 
-HRESULT CLAVPixFmtConverter::ConvertToY410(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[],
-                                           int width, int height, const std::ptrdiff_t dstStride[])
+HRESULT CLAVPixFmtConverter::ConvertToY410(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U],
+                                           int width, int height, const std::ptrdiff_t dstStride[4U])
 {
-    const std::uint16_t *y = nullptr;
-    const std::uint16_t *u = nullptr;
-    const std::uint16_t *v = nullptr;
+    const std::uint16_t *y{ nullptr };
+    const std::uint16_t *u{ nullptr };
+    const std::uint16_t *v{ nullptr };
     std::ptrdiff_t sourceStride{ 0 };
     bool b9Bit{ false };
 
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
     if ((m_InputPixFmt != LAVPixFmt_YUV444bX) || (m_InBpp > 10))
     {
@@ -535,15 +535,15 @@ HRESULT CLAVPixFmtConverter::ConvertToY410(const std::uint8_t *const src[4U], co
     return S_OK;
 }
 
-HRESULT CLAVPixFmtConverter::ConvertToY416(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[],
-                                           int width, int height, const std::ptrdiff_t dstStride[])
+HRESULT CLAVPixFmtConverter::ConvertToY416(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U],
+                                           int width, int height, const std::ptrdiff_t dstStride[4U])
 {
-    const std::uint16_t *y = nullptr;
-    const std::uint16_t *u = nullptr;
-    const std::uint16_t *v = nullptr;
+    const std::uint16_t *y{ nullptr };
+    const std::uint16_t *u{ nullptr };
+    const std::uint16_t *v{ nullptr };
     std::ptrdiff_t sourceStride{ 0 };
 
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
     int shift = (16 - m_InBpp);
     if (m_InputPixFmt != LAVPixFmt_YUV444bX)
@@ -584,9 +584,9 @@ HRESULT CLAVPixFmtConverter::ConvertToY416(const std::uint8_t *const src[4U], co
     BYTE *out = dst[0U];
     YUV444_PACKED_LOOP_HEAD_LE(width, height, y, u, v, out)
     std::uint16_t *p = reinterpret_cast<std::uint16_t *>(idst);
-    p[0U] = (uv << shift);
-    p[1U] = (yv << shift);
-    p[2U] = (vv << shift);
+    p[0U] = static_cast<std::uint16_t>(uv << shift);
+    p[1U] = static_cast<std::uint16_t>(yv << shift);
+    p[2U] = static_cast<std::uint16_t>(vv << shift);
     p[3U] = 0xFFFF;
 
     idst += 2;
@@ -597,16 +597,16 @@ HRESULT CLAVPixFmtConverter::ConvertToY416(const std::uint8_t *const src[4U], co
     return S_OK;
 }
 
-HRESULT CLAVPixFmtConverter::ConvertTov210(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[],
-                                           int width, int height, const std::ptrdiff_t dstStride[])
+HRESULT CLAVPixFmtConverter::ConvertTov210(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U],
+                                           int width, int height, const std::ptrdiff_t dstStride[4U])
 {
-    const std::uint16_t *y = nullptr;
-    const std::uint16_t *u = nullptr;
-    const std::uint16_t *v = nullptr;
+    const std::uint16_t *y{ nullptr };
+    const std::uint16_t *u{ nullptr };
+    const std::uint16_t *v{ nullptr };
     std::ptrdiff_t srcyStride{ 0 };
     std::ptrdiff_t srcuvStride{ 0 };
 
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
     if ((m_InputPixFmt != LAVPixFmt_YUV422bX) || (m_InBpp != 10))
     {
@@ -653,7 +653,7 @@ HRESULT CLAVPixFmtConverter::ConvertTov210(const std::uint8_t *const src[4U], co
 
     BYTE *pdst = dst[0U];
     std::uint32_t *p = reinterpret_cast<std::uint32_t *>(pdst);
-    int w;
+    int w{ 0 };
 
 //#define CLIP(v) av_clip(v, 4, 1019)
 #define CLIP(v) (v & 0x03FF)
@@ -682,7 +682,7 @@ HRESULT CLAVPixFmtConverter::ConvertTov210(const std::uint8_t *const src[4U], co
             val = CLIP(*y++);
             if (w == width - 2) {
                 *p++ = val;
-}
+            }
             if (w < width - 3)
             {
                 val |= (CLIP(*u++) << 10) | (CLIP(*y++) << 20);
@@ -705,16 +705,16 @@ HRESULT CLAVPixFmtConverter::ConvertTov210(const std::uint8_t *const src[4U], co
     return S_OK;
 }
 
-HRESULT CLAVPixFmtConverter::ConvertTov410(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[],
-                                           int width, int height, const std::ptrdiff_t dstStride[])
+HRESULT CLAVPixFmtConverter::ConvertTov410(const std::uint8_t *const src[4U], const std::ptrdiff_t srcStride[4U], std::uint8_t *dst[4U],
+                                           int width, int height, const std::ptrdiff_t dstStride[4U])
 {
-    const std::uint16_t *y = nullptr;
-    const std::uint16_t *u = nullptr;
-    const std::uint16_t *v = nullptr;
+    const std::uint16_t *y{ nullptr };
+    const std::uint16_t *u{ nullptr };
+    const std::uint16_t *v{ nullptr };
     std::ptrdiff_t sourceStride{ 0 };
     bool b9Bit{ false };
 
-    BYTE *pTmpBuffer = nullptr;
+    BYTE *pTmpBuffer{ nullptr };
 
     if ((m_InputPixFmt != LAVPixFmt_YUV444bX) || (m_InBpp > 10))
     {

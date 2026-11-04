@@ -41,8 +41,8 @@ static const LAV_TYPE_MAP lav_subtitle_codecs[] = {
 CLAVVideoSubtitleInputPin::CLAVVideoSubtitleInputPin(TCHAR *pObjectName, CLAVVideo *pFilter, CCritSec *pcsFilter,
                                                      HRESULT *phr, LPWSTR pName)
     : CBaseInputPin(pObjectName, pFilter, pcsFilter, phr, pName)
-    , m_pLAVVideo{pFilter}
     , CDeCSSPinHelper{}
+    , m_pLAVVideo{pFilter}
 {
 }
 
@@ -150,7 +150,7 @@ HRESULT CLAVVideoSubtitleInputPin::SetSubtitleConsumer(ISubRenderConsumer *pCons
 STDMETHODIMP CLAVVideoSubtitleInputPin::Receive(IMediaSample *pSample)
 {
     CAutoLock const lock(&m_csReceive);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     Decrypt(pSample);
 
     ASSERT(m_pProvider);
@@ -159,7 +159,7 @@ STDMETHODIMP CLAVVideoSubtitleInputPin::Receive(IMediaSample *pSample)
     if (hr == S_OK)
     {
         long len = pSample->GetActualDataLength();
-        BYTE *pBuffer = nullptr;
+        BYTE *pBuffer{ nullptr };
         if (FAILED(hr = pSample->GetPointer(&pBuffer)))
         {
             DbgLog((LOG_TRACE, 10, L"CLAVVideoSubtitleInputPin::Receive() GetPointer failed"));

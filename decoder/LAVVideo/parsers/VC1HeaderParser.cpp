@@ -85,7 +85,7 @@ static inline const std::uint8_t *find_next_marker(const std::uint8_t *src, cons
         mrk = (mrk << 8) | *src++;
         if (IS_MARKER(mrk)) {
             return src - 4;
-}
+        }
     }
     return end;
 }
@@ -98,7 +98,7 @@ static inline int vc1_unescape_buffer(const std::uint8_t *src, int size, std::ui
     {
         for (dsize = 0; dsize < size; ++dsize) {
             *dst++ = *src++;
-}
+        }
         return size;
     }
     for (i = 0; i < size; i++, src++)
@@ -111,7 +111,7 @@ static inline int vc1_unescape_buffer(const std::uint8_t *src, int size, std::ui
         }
         else {
             dst[dsize++] = *src;
-}
+        }
     }
     return dsize;
 }
@@ -133,11 +133,11 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, std::size_t length, AVC
     {
         if (length < 16) {
             return;
-}
+        }
 
         const std::uint8_t *start = pData;
         const std::uint8_t *end = start + length;
-        const std::uint8_t *next = nullptr;
+        const std::uint8_t *next{ nullptr };
 
         int size, buf2_size;
         std::uint8_t *buf2;
@@ -153,7 +153,7 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, std::size_t length, AVC
             size = static_cast<int>((next - start - 4));
             if (size <= 0) {
                 continue;
-}
+            }
             buf2_size = vc1_unescape_buffer(start + 4, size, buf2);
 
             init_get_bits(&gb, buf2, buf2_size * 8);
@@ -169,7 +169,7 @@ void CVC1HeaderParser::ParseVC1Header(const BYTE *pData, std::size_t length, AVC
     {
         if (length < 4) {
             return;
-}
+        }
         init_get_bits8(&gb, pData, static_cast<int>(length));
         VC1ParseSequenceHeader(&gb);
     }
@@ -207,7 +207,7 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
             h = get_bits(gb, 14) + 1;
             if (get_bits1(gb)) {
                 ar = get_bits(gb, 4);
-}
+            }
             if (ar && (ar < 14))
             {
                 hdr.ar = ff_vc1_pixel_aspect[ar];
@@ -256,7 +256,6 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
 AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int buflen)
 {
     AVPictureType pictype = AV_PICTURE_TYPE_NONE;
-    int skipped{ 0 };
     const BYTE *framestart = buf;
     if (IS_MARKER(AV_RB32(buf)))
     {
@@ -282,14 +281,14 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int
             int fcm = PROGRESSIVE;
             if (hdr.interlaced) {
                 fcm = decode012(&gb);
-}
+            }
             if (fcm == ILACE_FIELD)
             {
                 int const fptype = get_bits(&gb, 3);
                 pictype = (fptype & 2) ? AV_PICTURE_TYPE_P : AV_PICTURE_TYPE_I;
                 if (fptype & 4) { // B-picture
                     pictype = (fptype & 2) ? AV_PICTURE_TYPE_BI : AV_PICTURE_TYPE_B;
-}
+                }
             }
             else
             {
@@ -301,7 +300,6 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int
                 case 3: pictype = AV_PICTURE_TYPE_BI; break;
                 case 4:
                     pictype = AV_PICTURE_TYPE_P; // skipped pic
-                    skipped = 1;
                     break;
                 }
             }
@@ -310,11 +308,11 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int
         {
             if (hdr.finterp) {
                 skip_bits1(&gb);
-}
+            }
             skip_bits(&gb, 2); // framecnt
             if (hdr.rangered) {
                 skip_bits1(&gb);
-}
+            }
             int const pic = get_bits1(&gb);
             if (hdr.bframes)
             {

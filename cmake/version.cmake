@@ -2,24 +2,33 @@
 # The header is included by the filters and by LAVFilters.iss.
 #
 # LAV_VERSION_BUILD is the commits on upstream since the last official release.
-# origin/master tracks that line. Commits only on this branch are not counted.
-# This clone has no upstream tags, so the release base is the newest
-# origin/master commit that changed the version macros, which is the
-# commit upstream tags.
+# upstream/master tracks that line, so the count matches the upstream beta
+# number. origin/master is the fallback for a clone without that remote;
+# it also carries this fork's own commits and merges, so it counts high.
+# Neither clone has upstream tags, so the release base is the newest commit
+# on that line that changed the version macros, which is the commit
+# upstream tags.
 function(lav_write_version_rev)
     find_package(Git QUIET)
     set(build_number 0)
     if(GIT_FOUND)
-        execute_process(
-            COMMAND "${GIT_EXECUTABLE}" rev-parse --verify origin/master
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-            OUTPUT_QUIET
-            ERROR_QUIET
-            RESULT_VARIABLE master_rc)
-        if(master_rc EQUAL 0)
+        set(line "")
+        foreach(candidate upstream/master origin/master)
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" rev-parse --verify --quiet "${candidate}^{commit}"
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                OUTPUT_QUIET
+                ERROR_QUIET
+                RESULT_VARIABLE line_rc)
+            if(line_rc EQUAL 0)
+                set(line "${candidate}")
+                break()
+            endif()
+        endforeach()
+        if(NOT line STREQUAL "")
             set(base "")
             execute_process(
-                COMMAND "${GIT_EXECUTABLE}" describe --tags --abbrev=0 --match 0.* origin/master
+                COMMAND "${GIT_EXECUTABLE}" describe --tags --abbrev=0 --match 0.* "${line}"
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
                 OUTPUT_VARIABLE describe_out
                 OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -29,7 +38,7 @@ function(lav_write_version_rev)
                 set(base "${describe_out}")
             else()
                 execute_process(
-                    COMMAND "${GIT_EXECUTABLE}" log -1 --format=%H origin/master
+                    COMMAND "${GIT_EXECUTABLE}" log -1 --format=%H "${line}"
                             -G "define LAV_VERSION_"
                             -- common/includes/version.h
                     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
@@ -43,7 +52,7 @@ function(lav_write_version_rev)
             endif()
             if(NOT base STREQUAL "")
                 execute_process(
-                    COMMAND "${GIT_EXECUTABLE}" rev-list --count "${base}..origin/master"
+                    COMMAND "${GIT_EXECUTABLE}" rev-list --count "${base}..${line}"
                     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
                     OUTPUT_VARIABLE count_out
                     OUTPUT_STRIP_TRAILING_WHITESPACE

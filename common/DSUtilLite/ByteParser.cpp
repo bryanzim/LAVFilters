@@ -56,14 +56,14 @@ unsigned int CByteParser::BitRead(unsigned int numBits, bool peek)
 
     if (peek) { return show_bits_long(m_gbCtx, numBits); } else {
         return get_bits_long(m_gbCtx, numBits);
-}
+    }
 }
 
 void CByteParser::BitSkip(unsigned int numBits)
 {
     if (numBits == 0) {
         return;
-}
+    }
 
     skip_bits_long(m_gbCtx, numBits);
 }
@@ -89,12 +89,11 @@ unsigned CByteParser::UExpGolombRead()
     int n{ -1 };
     for (BYTE b{ 0U }; !b && RemainingBits(); ++n)
     {
-        b = get_bits1(m_gbCtx);
+        b = static_cast<BYTE>(get_bits1(m_gbCtx));
     }
-    if (!RemainingBits()) {
-        return 0;
-}
-    return ((1 << n) | BitRead(n)) - 1;
+    // values with more than 31 leading zeros don't fit and are invalid
+    if (!RemainingBits() || (n > 31)) { return 0; }
+    return ((1U << n) | BitRead(n)) - 1;
 }
 
 int CByteParser::SExpGolombRead()
@@ -107,7 +106,7 @@ int CByteParser::SExpGolombRead()
     // Note that we added 1 to the unsigned value already, so the check is inverted
     if (k & 1) { return -(k >> 1); } else {
         return (k >> 1);
-}
+    }
 }
 
 void CByteParser::BitByteAlign()

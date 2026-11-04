@@ -53,7 +53,7 @@ STDMETHODIMP_(ULONG) CMediaPacketSample::AddRef()
 STDMETHODIMP_(ULONG) CMediaPacketSample::Release()
 {
     /* Decrement our own private reference count */
-    LONG lRef;
+    LONG lRef{ 0 };
     if (m_cRef == 1)
     {
         lRef = 0;
@@ -248,7 +248,7 @@ HRESULT CPacketAllocator::Alloc(void)
 
     m_bAllocated = TRUE;
 
-    CMediaPacketSample *pSample = nullptr;
+    CMediaPacketSample *pSample{ nullptr };
 
     ASSERT(m_lAllocated == 0);
 
@@ -300,7 +300,7 @@ HRESULT CPacketAllocator::GetBuffer(__deref_out IMediaSample **ppBuffer, __in_op
             /* if no sample was available, allocate a new one */
             if (pSample == nullptr)
             {
-                HRESULT hr = S_OK;
+                HRESULT hr{ S_OK };
                 pSample = new CMediaPacketSample(NAME("LAV Package media sample"), this, &hr);
                 ASSERT(SUCCEEDED(hr));
 

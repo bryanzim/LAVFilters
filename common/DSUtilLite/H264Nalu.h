@@ -41,6 +41,14 @@ typedef enum
     NALU_TYPE_SPS_SUB = 15,
 } NALU_TYPE;
 
+// HEVC nal_unit_type is 6 bits. It does not fit in NALU_TYPE, whose enumerators stop at 15.
+enum HEVC_NALU_TYPE : unsigned char {
+    HEVC_NAL_VPS = 32,
+    HEVC_NAL_SPS = 33,
+    HEVC_NAL_PPS = 34,
+    HEVC_NAL_UNSPEC62 = 62,
+};
+
 class CH264Nalu
 {
   protected:
@@ -51,11 +59,13 @@ class CH264Nalu
     std::size_t m_nNALStartPos{ 0U }; //! NALU start (including startcode / size)
     std::size_t m_nNALDataPos{ 0U };  //! Useful part
 
-    const BYTE *m_pBuffer = nullptr;
+    const BYTE *m_pBuffer{ nullptr };
     std::size_t m_nCurPos{ 0U };
     std::size_t m_nNextRTP{ 0U };
     std::size_t m_nSize{ 0U };
     int m_nNALSize{ 0 };
+
+    std::size_t m_nNALHeaderSize{ 1U };
 
     bool MoveToNextAnnexBStartcode();
     bool MoveToNextRTPStartcode();
@@ -86,8 +96,15 @@ class CH265Nalu : public CH264Nalu
 {
   public:
     explicit CH265Nalu()
-        : CH264Nalu(){};
+        : CH264Nalu()
+    {
+        m_nNALHeaderSize = 2U;
+    }
     bool ReadNext();
+    [[nodiscard]] constexpr HEVC_NALU_TYPE GetType() const noexcept { return m_hevcType; }
+
+  private:
+    HEVC_NALU_TYPE m_hevcType{ static_cast<HEVC_NALU_TYPE>(0) };
 };
 
 class CH264NALUnescape
@@ -99,6 +116,6 @@ class CH264NALUnescape
     [[nodiscard]] constexpr std::size_t GetSize() const noexcept { return m_nSize; }
 
   private:
-    BYTE *m_pBuffer = nullptr;
+    BYTE *m_pBuffer{ nullptr };
     std::size_t m_nSize{ 0U };
 };

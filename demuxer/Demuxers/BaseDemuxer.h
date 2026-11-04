@@ -51,8 +51,8 @@ typedef struct CSubtitleSelector
 
 // Values above 0xFF are special
 #define SUBTITLE_FLAG_PGS 0x8000
-    DWORD dwFlagsSet;
-    DWORD dwFlagsNot;
+    DWORD dwFlagsSet{ 0U };
+    DWORD dwFlagsNot{ 0U };
 } CSubtitleSelector;
 
 class CBaseDemuxer : public CUnknown
@@ -70,7 +70,7 @@ class CBaseDemuxer : public CUnknown
     typedef struct stream
     {
         CStreamInfo *streamInfo;
-        DWORD pid;
+        DWORD pid{ 0U };
         std::string language;
         std::string trackName;
         LCID lcid;
@@ -182,7 +182,7 @@ class CBaseDemuxer : public CUnknown
                                                std::string audioLanguage) = 0;
 
   protected:
-    CCritSec *m_pLock = nullptr;
+    CCritSec *m_pLock{ nullptr };
     CStreamList m_streams[unknown];
     int m_dActiveStreams[unknown];
 };

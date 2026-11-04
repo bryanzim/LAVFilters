@@ -64,8 +64,8 @@ HRESULT CLAVAudioSettingsProp::OnDisconnect()
 HRESULT CLAVAudioSettingsProp::OnApplyChanges()
 {
     ASSERT(m_pAudioSettings != nullptr);
-    HRESULT hr = S_OK;
-    BOOL bFlag;
+    HRESULT hr{ S_OK };
+    BOOL bFlag{ FALSE };
 
     // DRC
     int const iDRCLevel = static_cast<int>(SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_GETPOS, 0, 0));
@@ -147,7 +147,7 @@ HRESULT CLAVAudioSettingsProp::OnApplyChanges()
 
 HRESULT CLAVAudioSettingsProp::OnActivate()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     INITCOMMONCONTROLSEX icc;
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icc.dwICC = ICC_BAR_CLASSES | ICC_STANDARD_CLASSES;
@@ -224,7 +224,7 @@ HRESULT CLAVAudioSettingsProp::OnActivate()
         EnableWindow(GetDlgItem(m_Dlg, IDC_DELAYSPIN), m_bAudioDelay);
         EnableWindow(GetDlgItem(m_Dlg, IDC_DELAY), m_bAudioDelay);
 
-        SendDlgItemMessage(m_Dlg, IDC_DELAYSPIN, UDM_SETRANGE32, -1000 * 60 * 60 * 24, 1000 * 60 * 60 * 24);
+        SendDlgItemMessage(m_Dlg, IDC_DELAYSPIN, UDM_SETRANGE32, static_cast<WPARAM>(-1000 * 60 * 60 * 24), static_cast<WPARAM>(1000 * 60 * 60 * 24));
 
         std::array<WCHAR, 100U> stringBuffer{};
         ::swprintf_s(stringBuffer.data(), stringBuffer.size(),  L"%d", m_iAudioDelay);
@@ -238,11 +238,11 @@ HRESULT CLAVAudioSettingsProp::OnActivate()
 
 HRESULT CLAVAudioSettingsProp::LoadData()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     hr = m_pAudioSettings->GetDRC(&m_bDRCEnabled, &m_iDRCLevel);
     for (unsigned i{ 0U }; i < Bitstream_NB; ++i) {
-        m_bBitstreaming[i] = m_pAudioSettings->GetBitstreamConfig((LAVBitstreamCodec)i) != 0;
-}
+        m_bBitstreaming[i] = m_pAudioSettings->GetBitstreamConfig(static_cast<LAVBitstreamCodec>(i)) != 0;
+    }
     m_bDTSHDFraming = m_pAudioSettings->GetDTSHDFraming();
     m_bBitstreamingFallback = m_pAudioSettings->GetBitstreamingFallback();
     m_bAutoAVSync = m_pAudioSettings->GetAutoAVSync();
@@ -252,8 +252,8 @@ HRESULT CLAVAudioSettingsProp::LoadData()
     m_bExpand61 = m_pAudioSettings->GetExpand61();
 
     for (unsigned i{ 0U }; i < SampleFormat_NB; ++i) {
-        m_bSampleFormats[i] = m_pAudioSettings->GetSampleFormat((LAVAudioSampleFormat)i) != 0;
-}
+        m_bSampleFormats[i] = m_pAudioSettings->GetSampleFormat(static_cast<LAVAudioSampleFormat>(i)) != 0;
+    }
     m_bDither = m_pAudioSettings->GetSampleConvertDithering();
 
     m_pAudioSettings->GetAudioDelay(&m_bAudioDelay, &m_iAudioDelay);
@@ -283,28 +283,28 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
             bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
             if (bFlag != m_bBitstreaming[Bitstream_AC3]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_BS_EAC3) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
             if (bFlag != m_bBitstreaming[Bitstream_EAC3]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_BS_TRUEHD) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
             if (bFlag != m_bBitstreaming[Bitstream_TRUEHD]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_BS_DTS) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
             if (bFlag != m_bBitstreaming[Bitstream_DTS]) {
                 SetDirty();
-}
+            }
             EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD), bFlag);
         }
         else if ((LOWORD(wParam) == IDC_BS_DTSHD) && (HIWORD(wParam) == BN_CLICKED))
@@ -312,7 +312,7 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
             bool const bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
             if (bFlag != m_bBitstreaming[Bitstream_DTSHD]) {
                 SetDirty();
-}
+            }
             EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD_FRAMING), bFlag);
         }
         else if ((LOWORD(wParam) == IDC_BS_DTSHD_FRAMING) && (HIWORD(wParam) == BN_CLICKED))
@@ -320,98 +320,98 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bDTSHDFraming) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_BS_FALLBACK) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bBitstreamingFallback) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_AUTO_AVSYNC) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bAutoAVSync) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_STANDARD_CH_LAYOUT) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bOutputStdLayout) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUTPUT51_LEGACY) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bOutput51Legacy) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_EXPAND_MONO) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bExpandMono) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_EXPAND61) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bExpand61) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUT_S16) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0)) != 0;
             if (bFlag != m_bSampleFormats[SampleFormat_16]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUT_S24) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0)) != 0;
             if (bFlag != m_bSampleFormats[SampleFormat_24]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUT_S32) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0)) != 0;
             if (bFlag != m_bSampleFormats[SampleFormat_32]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUT_FP32) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0)) != 0;
             if (bFlag != m_bSampleFormats[SampleFormat_FP32]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUT_U8) && (HIWORD(wParam) == BN_CLICKED))
         {
             bool const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0)) != 0;
             if (bFlag != m_bSampleFormats[SampleFormat_U8]) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_OUT_S16_DITHER) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bDither) {
                 SetDirty();
-}
+            }
         }
         else if ((LOWORD(wParam) == IDC_DELAY_ENABLED) && (HIWORD(wParam) == BN_CLICKED))
         {
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0));
             if (bFlag != m_bAudioDelay) {
                 SetDirty();
-}
+            }
             EnableWindow(GetDlgItem(m_Dlg, IDC_DELAYSPIN), bFlag);
             EnableWindow(GetDlgItem(m_Dlg, IDC_DELAY), bFlag);
         }
@@ -430,10 +430,10 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
                 ::swprintf_s(buffer.data(), buffer.size(),  L"%d", delay);
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_SETTEXT, 0, (LPARAM)buffer.data());
-}
+                }
                 if (delay != m_iAudioDelay) {
                     SetDirty();
-}
+                }
             }
         }
         else if ((LOWORD(wParam) == IDC_TRAYICON) && (HIWORD(wParam) == BN_CLICKED))
@@ -441,7 +441,7 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
             BOOL const bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0)) != 0;
             if (bFlag != m_TrayIcon) {
                 SetDirty();
-}
+            }
         }
 
         break;
@@ -512,7 +512,7 @@ HRESULT CLAVAudioMixingProp::OnApplyChanges()
     dwVal = static_cast<DWORD>(SendDlgItemMessage(m_Dlg, IDC_OUTPUT_SPEAKERS, CB_GETCURSEL, 0, 0));
     if ((dwVal >= 0) && (dwVal < countof(dwSpkLayouts))) {
         m_pAudioSettings->SetMixingLayout(dwSpkLayouts[dwVal]);
-}
+    }
 
     bVal = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXING, BM_GETCHECK, 0, 0));
     m_pAudioSettings->SetMixingEnabled(bVal);
@@ -521,21 +521,20 @@ HRESULT CLAVAudioMixingProp::OnApplyChanges()
     bVal = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_UNTOUCHED_STEREO, BM_GETCHECK, 0, 0));
     if (bVal) {
         dwMixingFlags |= LAV_MIXING_FLAG_UNTOUCHED_STEREO;
-}
+    }
 
     bVal = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_NORMALIZE_MATRIX, BM_GETCHECK, 0, 0));
     if (bVal) {
         dwMixingFlags |= LAV_MIXING_FLAG_NORMALIZE_MATRIX;
-}
+    }
 
     bVal = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_CLIP_PROTECTION, BM_GETCHECK, 0, 0));
     if (bVal) {
         dwMixingFlags |= LAV_MIXING_FLAG_CLIP_PROTECTION;
-}
+    }
 
     m_pAudioSettings->SetMixingFlags(dwMixingFlags);
 
-    BOOL const bNormal = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXMODE_NORMAL, BM_GETCHECK, 0, 0));
     BOOL const bDolby = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DOLBY, BM_GETCHECK, 0, 0));
     BOOL const bDPL2 = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DPL2, BM_GETCHECK, 0, 0));
     m_pAudioSettings->SetMixingMode(bDolby ? MatrixEncoding_Dolby
@@ -553,7 +552,7 @@ HRESULT CLAVAudioMixingProp::OnApplyChanges()
 
 HRESULT CLAVAudioMixingProp::OnActivate()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     INITCOMMONCONTROLSEX icc;
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icc.dwICC = ICC_BAR_CLASSES | ICC_STANDARD_CLASSES;
@@ -797,11 +796,11 @@ HRESULT CLAVAudioFormatsProp::OnApplyChanges()
     HWND hlv = GetDlgItem(m_Dlg, IDC_CODECS);
 
     // Get checked state
-    BOOL bFlag;
+    BOOL bFlag{ FALSE };
     for (int nItem{ 0 }; nItem < ListView_GetItemCount(hlv); ++nItem)
     {
         bFlag = ListView_GetCheckState(hlv, nItem);
-        m_pAudioSettings->SetFormatConfiguration((LAVAudioCodec)nItem, bFlag);
+        m_pAudioSettings->SetFormatConfiguration(static_cast<LAVAudioCodec>(nItem), bFlag);
     }
 
     LoadData();
@@ -811,7 +810,7 @@ HRESULT CLAVAudioFormatsProp::OnApplyChanges()
 
 HRESULT CLAVAudioFormatsProp::OnActivate()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     INITCOMMONCONTROLSEX icc;
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icc.dwICC = ICC_BAR_CLASSES | ICC_STANDARD_CLASSES | ICC_LISTVIEW_CLASSES;
@@ -844,7 +843,7 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
     int nItem{ 0 };
     for (nItem = 0; nItem < Codec_AudioNB; ++nItem)
     {
-        const codec_config_t *config = get_codec_config((LAVAudioCodec)nItem);
+        const codec_config_t *config = get_codec_config(static_cast<LAVAudioCodec>(nItem));
 
         // Create main entry
         lvi.iItem = nItem + 1;
@@ -875,8 +874,8 @@ HRESULT CLAVAudioFormatsProp::LoadData()
 {
     HRESULT const hr = S_OK;
     for (unsigned i{ 0U }; i < Codec_AudioNB; ++i) {
-        m_bFormats[i] = m_pAudioSettings->GetFormatConfiguration((LAVAudioCodec)i) != 0;
-}
+        m_bFormats[i] = m_pAudioSettings->GetFormatConfiguration(static_cast<LAVAudioCodec>(i)) != 0;
+    }
     return hr;
 }
 
@@ -942,7 +941,7 @@ HRESULT CLAVAudioStatusProp::OnDisconnect()
 
 HRESULT CLAVAudioStatusProp::OnActivate()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     INITCOMMONCONTROLSEX icc;
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icc.dwICC = ICC_STANDARD_CLASSES | ICC_BAR_CLASSES;
@@ -954,11 +953,11 @@ HRESULT CLAVAudioStatusProp::OnActivate()
 
     m_nChannels = 0;
 
-    const char *codec = nullptr;
-    const char *decodeFormat = nullptr;
+    const char *codec{ nullptr };
+    const char *decodeFormat{ nullptr };
     int nDecodeChannels{ 0 };
     int nDecodeSampleRate{ 0 };
-    DWORD dwDecodeChannelMask;
+    DWORD dwDecodeChannelMask{ 0U };
     hr = m_pAudioStatus->GetDecodeDetails(&codec, &decodeFormat, &nDecodeChannels, &nDecodeSampleRate,
                                           &dwDecodeChannelMask);
     if (SUCCEEDED(hr))
@@ -977,7 +976,7 @@ HRESULT CLAVAudioStatusProp::OnActivate()
         SendDlgItemMessage(m_Dlg, IDC_INPUT_FORMAT, WM_SETTEXT, 0, (LPARAM)buffer.data());
     }
 
-    const char *outputFormat = nullptr;
+    const char *outputFormat{ nullptr };
     int nOutputChannels{ 0 };
     int nOutputSampleRate{ 0 };
     DWORD dwOutputChannelMask{ 0U };
@@ -1021,7 +1020,7 @@ HRESULT CLAVAudioStatusProp::OnActivate()
     for (int i{ 0 }; i < MAX_CHANNELS; ++i)
     {
         SendDlgItemMessage(m_Dlg, iddVolumeControls[i], PBM_SETRANGE, 0, MAKELPARAM(0, 50));
-        _snwprintf_s(chBuffer.data(), chBuffer.size(), _TRUNCATE, L"%S", get_channel_desc(get_flag_from_channel(dwOutputChannelMask, i)));
+        _snwprintf_s(chBuffer.data(), chBuffer.size(), _TRUNCATE, L"%S", get_channel_desc(get_flag_from_channel(dwOutputChannelMask, static_cast<WORD>(i))));
         SendDlgItemMessage(m_Dlg, iddVolumeDescs[i], WM_SETTEXT, 0, (LPARAM)chBuffer.data());
     }
 
@@ -1040,7 +1039,7 @@ void CLAVAudioStatusProp::UpdateVolumeDisplay()
     for (int i{ 0 }; i < m_nChannels; ++i)
     {
         float fDB = 0.0f;
-        if (SUCCEEDED(m_pAudioStatus->GetChannelVolumeAverage(i, &fDB)))
+        if (SUCCEEDED(m_pAudioStatus->GetChannelVolumeAverage(static_cast<WORD>(i), &fDB)))
         {
             int const value = static_cast<int>(fDB) + 50;
             SendDlgItemMessage(m_Dlg, iddVolumeControls[i], PBM_SETPOS, value, 0);

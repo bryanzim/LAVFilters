@@ -35,23 +35,23 @@ class CVC1HeaderParser
   public:
     struct
     {
-        int valid;
+        int valid{ 0 };
 
-        int profile;
-        int level;
+        int profile{ 0 };
+        int level{ 0 };
 
-        int width;
-        int height;
+        int width{ 0 };
+        int height{ 0 };
 
-        int broadcast;
-        int interlaced;
+        int broadcast{ 0 };
+        int interlaced{ 0 };
 
         AVRational ar;
 
-        int old_interlaced;
-        int bframes;
-        int finterp;
-        int rangered;
+        int old_interlaced{ 0 };
+        int bframes{ 0 };
+        int finterp{ 0 };
+        int rangered{ 0 };
     } hdr;
 
   private:

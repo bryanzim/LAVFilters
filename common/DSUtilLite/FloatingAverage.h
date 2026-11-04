@@ -42,7 +42,7 @@ template <class T> class FloatingAverage
         }
         if (iNumSamples > m_NumSamples) {
             std::memset(m_Samples + m_NumSamples, 0, sizeof(T) * (iNumSamples - m_NumSamples));
-}
+        }
         m_NumSamples = iNumSamples;
     }
 
@@ -71,7 +71,9 @@ template <class T> class FloatingAverage
         for (unsigned int i{ 1U }; i < m_NumSamples; ++i)
         {
             if (m_Samples[i] < min)
+            {
                 min = m_Samples[i];
+            }
         }
         return min;
     }
@@ -83,7 +85,7 @@ template <class T> class FloatingAverage
         {
             if ((std::abs)(m_Samples[i]) < (std::abs)(min)) {
                 min = m_Samples[i];
-}
+            }
         }
         return min;
     }
@@ -94,7 +96,9 @@ template <class T> class FloatingAverage
         for (unsigned int i{ 1U }; i < m_NumSamples; ++i)
         {
             if (m_Samples[i] > max)
+            {
                 max = m_Samples[i];
+            }
         }
         return max;
     }
@@ -106,7 +110,7 @@ template <class T> class FloatingAverage
         {
             if ((std::abs)(m_Samples[i]) > (std::abs)(max)) {
                 max = m_Samples[i];
-}
+            }
         }
         return max;
     }
@@ -122,7 +126,7 @@ template <class T> class FloatingAverage
     [[nodiscard]] constexpr unsigned int CurrentSample() const noexcept { return m_CurrentSample; }
 
   private:
-    T *m_Samples = nullptr;
+    T *m_Samples{ nullptr };
     unsigned int m_NumSamples{ 0U };
     unsigned int m_NumSamplesAlloc{ 0U };
     unsigned int m_CurrentSample{ 0U };

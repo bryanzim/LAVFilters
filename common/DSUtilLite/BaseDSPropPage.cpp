@@ -44,7 +44,7 @@ TOOLINFO CBaseDSPropPage::addHint(int id, const LPWSTR text)
 {
     if (!m_hHint) {
         m_hHint = createHintWindow(m_Dlg, 15000);
-}
+    }
     TOOLINFO ti;
     ti.cbSize = sizeof(TOOLINFO);
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
@@ -73,7 +73,7 @@ HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter, HWND hwndOwner
     CoInitialize(nullptr);
 
     // Get PropertyPages interface
-    ISpecifyPropertyPages *pProp = nullptr;
+    ISpecifyPropertyPages *pProp{ nullptr };
     HRESULT hr = pFilter->QueryInterface<ISpecifyPropertyPages>(&pProp);
     if (SUCCEEDED(hr) && pProp)
     {
@@ -83,9 +83,9 @@ HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter, HWND hwndOwner
         // We don't need the graph, so don't sit on a ref to it
         if (FilterInfo.pGraph) {
             FilterInfo.pGraph->Release();
-}
+        }
 
-        IUnknown *pFilterUnk = nullptr;
+        IUnknown *pFilterUnk{ nullptr };
         pFilter->QueryInterface<IUnknown>(&pFilterUnk);
 
         // Show the page.

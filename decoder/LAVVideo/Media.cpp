@@ -824,11 +824,11 @@ void fillDXVAExtFormat(DXVA2_ExtendedFormat &fmt, int range, int primaries, int 
 {
   if (bClear) {
     fmt.value = 0;
-}
+  }
 
   if (range != -1) {
       fmt.NominalRange = range ? DXVA2_NominalRange_0_255 : DXVA2_NominalRange_16_235;
-}
+  }
 
   // Color Primaries
   switch(primaries) {
@@ -878,10 +878,10 @@ void fillDXVAExtFormat(DXVA2_ExtendedFormat &fmt, int range, int primaries, int 
     break;
   // Custom values, not official standard, but understood by madVR
   case AVCOL_SPC_FCC:
-    fmt.VideoTransferMatrix = (DXVA2_VideoTransferMatrix)6;
+    fmt.VideoTransferMatrix = static_cast<DXVA2_VideoTransferMatrix>(6);
     break;
   case AVCOL_SPC_YCGCO:
-    fmt.VideoTransferMatrix = (DXVA2_VideoTransferMatrix)7;
+    fmt.VideoTransferMatrix = static_cast<DXVA2_VideoTransferMatrix>(7);
     break;
   }
 
@@ -940,7 +940,7 @@ void processFFHDRData(MediaSideDataHDR *sd, AVMasteringDisplayMetadata *ff)
 {
   if (!sd || !ff) {
     return;
-}
+  }
 
   // avcodec exports the display primaries in RGB order, we export them in GBR
   if (ff->has_primaries) {
@@ -965,11 +965,11 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
 {
   if (!sd || !ff) {
     return;
-}
+  }
 
   if (ff->num_windows > 3) {
     return;
-}
+  }
 
   sd->itu_t_t35_country_code = ff->itu_t_t35_country_code;
   sd->application_version = ff->application_version;
@@ -995,7 +995,7 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
 
     for (int k{ 0 }; k < 3; ++k) {
       sd->windows[i].maxscl[k] = av_q2d(ff->params[i].maxscl[k]);
-}
+    }
 
     sd->windows[i].average_maxrgb = av_q2d(ff->params[i].average_maxrgb);
 
@@ -1017,13 +1017,13 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
       sd->windows[i].num_bezier_curve_anchors = ff->params[i].num_bezier_curve_anchors;
       for (int k{ 0 }; k < ff->params[i].num_bezier_curve_anchors; ++k) {
         sd->windows[i].bezier_curve_anchors[k] = av_q2d(ff->params[i].bezier_curve_anchors[k]);
-}
+      }
     }
 
     sd->windows[i].color_saturation_mapping_flag = ff->params[i].color_saturation_mapping_flag;
     if (sd->windows[i].color_saturation_mapping_flag) {
       sd->windows[i].color_saturation_weight = av_q2d(ff->params[i].color_saturation_weight);
-}
+    }
   }
 
   sd->targeted_system_display_maximum_luminance = av_q2d(ff->targeted_system_display_maximum_luminance);
@@ -1034,8 +1034,8 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
   for (int i{ 0 }; i < ff->num_rows_targeted_system_display_actual_peak_luminance; ++i) {
     for (int j{ 0 }; j < ff->num_cols_targeted_system_display_actual_peak_luminance; ++j) {
       sd->targeted_system_display_actual_peak_luminance[i][j] = av_q2d(ff->targeted_system_display_actual_peak_luminance[i][j]);
-}
-}
+    }
+  }
 
   sd->mastering_display_actual_peak_luminance_flag = ff->mastering_display_actual_peak_luminance_flag;
   sd->num_rows_mastering_display_actual_peak_luminance = ff->num_rows_mastering_display_actual_peak_luminance;
@@ -1043,8 +1043,8 @@ void processFFHDR10PlusData(MediaSideDataHDR10Plus *sd, AVDynamicHDRPlus *ff, in
   for (int i{ 0 }; i < ff->num_rows_mastering_display_actual_peak_luminance; ++i) {
     for (int j{ 0 }; j < ff->num_cols_mastering_display_actual_peak_luminance; ++j) {
       sd->mastering_display_actual_peak_luminance[i][j] = av_q2d(ff->mastering_display_actual_peak_luminance[i][j]);
-}
-}
+    }
+  }
 }
 
 void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
@@ -1082,10 +1082,10 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
         sd->Mapping.curves[i].num_pivots = mapping->curves[i].num_pivots;
         for (int j{ 0 }; j < AV_DOVI_MAX_PIECES + 1; ++j) {
             sd->Mapping.curves[i].pivots[j] = mapping->curves[i].pivots[j];
-}
+        }
         for (int j{ 0 }; j < AV_DOVI_MAX_PIECES; ++j)
         {
-            sd->Mapping.curves[i].mapping_idc[j] = mapping->curves[i].mapping_idc[j];
+            sd->Mapping.curves[i].mapping_idc[j] = static_cast<std::uint8_t>(mapping->curves[i].mapping_idc[j]);
 
             // poly
             sd->Mapping.curves[i].poly_order[j] = mapping->curves[i].poly_order[j];
@@ -1099,12 +1099,12 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
             for (int k{ 0 }; k < 3; ++k) {
                 for (int l{ 0 }; l < 7; ++l) {
                     sd->Mapping.curves[i].mmr_coef[j][k][l] = mapping->curves[i].mmr_coef[j][k][l];
-}
-}
+                }
+            }
         }
     }
 
-    RPU_MAP(nlq_method_idc);
+    sd->Mapping.nlq_method_idc = static_cast<std::uint8_t>(mapping->nlq_method_idc);
     RPU_MAP(num_x_partitions);
     RPU_MAP(num_y_partitions);
 
@@ -1247,12 +1247,12 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
         /* if the block is valid/recognized, go to the next one */
         if (lavext->level > 0) {
             ++LAVExtIdx;
-}
+        }
 
         /* only 32 blocks are allowed, sanity check here */
         if (LAVExtIdx >= LAV_DOVI_MAX_EXTENSIONS) {
             break;
-}
+        }
     }
 }
 
@@ -1271,7 +1271,7 @@ int CheckForSequenceMarkers(AVCodecID codec, const std::uint8_t *buf, long len, 
           status |= STATE_EOS_FOUND;
           if (pos) {
             *pos = p;
-}
+          }
           return status;
         } else if (*state == 0x000001b8) {
           status |= STATE_GOP_FOUND;

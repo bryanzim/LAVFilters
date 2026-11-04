@@ -50,7 +50,7 @@ bool CExtradataParser::NextMPEGStartCode(BYTE &code)
     {
         if (!Remaining()) {
             return false;
-}
+        }
         dw = (dw << 8) | static_cast<BYTE>(BitRead(8));
     } while ((dw & 0xffffff00) != 0x00000100);
     code = static_cast<BYTE>((dw & 0xff));
@@ -110,6 +110,7 @@ std::size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
 
         int const startcode = BitRead(4); // Start Code Id; TODO: DIfferent start code ids mean different length of da2a
         ASSERT(startcode == 1);
+        (void)startcode;
 
         BitRead(1);  // Profile Level Escape
         BitRead(3);  // Profile

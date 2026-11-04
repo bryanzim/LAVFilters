@@ -107,7 +107,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 3, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     std::ptrdiff_t line, i;
 
@@ -128,7 +128,7 @@ DECLARE_CONV_FUNC_IMPL(convert_yuv444_ayuv_dither_le)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm6, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm6, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6;
         }
 
