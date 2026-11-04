@@ -46,7 +46,7 @@ static inline const std::uint8_t *find_next_marker(const std::uint8_t *src, cons
         mrk = (mrk << 8) | *src++;
         if ((mrk & ~0xFF) == 0x00000100) {
             return src - 4;
-}
+        }
     }
     return end;
 }
@@ -65,15 +65,15 @@ void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, std::size_t length)
 {
     if (length < 16) {
         return;
-}
+    }
 
     GetBitContext gb;
 
     const std::uint8_t *start = pData;
     const std::uint8_t *end = start + length;
-    const std::uint8_t *next = nullptr;
+    const std::uint8_t *next{ nullptr };
 
-    int size;
+    int size{ 0 };
 
     start = find_next_marker(start, end);
     next = start;
@@ -84,7 +84,7 @@ void CMPEG2HeaderParser::ParseMPEG2Header(const BYTE *pData, std::size_t length)
         size = static_cast<int>((next - start - 4));
         if (size <= 0) {
             continue;
-}
+        }
 
         init_get_bits(&gb, start + 4, (size - 4) * 8);
 

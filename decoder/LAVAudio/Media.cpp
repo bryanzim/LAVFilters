@@ -307,7 +307,7 @@ AVCodecID FindCodecId(const CMediaType *mt)
 static const struct s_ffmpeg_codec_overrides
 {
     AVCodecID codec;
-    const char *override;
+    const char *override{ nullptr };
 } ffmpeg_codec_overrides[] = {
     {AV_CODEC_ID_MP1, "mp1float"},
     {AV_CODEC_ID_MP2, "mp2float"},
@@ -403,7 +403,7 @@ LAVAudioSampleFormat get_lav_sample_fmt(AVSampleFormat sample_fmt, int bits)
             lav_sample_fmt = SampleFormat_24;
         } else {
             lav_sample_fmt = SampleFormat_16;
-}
+        }
         break;
     case AV_SAMPLE_FMT_DBL:
     case AV_SAMPLE_FMT_DBLP:
@@ -492,7 +492,7 @@ HRESULT CLAVAudio::ParseRealAudioHeader(const BYTE *extra, const std::size_t ext
     const std::uint8_t *const end = extra + extralen;
     const std::uint8_t *fmt = extra + 4;
     auto need = [&](std::size_t count) -> bool {
-        return fmt <= end && static_cast<std::size_t>(end - fmt) >= count;
+        return (fmt <= end) && (static_cast<std::size_t>(end - fmt) >= count);
     };
     auto skip = [&](std::size_t count) -> bool {
         if (!need(count))
@@ -683,7 +683,7 @@ WORD get_channel_from_flag(DWORD dwMask, DWORD dwFlag)
                 break;
             } else {
                 ++nChannel;
-}
+            }
         }
     }
     return nChannel;
@@ -701,7 +701,7 @@ DWORD get_flag_from_channel(DWORD dwMask, WORD wChannel)
         {
             if (nChannel == wChannel) { return flag; } else {
                 ++nChannel;
-}
+            }
         }
     }
     return 0;
@@ -791,7 +791,7 @@ static std::array<std::array<LAVAudioSampleFormat, 5U>, 5U> sampleFormatMapping{
 
 LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleFormat inFormat, int *bits, BOOL bNoFallback)
 {
-    ASSERT((inFormat >= 0 && inFormat < SampleFormat_Bitstream));
+    ASSERT(((inFormat >= 0) && (inFormat < SampleFormat_Bitstream)));
 
     if ((m_FallbackFormat != SampleFormat_None) && !bNoFallback) { return m_FallbackFormat; }
 
@@ -807,7 +807,7 @@ LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleForma
 
     if (bits && (outFormat != inFormat)) {
         *bits = get_byte_per_sample(outFormat) << 3;
-}
+    }
 
     return outFormat;
 }
@@ -815,7 +815,7 @@ LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleForma
 // Copy of ff_spdif_bswap_buf16, which sadly is a private symbol
 void lav_spdif_bswap_buf16(std::uint16_t *dst, const std::uint16_t *src, int w)
 {
-    int i;
+    int i{ 0 };
 
     for (i = 0; i + 8 <= w; i += 8)
     {
@@ -830,5 +830,5 @@ void lav_spdif_bswap_buf16(std::uint16_t *dst, const std::uint16_t *src, int w)
     }
     for (; i < w; ++i) {
         dst[i + 0] = av_bswap16(src[i + 0]);
-}
+    }
 }

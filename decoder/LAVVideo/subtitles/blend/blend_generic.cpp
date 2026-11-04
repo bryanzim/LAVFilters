@@ -29,7 +29,7 @@
 
 DECLARE_BLEND_FUNC_IMPL(blend_rgb_c)
 {
-    ASSERT((pixFmt == LAVPixFmt_RGB32 || pixFmt == LAVPixFmt_RGB24));
+    ASSERT(((pixFmt == LAVPixFmt_RGB32) || (pixFmt == LAVPixFmt_RGB24)));
 
     BYTE *rgbOut = video[0U];
     const BYTE *subIn = subData[0U];
@@ -70,9 +70,9 @@ DECLARE_BLEND_FUNC_IMPL(blend_rgb_c)
 
 template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
 {
-    ASSERT((pixFmt == LAVPixFmt_YUV420 || pixFmt == LAVPixFmt_NV12 || pixFmt == LAVPixFmt_YUV422 ||
-           pixFmt == LAVPixFmt_YUV444 || pixFmt == LAVPixFmt_YUV420bX || pixFmt == LAVPixFmt_YUV422bX ||
-           pixFmt == LAVPixFmt_YUV444bX || pixFmt == LAVPixFmt_P016));
+    ASSERT(((pixFmt == LAVPixFmt_YUV420) || (pixFmt == LAVPixFmt_NV12) || (pixFmt == LAVPixFmt_YUV422) ||
+           (pixFmt == LAVPixFmt_YUV444) || (pixFmt == LAVPixFmt_YUV420bX) || (pixFmt == LAVPixFmt_YUV422bX) ||
+           (pixFmt == LAVPixFmt_YUV444bX) || (pixFmt == LAVPixFmt_P016)));
 
     BYTE *y = video[0U];
     BYTE *u = video[1U];
@@ -138,15 +138,15 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
         for (col = 0; col < w; ++col)
         {
             // Average Alpha
-            int alpha;
+            int alpha{ 0 };
             if (hsub && vsub && (col + 1 < w) && (line + 1 < h))
             {
                 alpha = (srcA[0U] + srcA[inStride] + srcA[1U] + srcA[inStride + 1]) >> 2;
             }
             else if (hsub || vsub)
             {
-                int const alpha_h = hsub && col + 1 < w ? (srcA[0U] + srcA[1U]) >> 1 : srcA[0U];
-                int const alpha_v = vsub && line + 1 < h ? (srcA[0U] + srcA[inStride]) >> 1 : srcA[0U];
+                int const alpha_h = hsub && (col + 1 < w) ? (srcA[0U] + srcA[1U]) >> 1 : srcA[0U];
+                int const alpha_v = vsub && (line + 1 < h) ? (srcA[0U] + srcA[inStride]) >> 1 : srcA[0U];
                 alpha = (alpha_h + alpha_v) >> 1;
             }
             else

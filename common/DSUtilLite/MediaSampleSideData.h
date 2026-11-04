@@ -56,7 +56,7 @@ class CMediaSampleSideData
 
     struct SideDataEntry
     {
-        BYTE *pData;
+        BYTE *pData{ nullptr };
         std::size_t size;
     };
 

@@ -70,10 +70,10 @@ class CLAVInputPin
     LONGLONG m_llPos{ 0 };
 
   private:
-    IAsyncReader *m_pAsyncReader = nullptr;
-    AVIOContext *m_pAVIOContext = nullptr;
+    IAsyncReader *m_pAsyncReader{ nullptr };
+    AVIOContext *m_pAVIOContext{ nullptr };
 
-    IStreamSourceControl *m_pStreamControl = nullptr;
+    IStreamSourceControl *m_pStreamControl{ nullptr };
 
     BOOL m_bURLSource{ false };
 

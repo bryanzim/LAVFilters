@@ -31,7 +31,7 @@ inline void lavf_log_callback(void *ptr, int level, const char *fmt, va_list vl)
 
     if (level > AV_LOG_VERBOSE) {
         return;
-}
+    }
 
     av_log_format_line(ptr, level, fmt, vl, line, sizeof(line), &print_prefix);
 

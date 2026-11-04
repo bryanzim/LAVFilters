@@ -69,7 +69,7 @@ ILAVDecoder *CreateDecoderDXVA2Native()
 
 HRESULT VerifyD3D9Device(DWORD &dwIndex, DWORD dwDeviceId)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     IDirect3D9 *pD3D = Direct3DCreate9(D3D_SDK_VERSION);
     if (!pD3D) { return E_FAIL; }
@@ -80,7 +80,7 @@ HRESULT VerifyD3D9Device(DWORD &dwIndex, DWORD dwDeviceId)
     hr = pD3D->GetAdapterIdentifier(dwIndex, 0, &d3dai);
     if ((hr == D3D_OK) && (d3dai.DeviceId == dwDeviceId)) {
         goto done;
-}
+    }
 
     // find an adapter with the specified device id
     for (UINT i{ 0U }; i < pD3D->GetAdapterCount(); ++i)
@@ -123,7 +123,7 @@ static int IsAMDUVD(DWORD dwDeviceId)
     {
         if (UVDDeviceID[i] == (dwDeviceId & 0xFFF0)) {
             return 1;
-}
+        }
     }
     return 0;
 }
@@ -132,7 +132,7 @@ static D3DFORMAT get_dxva_surface_format(AVCodecContext *ctx)
 {
     if ((ctx->sw_pix_fmt == AV_PIX_FMT_YUV420P) || (ctx->sw_pix_fmt == AV_PIX_FMT_YUVJ420P) || (ctx->sw_pix_fmt == AV_PIX_FMT_NV12)) { return (D3DFORMAT)FOURCC_NV12; } else if ((ctx->sw_pix_fmt == AV_PIX_FMT_YUV420P10) || (ctx->sw_pix_fmt == AV_PIX_FMT_P010)) {
         return (D3DFORMAT)FOURCC_P010;
-}
+    }
 
     ASSERT(ctx->sw_pix_fmt == AV_PIX_FMT_NONE);
     return (D3DFORMAT)FOURCC_NV12;
@@ -158,14 +158,19 @@ CDecDXVA2::~CDecDXVA2(void)
     DestroyDecoder(true);
     if (m_pDXVA2Allocator) {
         m_pDXVA2Allocator->DecoderDestruct();
-}
+    }
 }
 
 STDMETHODIMP CDecDXVA2::DestroyDecoder(bool bFull, bool bNoAVCodec)
 {
+    HRESULT hrRelease{ S_OK };
     for (int i{ 0 }; i < DXVA2_QUEUE_SURFACES; ++i)
     {
-        ReleaseFrame(&m_FrameQueue[i]);
+        HRESULT const hrFrame = ReleaseFrame(&m_FrameQueue[i]);
+        if (FAILED(hrFrame) && SUCCEEDED(hrRelease))
+        {
+            hrRelease = hrFrame;
+        }
     }
 
     m_pCallback->ReleaseAllDXVAResources();
@@ -187,7 +192,7 @@ STDMETHODIMP CDecDXVA2::DestroyDecoder(bool bFull, bool bNoAVCodec)
         FreeD3DResources();
     }
 
-    return S_OK;
+    return hrRelease;
 }
 
 STDMETHODIMP CDecDXVA2::FreeD3DResources()
@@ -195,7 +200,7 @@ STDMETHODIMP CDecDXVA2::FreeD3DResources()
     SafeRelease(&m_pDXVADecoderService);
     if (m_pD3DDevMngr && (m_hDevice != INVALID_HANDLE_VALUE)) {
         m_pD3DDevMngr->CloseDeviceHandle(m_hDevice);
-}
+    }
     m_hDevice = INVALID_HANDLE_VALUE;
     SafeRelease(&m_pD3DDevMngr);
     SafeRelease(&m_pD3DDev);
@@ -218,7 +223,7 @@ STDMETHODIMP CDecDXVA2::FreeD3DResources()
 
 STDMETHODIMP CDecDXVA2::InitAllocator(IMemAllocator **ppAlloc)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     if (!m_bNative) { return E_NOTIMPL; }
 
     m_pDXVA2Allocator = new CDXVA2SurfaceAllocator(this, &hr);
@@ -237,13 +242,13 @@ STDMETHODIMP CDecDXVA2::InitAllocator(IMemAllocator **ppAlloc)
 
 STDMETHODIMP CDecDXVA2::PostConnect(IPin *pPin)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (!m_bNative && m_pD3DDevMngr) { return S_OK; }
 
     DbgLog((LOG_TRACE, 10, L"CDecDXVA2::PostConnect()"));
 
-    IMFGetService *pGetService = nullptr;
+    IMFGetService *pGetService{ nullptr };
     hr = pPin->QueryInterface(__uuidof(IMFGetService), reinterpret_cast<void **>(&pGetService));
     if (FAILED(hr))
     {
@@ -281,7 +286,7 @@ STDMETHODIMP CDecDXVA2::PostConnect(IPin *pPin)
         }
 
         CMediaType const mt = m_pCallback->GetOutputMediaType();
-        if ((m_eSurfaceFormat == FOURCC_NV12 && mt.subtype != MEDIASUBTYPE_NV12) ||
+        if (((m_eSurfaceFormat == FOURCC_NV12) && (mt.subtype != MEDIASUBTYPE_NV12)) ||
             (m_eSurfaceFormat == FOURCC_P010 && mt.subtype != MEDIASUBTYPE_P010) ||
             (m_eSurfaceFormat == FOURCC_P016 && mt.subtype != MEDIASUBTYPE_P016))
         {
@@ -303,9 +308,9 @@ done:
 
 HRESULT CDecDXVA2::DXVA2NotifyEVR()
 {
-    HRESULT hr = S_OK;
-    IMFGetService *pGetService = nullptr;
-    IDirectXVideoMemoryConfiguration *pVideoConfig = nullptr;
+    HRESULT hr{ S_OK };
+    IMFGetService *pGetService{ nullptr };
+    IDirectXVideoMemoryConfiguration *pVideoConfig{ nullptr };
 
     hr = m_pCallback->GetOutputPin()->GetConnected()->QueryInterface(&pGetService);
     if (FAILED(hr))
@@ -385,7 +390,7 @@ static const struct
 HRESULT CDecDXVA2::CreateD3DDeviceManager(IDirect3DDevice9 *pDevice, UINT *pReset, IDirect3DDeviceManager9 **ppManager)
 {
     UINT resetToken{ 0U };
-    IDirect3DDeviceManager9 *pD3DManager = nullptr;
+    IDirect3DDeviceManager9 *pD3DManager{ nullptr };
     HRESULT hr = dx.createDeviceManager(&resetToken, &pD3DManager);
     if (FAILED(hr))
     {
@@ -411,9 +416,9 @@ done:
 
 HRESULT CDecDXVA2::CreateDXVAVideoService(IDirect3DDeviceManager9 *pManager, IDirectXVideoDecoderService **ppService)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
-    IDirectXVideoDecoderService *pService = nullptr;
+    IDirectXVideoDecoderService *pService{ nullptr };
 
     hr = pManager->OpenDeviceHandle(&m_hDevice);
     if (FAILED(hr))
@@ -438,10 +443,10 @@ done:
 
 HRESULT CDecDXVA2::FindVideoServiceConversion(AVCodecID codec, int profile, D3DFORMAT suggestedOutput, GUID *input, D3DFORMAT *output)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     UINT count{ 0U };
-    GUID *input_list = nullptr;
+    GUID *input_list{ nullptr };
 
     /* Gather the format supported by the decoder */
     hr = m_pDXVADecoderService->GetDecoderDeviceGuids(&count, &input_list);
@@ -472,20 +477,20 @@ HRESULT CDecDXVA2::FindVideoServiceConversion(AVCodecID codec, int profile, D3DF
         const dxva_mode_t *mode = &dxva_modes[i];
         if (!check_dxva_mode_compatibility(mode, codec, profile, 0, (suggestedOutput == FOURCC_NV12))) {
             continue;
-}
+        }
 
         BOOL supported{ FALSE };
-        for (const GUID *g = &input_list[0U]; !supported && g < &input_list[count]; ++g)
+        for (const GUID *g = &input_list[0U]; !supported && (g < &input_list[count]); ++g)
         {
             supported = IsEqualGUID(*mode->guid, *g);
         }
         if (!supported) {
             continue;
-}
+        }
 
         DbgLog((LOG_TRACE, 10, L"-> Trying to use '%S'", mode->name));
         UINT out_count{ 0U };
-        D3DFORMAT *out_list = nullptr;
+        D3DFORMAT *out_list{ nullptr };
         hr = m_pDXVADecoderService->GetDecoderRenderTargets(*mode->guid, &out_count, &out_list);
         if (FAILED(hr))
         {
@@ -563,7 +568,7 @@ HRESULT CDecDXVA2::InitD3DAdapterIdentifier(UINT lAdapter)
  */
 HRESULT CDecDXVA2::InitD3D(UINT lAdapter)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     m_pD3D = Direct3DCreate9(D3D_SDK_VERSION);
     if (!m_pD3D)
@@ -614,7 +619,7 @@ HRESULT CDecDXVA2::InitD3D(UINT lAdapter)
 
 HRESULT CDecDXVA2::InitD3DEx(UINT lAdapter)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (dx.direct3DCreate9Ex == nullptr)
     {
@@ -622,7 +627,7 @@ HRESULT CDecDXVA2::InitD3DEx(UINT lAdapter)
         return E_NOINTERFACE;
     }
 
-    IDirect3D9Ex *pD3D9Ex = nullptr;
+    IDirect3D9Ex *pD3D9Ex{ nullptr };
     hr = dx.direct3DCreate9Ex(D3D_SDK_VERSION, &pD3D9Ex);
     if (FAILED(hr))
     {
@@ -661,7 +666,7 @@ HRESULT CDecDXVA2::InitD3DEx(UINT lAdapter)
     d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     d3dpp.Flags = D3DPRESENTFLAG_VIDEO;
 
-    IDirect3DDevice9Ex *pD3D9DeviceEx = nullptr;
+    IDirect3DDevice9Ex *pD3D9DeviceEx{ nullptr };
     hr = pD3D9Ex->CreateDeviceEx(lAdapter, D3DDEVTYPE_HAL, GetShellWindow(),
                                  D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
                                  &d3dpp, nullptr, &pD3D9DeviceEx);
@@ -679,8 +684,8 @@ HRESULT CDecDXVA2::InitD3DEx(UINT lAdapter)
 HRESULT CDecDXVA2::RetrieveVendorId(IDirect3DDeviceManager9 *pDevManager)
 {
     HANDLE hDevice{ nullptr };
-    IDirect3D9 *pD3D = nullptr;
-    IDirect3DDevice9 *pDevice = nullptr;
+    IDirect3D9 *pD3D{ nullptr };
+    IDirect3DDevice9 *pDevice{ nullptr };
 
     HRESULT hr = pDevManager->OpenDeviceHandle(&hDevice);
     if (FAILED(hr))
@@ -750,7 +755,7 @@ HRESULT CDecDXVA2::CheckHWCompatConditions(GUID decoderGuid)
                 DbgLog((LOG_TRACE, 10, L"-> Too many reference frames for AMD UVD/UVD+ H.264 decoder"));
                 return E_FAIL;
             }
-            else if ((m_pAVCtx->codec_id == AV_CODEC_ID_VC1 || m_pAVCtx->codec_id == AV_CODEC_ID_MPEG2VIDEO) &&
+            else if (((m_pAVCtx->codec_id == AV_CODEC_ID_VC1) || (m_pAVCtx->codec_id == AV_CODEC_ID_MPEG2VIDEO)) &&
                      (m_dwSurfaceWidth > 1920 || m_dwSurfaceHeight > 1200))
             {
                 DbgLog((LOG_TRACE, 10, L"-> VC-1 Resolutions above FullHD are not supported by the UVD/UVD+ decoder"));
@@ -781,7 +786,7 @@ HRESULT CDecDXVA2::CheckHWCompatConditions(GUID decoderGuid)
  */
 HRESULT CDecDXVA2::SetD3DDeviceManager(IDirect3DDeviceManager9 *pDevManager)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     ASSERT(pDevManager);
 
     m_pD3DDevMngr = pDevManager;
@@ -847,7 +852,7 @@ HRESULT CDecDXVA2::SetD3DDeviceManager(IDirect3DDeviceManager9 *pDevManager)
             goto done;
         }
 
-        IDirectXVideoDecoder *decoder = nullptr;
+        IDirectXVideoDecoder *decoder{ nullptr };
         hr = m_pDXVADecoderService->CreateVideoDecoder(input, &desc, &config, pSurfaces.data(), numSurfaces, &decoder);
 
         // Release resources, decoder and surfaces
@@ -873,7 +878,7 @@ done:
 STDMETHODIMP CDecDXVA2::Init()
 {
     DbgLog((LOG_TRACE, 10, L"CDecDXVA2::Init(): Trying to open DXVA2 decoder"));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     // Initialize all D3D interfaces in non-native mode
     if (!m_bNative)
@@ -889,7 +894,7 @@ STDMETHODIMP CDecDXVA2::Init()
         UINT lAdapter = m_pSettings->GetHWAccelDeviceIndex(HWAccel_DXVA2CopyBack, nullptr);
         if (lAdapter == LAVHWACCEL_DEVICE_DEFAULT) {
             lAdapter = D3DADAPTER_DEFAULT;
-}
+        }
 
         DWORD const dwDeviceIndex = m_pCallback->GetGPUDeviceIndex();
         if (dwDeviceIndex != DWORD_MAX)
@@ -937,7 +942,7 @@ STDMETHODIMP CDecDXVA2::Init()
 
 STDMETHODIMP CDecDXVA2::InitDecoder(AVCodecID codec, const CMediaType *pmt, const MediaSideDataFFMpeg *pSideData)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     DbgLog((LOG_TRACE, 10, L"CDecDXVA2::InitDecoder(): Initializing DXVA2 decoder"));
 
     // Hack-ish check to avoid re-creating the full decoder when only the aspect ratio changes.
@@ -973,12 +978,12 @@ STDMETHODIMP CDecDXVA2::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
     // Intel GPUs don't like the display and performance goes way down, so disable it.
     if (m_dwVendorId == VEND_ID_INTEL) {
         m_DisplayDelay = 0;
-}
+    }
 
     // Reduce display delay for DVD decoding for lower decode latency
     if (m_pCallback->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_DVD) {
         m_DisplayDelay /= 2;
-}
+    }
 
     m_bFailHWDecode = FALSE;
 
@@ -1045,7 +1050,7 @@ STDMETHODIMP_(long) CDecDXVA2::GetBufferCount(long *pMaxBuffers)
             buffers = 8;
         } else {
             buffers = 2;
-}
+        }
     }
 
     // 4 extra buffers for handling and safety
@@ -1068,7 +1073,7 @@ STDMETHODIMP_(long) CDecDXVA2::GetBufferCount(long *pMaxBuffers)
         // VC-1 and VP9 decoding has stricter requirements (decoding flickers otherwise)
         if ((m_nCodecId == AV_CODEC_ID_VC1) || (m_nCodecId == AV_CODEC_ID_VP9) || (m_nCodecId == AV_CODEC_ID_AV1)) {
             *pMaxBuffers = 32;
-}
+        }
     }
 
     return buffers;
@@ -1079,9 +1084,9 @@ HRESULT CDecDXVA2::FindDecoderConfiguration(const GUID &input, const DXVA2_Video
 {
     CheckPointer(pConfig, E_INVALIDARG);
     CheckPointer(pDesc, E_INVALIDARG);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     UINT cfg_count{ 0U };
-    DXVA2_ConfigPictureDecode *cfg_list = nullptr;
+    DXVA2_ConfigPictureDecode *cfg_list{ nullptr };
     hr = m_pDXVADecoderService->GetDecoderConfigurations(input, pDesc, nullptr, &cfg_count, &cfg_list);
     if (FAILED(hr))
     {
@@ -1098,7 +1103,7 @@ HRESULT CDecDXVA2::FindDecoderConfiguration(const GUID &input, const DXVA2_Video
 
         DbgLog((LOG_ERROR, 10, "-> Configuration Record %d: ConfigBitstreamRaw = %d", i, cfg->ConfigBitstreamRaw));
 
-        int score;
+        int score{ 0 };
         if (cfg->ConfigBitstreamRaw == 1) {
             score = 1;
         } else if ((m_pAVCtx->codec_id == AV_CODEC_ID_H264) && (cfg->ConfigBitstreamRaw == 2)) {
@@ -1107,10 +1112,10 @@ HRESULT CDecDXVA2::FindDecoderConfiguration(const GUID &input, const DXVA2_Video
             score = 0;
         } else {
             continue;
-}
+        }
         if (IsEqualGUID(cfg->guidConfigBitstreamEncryption, DXVA2_NoEncrypt)) {
             score += 16;
-}
+        }
         if (score > best_score)
         {
             best_score = score;
@@ -1131,7 +1136,7 @@ HRESULT CDecDXVA2::FindDecoderConfiguration(const GUID &input, const DXVA2_Video
 HRESULT CDecDXVA2::CreateDXVA2Decoder(int nSurfaces, IDirect3DSurface9 **ppSurfaces)
 {
     DbgLog((LOG_TRACE, 10, L"-> CDecDXVA2::CreateDXVA2Decoder"));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     std::array<LPDIRECT3DSURFACE9, DXVA2_MAX_SURFACES> pSurfaces{};
 
     if (!m_pDXVADecoderService) { return E_FAIL; }
@@ -1177,7 +1182,7 @@ HRESULT CDecDXVA2::CreateDXVA2Decoder(int nSurfaces, IDirect3DSurface9 **ppSurfa
     }
 
     // get the device, for ColorFill() to init the surfaces in black
-    IDirect3DDevice9 *pDev = nullptr;
+    IDirect3DDevice9 *pDev{ nullptr };
     ppSurfaces[0U]->GetDevice(&pDev);
 
     for (int i{ 0 }; i < m_NumSurfaces; ++i)
@@ -1190,7 +1195,7 @@ HRESULT CDecDXVA2::CreateDXVA2Decoder(int nSurfaces, IDirect3DSurface9 **ppSurfa
         // fill the surface in black, to avoid the "green screen" in case the first frame fails to decode.
         if (pDev) {
             pDev->ColorFill(ppSurfaces[i], nullptr, D3DCOLOR_XYUV(0, 128, 128));
-}
+        }
     }
 
     // and done with the device
@@ -1212,7 +1217,7 @@ HRESULT CDecDXVA2::CreateDXVA2Decoder(int nSurfaces, IDirect3DSurface9 **ppSurfa
         return hr;
     }
 
-    IDirectXVideoDecoder *decoder = nullptr;
+    IDirectXVideoDecoder *decoder{ nullptr };
     hr = m_pDXVADecoderService->CreateVideoDecoder(input, &desc, &m_DXVAVideoDecoderConfig, ppSurfaces, m_NumSurfaces,
                                                    &decoder);
     if (FAILED(hr))
@@ -1248,7 +1253,7 @@ HRESULT CDecDXVA2::FillHWContext(dxva_context *ctx)
         ctx->workaround = FF_DXVA2_WORKAROUND_SCALING_LIST_ZIGZAG;
     } else {
         ctx->workaround = 0;
-}
+    }
 
     return S_OK;
 }
@@ -1263,7 +1268,7 @@ enum AVPixelFormat CDecDXVA2::get_dxva2_format(struct AVCodecContext *c, const e
 
         if (!desc || (!(desc->flags & AV_PIX_FMT_FLAG_HWACCEL))) {
             break;
-}
+        }
 
         if (*p == AV_PIX_FMT_DXVA2_VLD)
         {
@@ -1312,7 +1317,7 @@ void CDecDXVA2::free_dxva2_buffer(void *opaque, std::uint8_t *data)
 
 HRESULT CDecDXVA2::ReInitDXVA2Decoder(AVCodecContext *c)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     // Don't allow decoder creation during first init
     if (m_bInInit) { return S_FALSE; }
@@ -1385,9 +1390,9 @@ HRESULT CDecDXVA2::ReInitDXVA2Decoder(AVCodecContext *c)
 int CDecDXVA2::get_dxva2_buffer(struct AVCodecContext *c, AVFrame *pic, int flags)
 {
     CDecDXVA2 *pDec = reinterpret_cast<CDecDXVA2 *>(c->opaque);
-    IMediaSample *pSample = nullptr;
+    IMediaSample *pSample{ nullptr };
 
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if ((pic->format != AV_PIX_FMT_DXVA2_VLD) || (c->codec_id == AV_CODEC_ID_H264 && !H264_CHECK_PROFILE(c->profile)) ||
         (c->codec_id == AV_CODEC_ID_HEVC && !HEVC_CHECK_PROFILE(c->profile)) ||
@@ -1410,7 +1415,7 @@ int CDecDXVA2::get_dxva2_buffer(struct AVCodecContext *c, AVFrame *pic, int flag
         DbgLog((LOG_ERROR, 10, L"Device Lost"));
     }
 
-    int i;
+    int i{ 0 };
     if (pDec->m_bNative)
     {
         if (!pDec->m_pDXVA2Allocator) { return -1; }
@@ -1422,7 +1427,7 @@ int CDecDXVA2::get_dxva2_buffer(struct AVCodecContext *c, AVFrame *pic, int flag
             return -1;
         }
 
-        ILAVDXVA2Sample *pLavDXVA2 = nullptr;
+        ILAVDXVA2Sample *pLavDXVA2{ nullptr };
         hr = pSample->QueryInterface(&pLavDXVA2);
         if (FAILED(hr))
         {
@@ -1441,10 +1446,10 @@ int CDecDXVA2::get_dxva2_buffer(struct AVCodecContext *c, AVFrame *pic, int flag
             d3d_surface_t *surface = &pDec->m_pSurfaces[i];
             if ((!surface->used) && (old_unused == -1 || surface->age < pDec->m_pSurfaces[old_unused].age)) {
                 old_unused = i;
-}
+            }
             if (surface->age < pDec->m_pSurfaces[old].age) {
                 old = i;
-}
+            }
         }
         if (old_unused == -1)
         {
@@ -1528,7 +1533,7 @@ STDMETHODIMP CDecDXVA2::FlushFromAllocator()
 {
     if (m_pAVCtx && avcodec_is_open(m_pAVCtx)) {
         avcodec_flush_buffers(m_pAVCtx);
-}
+    }
     FlushDisplayQueue(FALSE);
 
     return S_OK;
@@ -1565,11 +1570,11 @@ STDMETHODIMP CDecDXVA2::Flush()
             CAutoLock const allocatorLock(m_pDXVA2Allocator);
             if (m_pDXVA2Allocator->IsCommited()) {
                 CreateDXVA2Decoder(m_NumSurfaces, m_pRawSurface.data());
-}
+            }
         }
         else if (!m_bNative) {
             CreateDXVA2Decoder();
-}
+        }
     }
 
     return S_OK;
@@ -1577,24 +1582,33 @@ STDMETHODIMP CDecDXVA2::Flush()
 
 STDMETHODIMP CDecDXVA2::FlushDisplayQueue(BOOL bDeliver)
 {
+    HRESULT hr{ S_OK };
     for (int i{ 0 }; i < m_DisplayDelay; ++i)
     {
         if (m_FrameQueue[m_FrameQueuePosition])
         {
             if (bDeliver)
             {
-                DeliverDXVA2Frame(m_FrameQueue[m_FrameQueuePosition]);
+                HRESULT const hrDeliver = DeliverDXVA2Frame(m_FrameQueue[m_FrameQueuePosition]);
                 m_FrameQueue[m_FrameQueuePosition] = nullptr;
+                if (FAILED(hrDeliver) && SUCCEEDED(hr))
+                {
+                    hr = hrDeliver;
+                }
             }
             else
             {
-                ReleaseFrame(&m_FrameQueue[m_FrameQueuePosition]);
+                HRESULT const hrFrame = ReleaseFrame(&m_FrameQueue[m_FrameQueuePosition]);
+                if (FAILED(hrFrame) && SUCCEEDED(hr))
+                {
+                    hr = hrFrame;
+                }
             }
         }
         m_FrameQueuePosition = (m_FrameQueuePosition + 1) % m_DisplayDelay;
     }
 
-    return S_OK;
+    return hr;
 }
 
 STDMETHODIMP CDecDXVA2::EndOfStream()
@@ -1613,26 +1627,28 @@ HRESULT CDecDXVA2::HandleDXVA2Frame(LAVFrame *pFrame)
     {
         if (!m_bNative)
         {
-            FlushDisplayQueue(TRUE);
+            HRESULT const hrFlush = FlushDisplayQueue(TRUE);
+            if (FAILED(hrFlush))
+            {
+                HRESULT const hrRelease = ReleaseFrame(&pFrame);
+                return FAILED(hrRelease) ? hrRelease : hrFlush;
+            }
         }
-        Deliver(pFrame);
-        return S_OK;
+        return Deliver(pFrame);
     }
     if (m_bNative || (m_DisplayDelay == 0))
     {
-        DeliverDXVA2Frame(pFrame);
+        return DeliverDXVA2Frame(pFrame);
     }
-    else
+
+    LAVFrame *pQueuedFrame = m_FrameQueue[m_FrameQueuePosition];
+    m_FrameQueue[m_FrameQueuePosition] = pFrame;
+
+    m_FrameQueuePosition = (m_FrameQueuePosition + 1) % m_DisplayDelay;
+
+    if (pQueuedFrame)
     {
-        LAVFrame *pQueuedFrame = m_FrameQueue[m_FrameQueuePosition];
-        m_FrameQueue[m_FrameQueuePosition] = pFrame;
-
-        m_FrameQueuePosition = (m_FrameQueuePosition + 1) % m_DisplayDelay;
-
-        if (pQueuedFrame)
-        {
-            DeliverDXVA2Frame(pQueuedFrame);
-        }
+        return DeliverDXVA2Frame(pQueuedFrame);
     }
 
     return S_OK;
@@ -1645,30 +1661,26 @@ HRESULT CDecDXVA2::DeliverDXVA2Frame(LAVFrame *pFrame)
         if ((!pFrame->data[0U]) || (!pFrame->data[3U]))
         {
             DbgLog((LOG_ERROR, 10, L"No sample or surface for DXVA2 frame?!?!"));
-            ReleaseFrame(&pFrame);
-            return S_FALSE;
+            HRESULT const hrRelease = ReleaseFrame(&pFrame);
+            return FAILED(hrRelease) ? hrRelease : S_FALSE;
         }
 
         GetPixelFormat(&pFrame->format, &pFrame->bpp, &pFrame->sw_format);
-        Deliver(pFrame);
-    }
-    else
-    {
-        if (m_bDirect)
-        {
-            DeliverDirect(pFrame);
-        }
-        else
-        {
-            if (CopyFrame(pFrame)) {
-                Deliver(pFrame);
-            } else {
-                ReleaseFrame(&pFrame);
-}
-        }
+        return Deliver(pFrame);
     }
 
-    return S_OK;
+    if (m_bDirect)
+    {
+        return DeliverDirect(pFrame) ? S_OK : E_FAIL;
+    }
+
+    if (CopyFrame(pFrame))
+    {
+        return Deliver(pFrame);
+    }
+
+    HRESULT const hrRelease = ReleaseFrame(&pFrame);
+    return FAILED(hrRelease) ? hrRelease : S_OK;
 }
 
 STDMETHODIMP CDecDXVA2::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixelFormat *pPixSoftware)
@@ -1680,22 +1692,22 @@ STDMETHODIMP CDecDXVA2::GetPixelFormat(LAVPixelFormat *pPix, int *pBpp, LAVPixel
             *pPix = LAVPixFmt_DXVA2;
         } else {
             *pPix =
-                (m_eSurfaceFormat == FOURCC_P010 || m_eSurfaceFormat == FOURCC_P016) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
-}
+                ((m_eSurfaceFormat == FOURCC_P010) || (m_eSurfaceFormat == FOURCC_P016)) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
+        }
     }
     if (pBpp) {
         *pBpp = (m_eSurfaceFormat == FOURCC_P016) ? 16 : ((m_eSurfaceFormat == FOURCC_P010) ? 10 : 8);
-}
+    }
     if (pPixSoftware) {
         *pPixSoftware =
-            (m_eSurfaceFormat == FOURCC_P010 || m_eSurfaceFormat == FOURCC_P016) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
-}
+            ((m_eSurfaceFormat == FOURCC_P010) || (m_eSurfaceFormat == FOURCC_P016)) ? LAVPixFmt_P016 : LAVPixFmt_NV12;
+    }
     return S_OK;
 }
 
 __forceinline bool CDecDXVA2::CopyFrame(LAVFrame *pFrame)
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     LPDIRECT3DSURFACE9 pSurface = (LPDIRECT3DSURFACE9)pFrame->data[3U];
     GetPixelFormat(&pFrame->format, &pFrame->bpp, &pFrame->sw_format);
 
@@ -1746,7 +1758,7 @@ static bool direct_lock(LAVFrame *pFrame, LAVDirectBuffer *pBuffer)
 {
     ASSERT((pFrame && pBuffer));
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     LPDIRECT3DSURFACE9 pSurface = (LPDIRECT3DSURFACE9)pFrame->data[3U];
 
     D3DSURFACE_DESC surfaceDesc;
@@ -1787,9 +1799,7 @@ bool CDecDXVA2::DeliverDirect(LAVFrame *pFrame)
     pFrame->direct_lock = direct_lock;
     pFrame->direct_unlock = direct_unlock;
 
-    Deliver(pFrame);
-
-    return true;
+    return SUCCEEDED(Deliver(pFrame));
 }
 
 STDMETHODIMP_(DWORD) CDecDXVA2::GetHWAccelNumDevices()
@@ -1822,7 +1832,7 @@ STDMETHODIMP CDecDXVA2::GetHWAccelDeviceInfo(DWORD dwIndex, BSTR *pstrDeviceName
 
     if (dwDeviceIdentifier) {
         *dwDeviceIdentifier = d3dai.DeviceId;
-}
+    }
 
     return S_OK;
 }
@@ -1833,7 +1843,7 @@ STDMETHODIMP CDecDXVA2::GetHWAccelActiveDevice(BSTR *pstrDeviceName)
 
     if (std::strlen(m_cDeviceName.data()) == 0) {
         return E_UNEXPECTED;
-}
+    }
 
     int const len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, m_cDeviceName.data(), -1, nullptr, 0);
     if (len == 0) { return E_FAIL; }

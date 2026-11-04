@@ -50,7 +50,7 @@ bool CExtradataParser::NextMPEGStartCode(BYTE &code)
     {
         if (!Remaining()) {
             return false;
-}
+        }
         dw = (dw << 8) | static_cast<BYTE>(BitRead(8));
     } while ((dw & 0xffffff00) != 0x00000100);
     code = static_cast<BYTE>((dw & 0xff));

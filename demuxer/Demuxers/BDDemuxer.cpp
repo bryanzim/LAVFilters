@@ -69,10 +69,10 @@ std::int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, std::int64_t offset, int
     }
     else {
         return -1;
-}
+    }
     if (pos < 0) {
         pos = 0;
-}
+    }
     std::int64_t achieved = bd_seek(bd, pos);
     if (pos > achieved)
     {
@@ -194,7 +194,7 @@ STDMETHODIMP CBDDemuxer::NonDelegatingQueryInterface(REFIID riid, void **ppv)
 STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPCOLESTR pszReferrer)
 {
     CAutoLock const lock(m_pLock);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     int ret; // return code from C functions
 
@@ -289,7 +289,7 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
             }
             if (found) {
                 break;
-}
+            }
         }
         DbgLog((LOG_TRACE, 20, L" ------ End Title Listing ------"));
 
@@ -400,14 +400,14 @@ void CBDDemuxer::CloseMVCExtensionDemuxer()
 {
     if (m_MVCFormatContext) {
         avformat_close_input(&m_MVCFormatContext);
-}
+    }
 
     m_MVCExtensionClip = -1;
 }
 
 STDMETHODIMP CBDDemuxer::OpenMVCExtensionDemuxer(int playItem)
 {
-    int ret;
+    int ret{ 0 };
     MPLS_PL *pl = bd_get_title_mpls(m_pBD);
     if (!pl) { return E_FAIL; }
 
@@ -541,12 +541,12 @@ STDMETHODIMP CBDDemuxer::FillMVCExtensionQueue(REFERENCE_TIME rtBase)
         return S_FALSE;
     } else {
         return E_FAIL;
-}
+    }
 }
 
 STDMETHODIMP CBDDemuxer::SetTitle(int idx)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     int ret; // return values
     if (m_pTitle)
     {
@@ -663,7 +663,7 @@ void CBDDemuxer::ProcessBluRayMetadata()
         }
     }
 
-    ASSERT((m_pTitle->clip_count >= 1 && m_pTitle->clips));
+    ASSERT(((m_pTitle->clip_count >= 1) && m_pTitle->clips));
     std::int64_t max_clip_duration{ 0 };
     for (std::uint32_t i{ 0U }; i < m_pTitle->clip_count; ++i)
     {
@@ -821,7 +821,7 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
                 if (stream->lang[0U] != 0) {
                     av_dict_set(&avstream->metadata, "language", reinterpret_cast<const char *>(stream->lang),
                                 overwrite ? 0 : AV_DICT_DONT_OVERWRITE);
-}
+                }
                 if (avstream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                 {
                     if ((avstream->codecpar->width == 0) || (avstream->codecpar->height == 0))
@@ -870,9 +870,9 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
                                                   : (stream->format == BLURAY_AUDIO_FORMAT_STEREO) ? 2
                                                                                                    : 6);
                         avstream->codecpar->sample_rate =
-                            (stream->rate == BLURAY_AUDIO_RATE_96 || stream->rate == BLURAY_AUDIO_RATE_96_COMBO)
+                            ((stream->rate == BLURAY_AUDIO_RATE_96) || (stream->rate == BLURAY_AUDIO_RATE_96_COMBO))
                                 ? 96000
-                                : (stream->rate == BLURAY_AUDIO_RATE_192 || stream->rate == BLURAY_AUDIO_RATE_192_COMBO)
+                                : ((stream->rate == BLURAY_AUDIO_RATE_192) || (stream->rate == BLURAY_AUDIO_RATE_192_COMBO))
                                       ? 192000
                                       : 48000;
                         if (avstream->codecpar->codec_id == AV_CODEC_ID_DTS)
@@ -881,7 +881,7 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
                                 avstream->codecpar->profile = AV_PROFILE_DTS_HD_HRA;
                             } else if (stream->coding_type == BLURAY_STREAM_TYPE_AUDIO_DTSHD_MASTER) {
                                 avstream->codecpar->profile = AV_PROFILE_DTS_HD_MA;
-}
+                            }
                         }
                     }
                 }
@@ -906,7 +906,7 @@ STDMETHODIMP CBDDemuxer::Seek(REFERENCE_TIME rTime)
         CloseMVCExtensionDemuxer();
         if (FAILED(OpenMVCExtensionDemuxer(m_NewClip))) {
             return E_FAIL;
-}
+        }
 
         // Adjust for clip offset
         std::int64_t seek_pts{ 0 };
@@ -922,7 +922,7 @@ STDMETHODIMP CBDDemuxer::Seek(REFERENCE_TIME rTime)
 
         if (seek_pts < 0) {
             seek_pts = 0;
-}
+        }
 
         av_seek_frame(m_MVCFormatContext, m_MVCStreamIndex, seek_pts, AVSEEK_FLAG_BACKWARD);
     }
@@ -942,7 +942,7 @@ STDMETHODIMP CBDDemuxer::get_ExSeekCapabilities(long *pExCapabilities)
     *pExCapabilities = AM_EXSEEK_CANSEEK;
     if (m_pTitle && (m_pTitle->chapter_count > 1)) {
         *pExCapabilities |= AM_EXSEEK_MARKERSEEK;
-}
+    }
     return S_OK;
 }
 

@@ -56,7 +56,7 @@ class CVideoInputPin
     [[nodiscard]] constexpr BOOL HasDynamicAllocator() noexcept { return m_bDynamicAllocator; }
 
   private:
-    CLAVVideo *m_pLAVVideo = nullptr;
+    CLAVVideo *m_pLAVVideo{ nullptr };
     CCritSec m_csRateLock;
 
     int m_CorrectTS{ 0 };

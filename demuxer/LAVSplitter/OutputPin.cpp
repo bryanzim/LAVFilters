@@ -181,7 +181,7 @@ HRESULT CLAVOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERT
     CheckPointer(pAlloc, E_POINTER);
     CheckPointer(pProperties, E_POINTER);
 
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     pProperties->cBuffers = max(pProperties->cBuffers, (m_bPacketAllocator ? 20 : m_nBuffers));
     pProperties->cbBuffer = max(max(m_mt.lSampleSize, 256000), static_cast<ULONG>(pProperties->cbBuffer));
@@ -196,7 +196,7 @@ HRESULT CLAVOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERT
     ALLOCATOR_PROPERTIES Actual;
     if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) {
         return hr;
-}
+    }
     if (Actual.cbBuffer < pProperties->cbBuffer) { return E_FAIL; }
     ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
@@ -222,7 +222,7 @@ HRESULT CLAVOutputPin::GetMediaType(int iPosition, CMediaType *pmt)
     if (iPosition < 0) { return E_INVALIDARG; }
     if (static_cast<std::size_t>(iPosition) >= m_mts.size()) {
         return VFW_S_NO_MORE_ITEMS;
-}
+    }
 
     *pmt = m_mts[iPosition];
 
@@ -237,7 +237,7 @@ HRESULT CLAVOutputPin::Active()
 
     if (m_Connected) {
         Create();
-}
+    }
 
     return __super::Active();
 }
@@ -259,7 +259,7 @@ HRESULT CLAVOutputPin::Inactive()
 
 STDMETHODIMP CLAVOutputPin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     PIN_INFO PinInfo;
     GUID FilterClsid;
 
@@ -297,7 +297,7 @@ HRESULT CLAVOutputPin::DeliverBeginFlush()
     HRESULT const hr = IsConnected() ? GetConnected()->BeginFlush() : S_OK;
     if (hr != S_OK) {
         m_eEndFlush.Set();
-}
+    }
     return hr;
 }
 
@@ -318,14 +318,14 @@ HRESULT CLAVOutputPin::DeliverEndFlush()
 
 HRESULT CLAVOutputPin::DeliverNewSegment(REFERENCE_TIME tStart, REFERENCE_TIME tStop, double dRate)
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     DbgLog((LOG_TRACE, 20, L"::DeliverNewSegment on %s Pin (rtStart: %I64d; rtStop: %I64d)",
             CBaseDemuxer::CStreamList::ToStringW(m_pinType), tStart, tStop));
     m_rtPrev = AV_NOPTS_VALUE;
     if (m_fFlushing) { return S_FALSE; }
     if (!ThreadExists()) {
         return S_FALSE;
-}
+    }
 
     m_BitRate.rtLastDeliverTime = Packet::INVALID_TIME;
     hr = __super::DeliverNewSegment(tStart, tStop, dRate);
@@ -376,7 +376,7 @@ HRESULT CLAVOutputPin::QueuePacket(Packet *pPacket)
     while ((S_OK == m_hrDeliver) && (m_queue.DataSize() > m_nQueueMaxMem || m_queue.Size() > 16 * m_nQueueHigh ||
                                    (m_queue.Size() > m_nQueueHigh && !pSplitter->IsAnyPinDrying()))) {
         Sleep(10);
-}
+    }
 
     if (S_OK != m_hrDeliver)
     {
@@ -402,9 +402,9 @@ HRESULT CLAVOutputPin::QueuePacket(Packet *pPacket)
 
 bool CLAVOutputPin::IsDiscontinuous()
 {
-    return m_mt.majortype == MEDIATYPE_Text || m_mt.majortype == MEDIATYPE_ScriptCommand ||
-           m_mt.majortype == MEDIATYPE_Subtitle || m_mt.subtype == MEDIASUBTYPE_DVD_SUBPICTURE ||
-           m_mt.subtype == MEDIASUBTYPE_CVD_SUBPICTURE || m_mt.subtype == MEDIASUBTYPE_SVCD_SUBPICTURE;
+    return (m_mt.majortype == MEDIATYPE_Text) || (m_mt.majortype == MEDIATYPE_ScriptCommand) ||
+           (m_mt.majortype == MEDIATYPE_Subtitle) || (m_mt.subtype == MEDIASUBTYPE_DVD_SUBPICTURE) ||
+           (m_mt.subtype == MEDIASUBTYPE_CVD_SUBPICTURE) || (m_mt.subtype == MEDIASUBTYPE_SVCD_SUBPICTURE);
 }
 
 DWORD CLAVOutputPin::ThreadProc()
@@ -421,7 +421,7 @@ DWORD CLAVOutputPin::ThreadProc()
     {
         Sleep(1);
 
-        DWORD cmd;
+        DWORD cmd{ 0U };
         if (CheckRequest(&cmd))
         {
             cmd = GetRequest();
@@ -433,7 +433,7 @@ DWORD CLAVOutputPin::ThreadProc()
         std::size_t cnt{ 0U };
         do
         {
-            Packet *pPacket = nullptr;
+            Packet *pPacket{ nullptr };
 
             // Get a packet from the queue (scoped for lock)
             {
@@ -486,8 +486,8 @@ DWORD CLAVOutputPin::ThreadProc()
 
 HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 {
-    HRESULT hr = S_OK;
-    IMediaSample *pSample = nullptr;
+    HRESULT hr{ S_OK };
+    IMediaSample *pSample{ nullptr };
     bool bPacketOwnedBySample{ false };
 
     long const nBytes = static_cast<long>(pPacket->GetDataSize());
@@ -501,7 +501,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 
     if (m_bPacketAllocator)
     {
-        ILAVMediaSample *pLAVSample = nullptr;
+        ILAVMediaSample *pLAVSample{ nullptr };
         CHECK_HR(hr = pSample->QueryInterface(&pLAVSample));
         hr = pLAVSample->SetPacket(pPacket);
         SafeRelease(&pLAVSample);
@@ -531,10 +531,10 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
         }
 
         // Fill the sample
-        BYTE *pData = nullptr;
+        BYTE *pData{ nullptr };
         if ((FAILED(hr = pSample->GetPointer(&pData))) || !pData) {
             goto done;
-}
+        }
 
         std::memcpy(pData, pPacket->GetData(), nBytes);
     }
@@ -595,7 +595,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
     CHECK_HR(hr = pSample->SetMediaTime(nullptr, nullptr));
     CHECK_HR(hr = pSample->SetDiscontinuity(pPacket->bDiscontinuity));
     CHECK_HR(hr = pSample->SetSyncPoint(pPacket->bSyncPoint));
-    CHECK_HR(hr = pSample->SetPreroll(fTimeValid && pPacket->rtStart < 0));
+    CHECK_HR(hr = pSample->SetPreroll(fTimeValid && (pPacket->rtStart < 0)));
     // Deliver
     CHECK_HR(hr = Deliver(pSample));
 

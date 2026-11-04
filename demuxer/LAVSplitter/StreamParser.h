@@ -52,7 +52,7 @@ class CStreamParser
 
     GUID m_gSubtype = GUID_NULL;
 
-    Packet *m_pPacketBuffer = nullptr;
+    Packet *m_pPacketBuffer{ nullptr };
 
     BOOL m_bPGSDropState{ FALSE };
     GrowableArray<BYTE> m_pgsBuffer;

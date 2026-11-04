@@ -117,5 +117,5 @@ bool CFontInstaller::InstallFontMemory(const void *pData, UINT len)
     {
         m_fonts.push_back(hFont);
     }
-    return hFont && nFonts > 0;
+    return hFont && (nFonts > 0);
 }

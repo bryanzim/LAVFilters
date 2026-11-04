@@ -33,10 +33,10 @@ class CCueSheet
   public:
     struct Track
     {
-        int index;
+        int index{ 0 };
         std::string Id;
         std::string Title;
-        REFERENCE_TIME Time;
+        REFERENCE_TIME Time{ 0 };
         std::string Performer;
     };
 

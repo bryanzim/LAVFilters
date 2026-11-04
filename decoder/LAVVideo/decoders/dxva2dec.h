@@ -35,8 +35,8 @@ typedef HRESULT WINAPI pCreateDeviceManager9(UINT *pResetToken, IDirect3DDeviceM
 
 typedef struct
 {
-    int index;
-    bool used;
+    int index{ 0 };
+    bool used{ false };
     LPDIRECT3DSURFACE9 d3d;
     std::uint64_t age;
 } d3d_surface_t;
@@ -126,7 +126,7 @@ class CDecDXVA2 : public CDecAvcodec
     friend class CDXVA2SurfaceAllocator;
     BOOL m_bNative{ FALSE };
     BOOL m_bDirect{ FALSE };
-    CDXVA2SurfaceAllocator *m_pDXVA2Allocator = nullptr;
+    CDXVA2SurfaceAllocator *m_pDXVA2Allocator{ nullptr };
 
     struct
     {
@@ -137,14 +137,14 @@ class CDecDXVA2 : public CDecAvcodec
         pCreateDeviceManager9 *createDeviceManager;
     } dx;
 
-    IDirect3D9 *m_pD3D = nullptr;
-    IDirect3DDevice9 *m_pD3DDev = nullptr;
-    IDirect3DDeviceManager9 *m_pD3DDevMngr = nullptr;
+    IDirect3D9 *m_pD3D{ nullptr };
+    IDirect3DDevice9 *m_pD3DDev{ nullptr };
+    IDirect3DDeviceManager9 *m_pD3DDevMngr{ nullptr };
     UINT m_pD3DResetToken{ 0U };
     HANDLE m_hDevice = INVALID_HANDLE_VALUE;
 
-    IDirectXVideoDecoderService *m_pDXVADecoderService = nullptr;
-    IDirectXVideoDecoder *m_pDecoder = nullptr;
+    IDirectXVideoDecoderService *m_pDXVADecoderService{ nullptr };
+    IDirectXVideoDecoder *m_pDecoder{ nullptr };
     DXVA2_ConfigPictureDecode m_DXVAVideoDecoderConfig;
 
     int m_NumSurfaces{ 0 };

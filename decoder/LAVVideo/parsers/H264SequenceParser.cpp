@@ -66,7 +66,7 @@ static void SPSDecodeScalingList(CByteParser &parser, int size)
         {
             if (next) {
                 next = (last + parser.SExpGolombRead()) & 0xff;
-}
+            }
             if (!i && !next)
             { /* matrix not written */
                 break;
@@ -79,7 +79,7 @@ static void SPSDecodeScalingList(CByteParser &parser, int size)
 HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
 {
     CByteParser parser(buffer, buflen);
-    int i;
+    int i{ 0 };
 
     ZeroMemory(&sps, sizeof(sps));
     // Defaults
@@ -102,7 +102,7 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
         sps.chroma = static_cast<int>(parser.UExpGolombRead());
         if (sps.chroma == 3) {
             parser.BitRead(1);
-}
+        }
         sps.luma_bitdepth = static_cast<int>(parser.UExpGolombRead()) + 8;
         sps.chroma_bitdepth = static_cast<int>(parser.UExpGolombRead()) + 8;
         parser.BitRead(1); // transform_bypass
@@ -149,7 +149,7 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
         int const cyclen = static_cast<int>(parser.UExpGolombRead()); // poc_cycle_length
         for (i = 0; i < cyclen; ++i) {
             parser.SExpGolombRead(); // offset_for_ref_frame[i]
-}
+        }
     }
 
     sps.ref_frames = parser.UExpGolombRead(); // ref_frame_count
@@ -159,7 +159,7 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
     sps.interlaced = !parser.BitRead(1);      // frame_mbs_only_flag
     if (sps.interlaced) {
         parser.BitRead(1); // mb_aff
-}
+    }
 
     parser.BitRead(1);            // direct_8x8_inference_flag
     int const crop = parser.BitRead(1); // crop
@@ -188,7 +188,7 @@ HRESULT CH264SequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
         int const overscan = parser.BitRead(1); // overscan_info_present_flag
         if (overscan) {
             parser.BitRead(1); // overscan_appropriate_flag
-}
+        }
 
         int const vid_sig_type = parser.BitRead(1); // video_signal_type_present_flag
         if (vid_sig_type)

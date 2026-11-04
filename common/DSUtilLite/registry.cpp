@@ -28,7 +28,7 @@
 bool CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey)
 {
     HKEY hKey;
-    LONG lRet;
+    LONG lRet{ 0 };
 
     lRet = RegCreateKeyEx(hKeyRoot, pszSubKey, 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr);
 
@@ -56,13 +56,13 @@ CRegistry::~CRegistry()
 {
     if (m_key) {
         RegCloseKey(*m_key);
-}
+    }
     delete m_key;
 }
 
 HRESULT CRegistry::Open(HKEY hkeyRoot, LPCTSTR pszSubKey, BOOL bReadOnly, BOOL b64Bit)
 {
-    LONG lRet;
+    LONG lRet{ 0 };
 
     if (m_key != nullptr)
     {
@@ -73,7 +73,7 @@ HRESULT CRegistry::Open(HKEY hkeyRoot, LPCTSTR pszSubKey, BOOL bReadOnly, BOOL b
     REGSAM sam = bReadOnly ? KEY_READ : KEY_READ | KEY_WRITE;
     if (b64Bit) {
         sam |= KEY_WOW64_64KEY;
-}
+    }
     lRet = RegOpenKeyEx(hkeyRoot, pszSubKey, 0, sam, m_key);
     if (lRet != ERROR_SUCCESS)
     {
@@ -86,8 +86,8 @@ HRESULT CRegistry::Open(HKEY hkeyRoot, LPCTSTR pszSubKey, BOOL bReadOnly, BOOL b
 
 std::wstring CRegistry::ReadString(LPCTSTR pszKey, HRESULT &hr)
 {
-    LONG lRet;
-    DWORD dwSize;
+    LONG lRet{ 0 };
+    DWORD dwSize{ 0U };
     std::wstring result;
 
     hr = S_OK;
@@ -125,8 +125,8 @@ std::wstring CRegistry::ReadString(LPCTSTR pszKey, HRESULT &hr)
 
 HRESULT CRegistry::WriteString(LPCTSTR pszKey, const LPCTSTR pszValue)
 {
-    LONG lRet;
-    HRESULT hr;
+    LONG lRet{ 0 };
+    HRESULT hr{ S_OK };
 
     hr = S_OK;
 
@@ -146,7 +146,7 @@ HRESULT CRegistry::WriteString(LPCTSTR pszKey, const LPCTSTR pszValue)
 
 DWORD CRegistry::ReadDWORD(LPCTSTR pszKey, HRESULT &hr)
 {
-    LONG lRet;
+    LONG lRet{ 0 };
     DWORD dwSize = sizeof(DWORD);
     DWORD dwVal{ 0U };
 
@@ -170,8 +170,8 @@ DWORD CRegistry::ReadDWORD(LPCTSTR pszKey, HRESULT &hr)
 
 HRESULT CRegistry::WriteDWORD(LPCTSTR pszKey, DWORD dwValue)
 {
-    LONG lRet;
-    HRESULT hr;
+    LONG lRet{ 0 };
+    HRESULT hr{ S_OK };
 
     hr = S_OK;
 
@@ -201,8 +201,8 @@ HRESULT CRegistry::WriteBOOL(LPCTSTR pszKey, BOOL bValue)
 
 BYTE *CRegistry::ReadBinary(LPCTSTR pszKey, DWORD &dwSize, HRESULT &hr)
 {
-    LONG lRet;
-    BYTE *result = nullptr;
+    LONG lRet{ 0 };
+    BYTE *result{ nullptr };
 
     hr = S_OK;
 
@@ -239,8 +239,8 @@ BYTE *CRegistry::ReadBinary(LPCTSTR pszKey, DWORD &dwSize, HRESULT &hr)
 
 HRESULT CRegistry::WriteBinary(LPCTSTR pszKey, const BYTE *pbValue, int iLen)
 {
-    LONG lRet;
-    HRESULT hr;
+    LONG lRet{ 0 };
+    HRESULT hr{ S_OK };
 
     hr = S_OK;
 
@@ -259,7 +259,7 @@ HRESULT CRegistry::WriteBinary(LPCTSTR pszKey, const BYTE *pbValue, int iLen)
 
 HRESULT CRegistry::DeleteKey(LPCTSTR pszKey)
 {
-    LONG lRet;
+    LONG lRet{ 0 };
 
     if (m_key == nullptr)
     {

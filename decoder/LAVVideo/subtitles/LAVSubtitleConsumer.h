@@ -78,9 +78,9 @@ class CLAVSubtitleConsumer
     {
         if (m_pProvider) { { {
             m_pProvider->Disconnect();
-}
-}
-}
+        }
+        }
+        }
         SafeRelease(&m_pProvider);
         return S_OK;
     }
@@ -106,14 +106,14 @@ class CLAVSubtitleConsumer
     template <class pixT, int nv12> DECLARE_BLEND_FUNC(blend_yuv_c);
 
   private:
-    ISubRenderProvider *m_pProvider = nullptr;
-    ISubRenderFrame *m_SubtitleFrame = nullptr;
+    ISubRenderProvider *m_pProvider{ nullptr };
+    ISubRenderFrame *m_SubtitleFrame{ nullptr };
     CAMEvent m_evFrame{FALSE};
 
-    SwsContext *m_pSwsContext = nullptr;
+    SwsContext *m_pSwsContext{ nullptr };
     LAVPixelFormat m_PixFmt = LAVPixFmt_None;
 
     LAVSubtitleConsumerContext context;
 
-    CLAVVideo *m_pLAVVideo = nullptr;
+    CLAVVideo *m_pLAVVideo{ nullptr };
 };

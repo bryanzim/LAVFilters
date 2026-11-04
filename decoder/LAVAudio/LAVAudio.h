@@ -51,11 +51,11 @@
 
 //////////////////// End Configuration //////////////////////
 
-#define AV_CODEC_ID_PCM_SxxBE (AVCodecID)0x19001
-#define AV_CODEC_ID_PCM_SxxLE (AVCodecID)0x19002
-#define AV_CODEC_ID_PCM_UxxBE (AVCodecID)0x19003
-#define AV_CODEC_ID_PCM_UxxLE (AVCodecID)0x19004
-#define AV_CODEC_ID_PCM_QTRAW (AVCodecID)0x19005
+#define AV_CODEC_ID_PCM_SxxBE static_cast<AVCodecID>(0x19001)
+#define AV_CODEC_ID_PCM_SxxLE static_cast<AVCodecID>(0x19002)
+#define AV_CODEC_ID_PCM_UxxBE static_cast<AVCodecID>(0x19003)
+#define AV_CODEC_ID_PCM_UxxLE static_cast<AVCodecID>(0x19004)
+#define AV_CODEC_ID_PCM_QTRAW static_cast<AVCodecID>(0x19005)
 
 #define LAVC_AUDIO_REGISTRY_KEY L"Software\\LAV\\Audio"
 #define LAVC_AUDIO_REGISTRY_KEY_FORMATS L"Software\\LAV\\Audio\\Formats"
@@ -263,10 +263,10 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
 
   private:
     AVCodecID m_nCodecId = AV_CODEC_ID_NONE;
-    const AVCodec *m_pAVCodec = nullptr;
-    AVCodecContext *m_pAVCtx = nullptr;
-    AVCodecParserContext *m_pParser = nullptr;
-    AVFrame *m_pFrame = nullptr;
+    const AVCodec *m_pAVCodec{ nullptr };
+    AVCodecContext *m_pAVCtx{ nullptr };
+    AVCodecParserContext *m_pParser{ nullptr };
+    AVFrame *m_pFrame{ nullptr };
 
     BOOL m_bFlushing{ FALSE };
     BOOL m_bDiscontinuity{ FALSE };
@@ -287,7 +287,7 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     LAVAudioSampleFormat m_FallbackFormat = SampleFormat_None;
     AVChannelLayout m_chOverrideMixer{};
 
-    SwrContext *m_swrContext = nullptr;
+    SwrContext *m_swrContext{ nullptr };
     LAVAudioSampleFormat m_sfRemixFormat = SampleFormat_None;
     AVChannelLayout m_chRemixLayout{};
     BOOL m_bAVResampleFailed{ FALSE };
@@ -296,33 +296,33 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     // Settings
     struct AudioSettings
     {
-        BOOL TrayIcon;
-        BOOL DRCEnabled;
-        int DRCLevel;
+        BOOL TrayIcon{ FALSE };
+        BOOL DRCEnabled{ FALSE };
+        int DRCLevel{ 0 };
         std::array<BOOL, Codec_AudioNB> bFormats{};
         std::array<BOOL, Bitstream_NB> bBitstream{};
-        BOOL DTSHDFraming;
-        BOOL bBitstreamingFallback;
-        BOOL AutoAVSync;
-        BOOL ExpandMono;
-        BOOL Expand61;
-        BOOL OutputStandardLayout;
-        BOOL Output51Legacy;
-        BOOL AllowRawSPDIF;
+        BOOL DTSHDFraming{ FALSE };
+        BOOL bBitstreamingFallback{ FALSE };
+        BOOL AutoAVSync{ FALSE };
+        BOOL ExpandMono{ FALSE };
+        BOOL Expand61{ FALSE };
+        BOOL OutputStandardLayout{ FALSE };
+        BOOL Output51Legacy{ FALSE };
+        BOOL AllowRawSPDIF{ FALSE };
         std::array<BOOL, SampleFormat_NB> bSampleFormats{};
-        BOOL SampleConvertDither;
-        BOOL AudioDelayEnabled;
-        int AudioDelay;
+        BOOL SampleConvertDither{ FALSE };
+        BOOL AudioDelayEnabled{ FALSE };
+        int AudioDelay{ 0 };
 
-        BOOL MixingEnabled;
-        DWORD MixingLayout;
-        DWORD MixingFlags;
-        DWORD MixingMode;
-        DWORD MixingCenterLevel;
-        DWORD MixingSurroundLevel;
-        DWORD MixingLFELevel;
+        BOOL MixingEnabled{ FALSE };
+        DWORD MixingLayout{ 0U };
+        DWORD MixingFlags{ 0U };
+        DWORD MixingMode{ 0U };
+        DWORD MixingCenterLevel{ 0U };
+        DWORD MixingSurroundLevel{ 0U };
+        DWORD MixingLFELevel{ 0U };
 
-        BOOL SuppressFormatChanges;
+        BOOL SuppressFormatChanges{ FALSE };
     } m_settings;
     BOOL m_bRuntimeConfig{ FALSE };
 
@@ -335,8 +335,8 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     BOOL m_bJustFlushed{ TRUE };
     BufferDetails m_OutputQueue;
 
-    AVIOContext *m_avioBitstream = nullptr;
-    AVFormatContext *m_avBSContext = nullptr;
+    AVIOContext *m_avioBitstream{ nullptr };
+    AVFormatContext *m_avBSContext{ nullptr };
     GrowableArray<BYTE> m_bsOutput;
     BOOL m_bBitStreamingSettingsChanged{ FALSE };
     std::array<BOOL, Bitstream_NB> m_bBitstreamOverride{FALSE};
@@ -361,8 +361,8 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     ExtendedChannelMap m_ChannelMap;
     AVChannelLayout m_ChannelMapOutputLayout{};
 
-    AVPacket *m_pDecodePacket = nullptr;
-    AVPacket *m_pBitstreamPacket = nullptr;
+    AVPacket *m_pDecodePacket{ nullptr };
+    AVPacket *m_pBitstreamPacket{ nullptr };
 
     // TrueHD Bitstreaming
     struct
@@ -387,13 +387,13 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
 
     struct
     {
-        int flavor;
-        int coded_frame_size;
-        int audio_framesize;
-        int sub_packet_h;
-        int sub_packet_size;
-        unsigned int deint_id;
+        int flavor{ 0 };
+        int coded_frame_size{ 0 };
+        int audio_framesize{ 0 };
+        int sub_packet_h{ 0 };
+        int sub_packet_size{ 0 };
+        unsigned int deint_id{ 0U };
     } m_raData;
 
-    CBaseTrayIcon *m_pTrayIcon = nullptr;
+    CBaseTrayIcon *m_pTrayIcon{ nullptr };
 };

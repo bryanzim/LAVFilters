@@ -89,13 +89,13 @@ CMediaType CLAVFVideoHelper::initVideoType(AVCodecID codecId, unsigned int &code
         {
             if (video_map[i].subtype) {
                 mediaType.subtype = *video_map[i].subtype;
-}
+            }
             if (video_map[i].codecTag) {
                 codecTag = video_map[i].codecTag;
-}
+            }
             if (video_map[i].format) {
                 mediaType.formattype = *video_map[i].format;
-}
+            }
             break;
         }
     }
@@ -126,14 +126,14 @@ CMediaType CLAVFVideoHelper::initVideoType(AVCodecID codecId, unsigned int &code
     case AV_CODEC_ID_VC1:
         if (codecTag != MKTAG('W', 'M', 'V', 'A')) {
             codecTag = MKTAG('W', 'V', 'C', '1');
-}
+        }
         mediaType.formattype = FORMAT_VideoInfo2;
         mediaType.subtype = FOURCCMap(codecTag);
         break;
     case AV_CODEC_ID_DVVIDEO:
         if (codecTag == 0) {
             mediaType.subtype = MEDIASUBTYPE_DVCP;
-}
+        }
         break;
     }
 
@@ -215,7 +215,7 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
             pvi->AvgTimePerFrame = r_avg;
         } else {
             pvi->AvgTimePerFrame = avg_avg;
-}
+        }
     }
     else if ((r_avg >= MIN_TIME_PER_FRAME) && (r_avg <= MAX_TIME_PER_FRAME)) {
         pvi->AvgTimePerFrame = r_avg;
@@ -223,13 +223,13 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
         pvi->AvgTimePerFrame = codec_avg;
     } else {
         pvi->AvgTimePerFrame = r_avg;
-}
+    }
 
-    if ((container == "matroska" || container == "mp4") && r_avg && codec_avg &&
+    if (((container == "matroska") || (container == "mp4")) && r_avg && codec_avg &&
         (avstream->codecpar->codec_id == AV_CODEC_ID_H264 || avstream->codecpar->codec_id == AV_CODEC_ID_MPEG2VIDEO))
     {
         float const factor = static_cast<float>(r_avg) / static_cast<float>(codec_avg);
-        if ((factor > 0.4 && factor < 0.6) || (factor > 1.9 && factor < 2.1))
+        if (((factor > 0.4) && (factor < 0.6)) || (factor > 1.9 && factor < 2.1))
         {
             pvi->AvgTimePerFrame = codec_avg;
         }
@@ -251,13 +251,13 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
     pvi->bmiHeader.biHeight = avstream->codecpar->height;
     pvi->bmiHeader.biBitCount = avstream->codecpar->bits_per_coded_sample;
     // Validate biBitCount is set to something useful
-    if ((pvi->bmiHeader.biBitCount == 0 || avstream->codecpar->codec_id == AV_CODEC_ID_RAWVIDEO) &&
+    if (((pvi->bmiHeader.biBitCount == 0) || (avstream->codecpar->codec_id == AV_CODEC_ID_RAWVIDEO)) &&
         (avstream->codecpar->format != AV_PIX_FMT_NONE))
     {
-        const AVPixFmtDescriptor *pixdecs = av_pix_fmt_desc_get((AVPixelFormat)avstream->codecpar->format);
+        const AVPixFmtDescriptor *pixdecs = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(avstream->codecpar->format));
         if (pixdecs) {
             pvi->bmiHeader.biBitCount = av_get_bits_per_pixel(pixdecs);
-}
+        }
     }
     pvi->bmiHeader.biSizeImage = DIBSIZE(pvi->bmiHeader); // Calculating this value doesn't really make alot of sense,
                                                           // but apparently some decoders freak out if its 0
@@ -280,7 +280,7 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
 VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *size, std::string container)
 {
     int extra{ 0 };
-    BYTE *extradata = nullptr;
+    BYTE *extradata{ nullptr };
     BOOL bZeroPad{ FALSE };
     if ((avstream->codecpar->codec_id == AV_CODEC_ID_VC1) && (avstream->codecpar->extradata_size))
     {
@@ -290,7 +290,7 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *
             std::uint32_t const code = AV_RB32(avstream->codecpar->extradata + i);
             if (IS_VC1_MARKER(code)) {
                 break;
-}
+            }
         }
         if (i == 0)
         {
@@ -391,7 +391,7 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream *avstream, ULONG *
 MPEG1VIDEOINFO *CLAVFVideoHelper::CreateMPEG1VI(const AVStream *avstream, ULONG *size, std::string container)
 {
     int extra{ 0 };
-    BYTE *extradata = nullptr;
+    BYTE *extradata{ nullptr };
 
     // Create a VIH that we'll convert
     VIDEOINFOHEADER *vih = CreateVIH(avstream, size, container);
@@ -418,7 +418,7 @@ MPEG1VIDEOINFO *CLAVFVideoHelper::CreateMPEG1VI(const AVStream *avstream, ULONG 
     // copy extradata over
     if (extra)
     {
-        CExtradataParser parser = CExtradataParser(extradata, extra);
+        CExtradataParser parser{ extradata, static_cast<std::size_t>(extra) };
         mp1vi->cbSequenceHeader = static_cast<DWORD>(parser.ParseMPEGSequenceHeader(mp1vi->bSequenceHeader));
     }
 
@@ -433,7 +433,7 @@ MPEG2VIDEOINFO *CLAVFVideoHelper::CreateMPEG2VI(const AVStream *avstream, ULONG 
                                                 BOOL bConvertToAVC1)
 {
     int extra{ 0 };
-    BYTE *extradata = nullptr;
+    BYTE *extradata{ nullptr };
 
     // Create a VIH that we'll convert
     VIDEOINFOHEADER2 *vih2 = CreateVIH2(avstream, size, container);
@@ -464,26 +464,26 @@ MPEG2VIDEOINFO *CLAVFVideoHelper::CreateMPEG2VI(const AVStream *avstream, ULONG 
             int const ret = ProcessH264Extradata(extradata, extra, mp2vi, bConvertToAVC1);
             if (ret < 0) {
                 bCopyUntouched = TRUE;
-}
+            }
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_HEVC)
         {
             int const ret = ProcessHEVCExtradata(extradata, extra, mp2vi);
             if (ret < 0) {
                 bCopyUntouched = TRUE;
-}
+            }
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_VVC)
         {
             int const ret = ProcessVVCExtradata(extradata, extra, mp2vi);
             if (ret < 0) {
                 bCopyUntouched = TRUE;
-}
+            }
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_MPEG2VIDEO)
         {
-            CExtradataParser parser = CExtradataParser(extradata, extra);
-            mp2vi->cbSequenceHeader = static_cast<DWORD>(parser.ParseMPEGSequenceHeader((BYTE *)&mp2vi->dwSequenceHeader[0U]));
+            CExtradataParser parser{ extradata, static_cast<std::size_t>(extra) };
+            mp2vi->cbSequenceHeader = static_cast<DWORD>(parser.ParseMPEGSequenceHeader(reinterpret_cast<BYTE *>(&mp2vi->dwSequenceHeader[0U])));
             mp2vi->hdr.bmiHeader.biPlanes = 1;
             mp2vi->hdr.bmiHeader.biCompression = 0;
         }
@@ -511,10 +511,10 @@ HRESULT CLAVFVideoHelper::ProcessH264Extradata(BYTE *extradata, int extradata_si
     {
         if (extradata[1U]) {
             mp2vi->dwProfile = extradata[1U];
-}
+        }
         if (extradata[3U]) {
             mp2vi->dwLevel = extradata[3U];
-}
+        }
         mp2vi->dwFlags = (extradata[4U] & 3) + 1;
         mp2vi->cbSequenceHeader = avc_quant(extradata, reinterpret_cast<BYTE *>((&mp2vi->dwSequenceHeader[0U])), extradata_size);
     }
@@ -525,7 +525,7 @@ HRESULT CLAVFVideoHelper::ProcessH264Extradata(BYTE *extradata, int extradata_si
         {
             mp2vi->dwFlags = 4;
             mp2vi->cbSequenceHeader =
-                static_cast<DWORD>(avc_parse_annexb(extradata, extradata_size, (BYTE *)(&mp2vi->dwSequenceHeader[0U])));
+                static_cast<DWORD>(avc_parse_annexb(extradata, extradata_size, reinterpret_cast<BYTE *>((&mp2vi->dwSequenceHeader[0U]))));
         }
         else
         {
@@ -547,7 +547,7 @@ HRESULT CLAVFVideoHelper::ProcessH264MVCExtradata(BYTE *extradata, int extradata
             state = (state << 8) | extradata[i];
             if (state == MKBETAG('m', 'v', 'c', 'C')) {
                 break;
-}
+            }
         }
 
         if ((i == extradata_size) || (i < 8)) { return E_FAIL; }
@@ -560,7 +560,7 @@ HRESULT CLAVFVideoHelper::ProcessH264MVCExtradata(BYTE *extradata, int extradata
         // verify size atom and actual size
         if (((sizeAtom + 4) > extradata_size) || (extradata_size < 14)) {
             return E_FAIL;
-}
+        }
 
         // Skip atom headers
         extradata += 8;

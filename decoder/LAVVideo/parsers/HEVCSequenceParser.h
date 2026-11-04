@@ -37,13 +37,13 @@ class CHEVCSequenceParser
   public:
     struct
     {
-        int valid;
+        int valid{ 0 };
 
-        int profile;
-        int rext_profile;
-        int level;
-        int chroma;
-        int bitdepth;
+        int profile{ 0 };
+        int rext_profile{ 0 };
+        int level{ 0 };
+        int chroma{ 0 };
+        int bitdepth{ 0 };
     } sps;
 
   private:

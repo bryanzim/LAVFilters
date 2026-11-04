@@ -29,8 +29,8 @@
 
 typedef struct
 {
-    REFERENCE_TIME rtStart;
-    REFERENCE_TIME rtStop;
+    REFERENCE_TIME rtStart{ 0 };
+    REFERENCE_TIME rtStop{ 0 };
 } TimingCache;
 
 class CDecAvcodec : public CDecBase
@@ -71,19 +71,19 @@ class CDecAvcodec : public CDecBase
     STDMETHODIMP ConvertPixFmt(AVFrame *pFrame, LAVFrame *pOutFrame);
 
   protected:
-    AVCodecContext *m_pAVCtx = nullptr;
-    AVFrame *m_pFrame = nullptr;
+    AVCodecContext *m_pAVCtx{ nullptr };
+    AVFrame *m_pFrame{ nullptr };
     AVCodecID m_nCodecId = AV_CODEC_ID_NONE;
     BOOL m_bInInit{ FALSE };
 
   private:
-    const AVCodec *m_pAVCodec = nullptr;
-    AVCodecParserContext *m_pParser = nullptr;
+    const AVCodec *m_pAVCodec{ nullptr };
+    AVCodecParserContext *m_pParser{ nullptr };
 
-    BYTE *m_pFFBuffer = nullptr;
+    BYTE *m_pFFBuffer{ nullptr };
     unsigned int m_nFFBufferSize{ 0U };
 
-    SwsContext *m_pSwsContext = nullptr;
+    SwsContext *m_pSwsContext{ nullptr };
 
     BOOL m_bHasPalette{ FALSE };
 

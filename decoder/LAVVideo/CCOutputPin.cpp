@@ -58,7 +58,7 @@ HRESULT CCCOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTI
     CheckPointer(pAlloc, E_POINTER);
     CheckPointer(pProperties, E_POINTER);
 
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     pProperties->cBuffers = max(pProperties->cBuffers, 1);
     pProperties->cbBuffer = max(static_cast<ULONG>(pProperties->cbBuffer), 4096);
@@ -67,7 +67,7 @@ HRESULT CCCOutputPin::DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTI
     ALLOCATOR_PROPERTIES Actual;
     if (FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) {
         return hr;
-}
+    }
     if (Actual.cbBuffer < pProperties->cbBuffer) { return E_FAIL; }
     ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
@@ -91,10 +91,10 @@ HRESULT CCCOutputPin::GetMediaType(int iPosition, CMediaType *pmt)
 
 STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, std::size_t size, REFERENCE_TIME rtTime)
 {
-    HRESULT hr;
-    IMediaSample *pSample = nullptr;
+    HRESULT hr{ S_OK };
+    IMediaSample *pSample{ nullptr };
     ALLOCATOR_PROPERTIES props, actual;
-    BYTE *pData = nullptr;
+    BYTE *pData{ nullptr };
 
     CHECK_HR(hr = GetDeliveryBuffer(&pSample, nullptr, nullptr, 0));
 
@@ -120,7 +120,7 @@ STDMETHODIMP CCCOutputPin::DeliverCCData(BYTE *pDataIn, std::size_t size, REFERE
     // Fill the sample
     if ((FAILED(hr = pSample->GetPointer(&pData))) || !pData) {
         goto done;
-}
+    }
 
     std::memcpy(pData, pDataIn, size);
 

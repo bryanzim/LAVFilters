@@ -109,7 +109,7 @@ void CDXVA2Sample::SetSurface(DWORD surfaceId, IDirect3DSurface9 *pSurf)
     m_dwSurfaceId = surfaceId;
     if (m_pSurface) {
         m_pSurface->AddRef();
-}
+    }
 }
 
 STDMETHODIMP_(int) CDXVA2Sample::GetDXSurfaceId()
@@ -127,7 +127,7 @@ CDXVA2SurfaceAllocator::~CDXVA2SurfaceAllocator(void)
 {
     if (m_pDec && (m_pDec->m_pDXVA2Allocator == this)) {
         m_pDec->m_pDXVA2Allocator = nullptr;
-}
+    }
 }
 
 // IUnknown
@@ -143,8 +143,8 @@ STDMETHODIMP CDXVA2SurfaceAllocator::NonDelegatingQueryInterface(REFIID riid, vo
 HRESULT CDXVA2SurfaceAllocator::Alloc()
 {
     DbgLog((LOG_TRACE, 10, L"CDXVA2SurfaceAllocator::Alloc()"));
-    HRESULT hr = S_OK;
-    IDirectXVideoDecoderService *pDXVA2Service = nullptr;
+    HRESULT hr{ S_OK };
+    IDirectXVideoDecoderService *pDXVA2Service{ nullptr };
 
     if (!m_pDec) { return E_FAIL; }
 
@@ -229,7 +229,7 @@ HRESULT CDXVA2SurfaceAllocator::Alloc()
 void CDXVA2SurfaceAllocator::Free()
 {
     DbgLog((LOG_TRACE, 10, L"CDXVA2SurfaceAllocator::Free()"));
-    CMediaSample *pSample = nullptr;
+    CMediaSample *pSample{ nullptr };
 
     CAutoLock const lock(this);
 

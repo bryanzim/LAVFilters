@@ -33,8 +33,8 @@ typedef struct LAVSubtitleProviderContext
     LPWSTR primaries; ///< Color Primaries
 
     bool combineBitmaps; ///< Control if the provider combines all bitmaps into one
-    bool isBitmap;
-    bool isMovable;
+    bool isBitmap{ false };
+    bool isMovable{ false };
 } LAVSubtitleProviderContext;
 
 struct _AM_PROPERTY_SPPAL;
@@ -54,7 +54,7 @@ class CLAVSubtitleProviderControlThread
     DWORD ThreadProc();
 
   private:
-    ISubRenderConsumer2 *m_pConsumer2 = nullptr;
+    ISubRenderConsumer2 *m_pConsumer2{ nullptr };
 };
 
 class CLAVSubtitleProvider
@@ -106,25 +106,25 @@ class CLAVSubtitleProvider
   private:
     friend class CLAVSubtitleProviderControlThread;
     LAVSubtitleProviderContext context;
-    CLAVVideo *m_pLAVVideo = nullptr;
+    CLAVVideo *m_pLAVVideo{ nullptr };
 
-    ISubRenderConsumer *m_pConsumer = nullptr;
-    ISubRenderConsumer2 *m_pConsumer2 = nullptr;
+    ISubRenderConsumer *m_pConsumer{ nullptr };
+    ISubRenderConsumer2 *m_pConsumer2{ nullptr };
 
-    const AVCodec *m_pAVCodec = nullptr;
-    AVCodecContext *m_pAVCtx = nullptr;
-    AVCodecParserContext *m_pParser = nullptr;
+    const AVCodec *m_pAVCodec{ nullptr };
+    AVCodecContext *m_pAVCtx{ nullptr };
+    AVCodecParserContext *m_pParser{ nullptr };
 
     REFERENCE_TIME m_rtLastFrame = AV_NOPTS_VALUE;
     REFERENCE_TIME m_rtStartCache = AV_NOPTS_VALUE;
     ULONGLONG m_SubPicId{ 0U };
     BOOL m_bComposit{ TRUE };
 
-    AVPacket *m_pSubtitlePacket = nullptr;
+    AVPacket *m_pSubtitlePacket{ nullptr };
 
     std::list<CLAVSubRect *> m_SubFrames;
 
     struct _AM_PROPERTY_SPHLI *m_pHLI = nullptr;
 
-    CLAVSubtitleProviderControlThread *m_ControlThread = nullptr;
+    CLAVSubtitleProviderControlThread *m_ControlThread{ nullptr };
 };

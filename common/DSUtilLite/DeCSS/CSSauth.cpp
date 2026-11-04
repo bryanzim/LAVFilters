@@ -10,7 +10,7 @@ void CSSkey1(int varient, unsigned char const *challenge, unsigned char *key)
     static unsigned char const perm_challenge[] = {1, 3, 0, 7, 5, 2, 9, 6, 4, 8};
 
     std::array<unsigned char, 10U> scratch{};
-    int i;
+    int i{ 0 };
 
     for (i = 9; i >= 0; --i)
     {
@@ -29,7 +29,7 @@ void CSSkey2(int varient, unsigned char const *challenge, unsigned char *key)
                                            0x07, 0x05, 0x12, 0x10, 0x16, 0x14, 0x13, 0x11, 0x17, 0x15};
 
     std::array<unsigned char, 10U> scratch{};
-    int i;
+    int i{ 0 };
 
     for (i = 9; i >= 0; --i)
     {
@@ -47,7 +47,7 @@ void CSSbuskey(int varient, unsigned char const *challenge, unsigned char *key)
                                            0x07, 0x0f, 0x11, 0x19, 0x15, 0x1d, 0x01, 0x09, 0x05, 0x0d};
 
     std::array<unsigned char, 10U> scratch{};
-    int i;
+    int i{ 0 };
 
     for (i = 9; i >= 0; --i)
     {
@@ -74,13 +74,13 @@ static void CSSgenbits(unsigned char *output, int len, unsigned char const *s)
     b1_combined = 0;
     do
     {
-        int bit;
-        unsigned char val;
+        int bit{ 0 };
+        unsigned char val{ 0U };
 
         for (bit = 0, val = 0; bit < 8; ++bit)
         {
             unsigned char o_lfsr0, o_lfsr1; /* Actually only 1 bit each */
-            unsigned char combined;
+            unsigned char combined{ 0U };
 
             o_lfsr0 = ((lfsr0 >> 24) ^ (lfsr0 >> 21) ^ (lfsr0 >> 20) ^ (lfsr0 >> 12)) & 1;
             lfsr0 = (lfsr0 << 1) | o_lfsr0;
@@ -114,7 +114,7 @@ static void CSSengine(int varient, unsigned char const *input, unsigned char *ou
     std::array<unsigned char, 5U> temp2{};
     std::array<unsigned char, 30U> bits{};
 
-    int i;
+    int i{ 0 };
 
     /* Feed the CSSsecret into the input values such that
      * we alter the seed to the LFSR's used above,  then

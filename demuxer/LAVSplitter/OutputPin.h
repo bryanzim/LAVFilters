@@ -127,7 +127,7 @@ class CLAVOutputPin
 
     [[nodiscard]] constexpr CMediaType &GetActiveMediaType() noexcept { return m_mt; }
 
-    [[nodiscard]] constexpr BOOL IsVideoPin() noexcept { return m_pinType == CBaseDemuxer::video || m_pinType == CBaseDemuxer::video_el; }
+    [[nodiscard]] constexpr BOOL IsVideoPin() noexcept { return (m_pinType == CBaseDemuxer::video) || (m_pinType == CBaseDemuxer::video_el); }
     [[nodiscard]] constexpr BOOL IsAudioPin() noexcept { return m_pinType == CBaseDemuxer::audio; }
     [[nodiscard]] constexpr BOOL IsSubtitlePin() noexcept { return m_pinType == CBaseDemuxer::subpic; }
     [[nodiscard]] constexpr CBaseDemuxer::StreamType GetPinType() noexcept { return m_pinType; }
@@ -176,7 +176,7 @@ class CLAVOutputPin
     bool m_fFlushed{ false };
     CAMEvent m_eEndFlush{TRUE};
 
-    HRESULT m_hrDeliver = S_OK;
+    HRESULT m_hrDeliver{ S_OK };
 
     int m_nBuffers{ 1 };
     std::size_t m_nQueueLow = MIN_PACKETS_IN_QUEUE;
@@ -184,7 +184,7 @@ class CLAVOutputPin
     std::size_t m_nQueueMaxMem = 256 * 1024 * 1024;
 
     DWORD m_streamId{ 0U };
-    CMediaType *m_newMT = nullptr;
+    CMediaType *m_newMT{ nullptr };
 
     CBaseDemuxer::StreamType m_pinType;
 

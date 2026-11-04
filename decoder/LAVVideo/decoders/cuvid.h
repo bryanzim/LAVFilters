@@ -124,8 +124,8 @@ class CDecCuvid : public CDecBase
 #endif
     } cuda;
 
-    IDirect3D9 *m_pD3D9 = nullptr;
-    IDirect3DDevice9 *m_pD3DDevice9 = nullptr;
+    IDirect3D9 *m_pD3D9{ nullptr };
+    IDirect3DDevice9 *m_pD3DDevice9{ nullptr };
 
     CUcontext m_cudaContext{ nullptr };
     CUvideoctxlock m_cudaCtxLock{ nullptr };
@@ -157,10 +157,10 @@ class CDecCuvid : public CDecBase
 
     DXVA2_ExtendedFormat m_DXVAExtendedFormat;
 
-    BYTE *m_pbRawNV12 = nullptr;
+    BYTE *m_pbRawNV12{ nullptr };
     int m_cRawNV12{ 0 };
 
-    CAnnexBConverter *m_AnnexBConverter = nullptr;
+    CAnnexBConverter *m_AnnexBConverter{ nullptr };
 
     BOOL m_bFormatIncompatible{ FALSE };
     BOOL m_bNeedSequenceCheck{ FALSE };

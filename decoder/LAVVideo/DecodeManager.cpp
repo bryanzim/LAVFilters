@@ -55,7 +55,7 @@ STDMETHODIMP CDecodeManager::Close()
 }
 
 #define HWFORMAT_ENABLED                                                                                       \
-    ((codec == AV_CODEC_ID_H264 && m_pLAVVideo->GetHWAccelCodec(HWCodec_H264)) ||                              \
+    (((codec == AV_CODEC_ID_H264) && m_pLAVVideo->GetHWAccelCodec(HWCodec_H264)) ||                              \
      ((codec == AV_CODEC_ID_VC1 || codec == AV_CODEC_ID_WMV3) && m_pLAVVideo->GetHWAccelCodec(HWCodec_VC1)) || \
      ((codec == AV_CODEC_ID_MPEG2VIDEO || codec == AV_CODEC_ID_MPEG1VIDEO) &&                                  \
       m_pLAVVideo->GetHWAccelCodec(HWCodec_MPEG2)) ||                                                          \
@@ -65,14 +65,14 @@ STDMETHODIMP CDecodeManager::Close()
      (codec == AV_CODEC_ID_AV1 && m_pLAVVideo->GetHWAccelCodec(HWCodec_AV1)))
 
 #define HWRESOLUTION_ENABLED                                                                                           \
-    ((pBMI->biHeight <= 576 && pBMI->biWidth <= 1024 && m_pLAVVideo->GetHWAccelResolutionFlags() & LAVHWResFlag_SD) || \
+    (((pBMI->biHeight <= 576) && (pBMI->biWidth <= 1024) && m_pLAVVideo->GetHWAccelResolutionFlags() & LAVHWResFlag_SD) || \
      ((pBMI->biHeight > 576 || pBMI->biWidth > 1024) && pBMI->biHeight <= 1200 && pBMI->biWidth <= 1920 &&             \
       m_pLAVVideo->GetHWAccelResolutionFlags() & LAVHWResFlag_HD) ||                                                   \
      ((pBMI->biHeight > 1200 || pBMI->biWidth > 1920) && m_pLAVVideo->GetHWAccelResolutionFlags() & LAVHWResFlag_UHD))
 
 ILAVDecoder *CDecodeManager::CreateHWAccelDecoder(LAVHWAccel hwAccel)
 {
-    ILAVDecoder *pDecoder = nullptr;
+    ILAVDecoder *pDecoder{ nullptr };
     if (hwAccel == HWAccel_CUDA) {
         pDecoder = CreateDecoderCUVID();
     } else if (hwAccel == HWAccel_QuickSync) {
@@ -83,7 +83,7 @@ ILAVDecoder *CDecodeManager::CreateHWAccelDecoder(LAVHWAccel hwAccel)
         pDecoder = CreateDecoderDXVA2Native();
     } else if (hwAccel == HWAccel_D3D11) {
         pDecoder = CreateDecoderD3D11();
-}
+    }
 
     return pDecoder;
 }
@@ -125,15 +125,15 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
 
     DbgLog(
         (LOG_TRACE, 10, L"CDecodeThread::CreateDecoder(): Creating new decoder for codec %S", avcodec_get_name(codec)));
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     BOOL bWMV9{ FALSE };
 
-    BOOL bHWDecBlackList = ::_wcsicmp(m_processName.c_str(), L"dllhost.exe") == 0 ||
-                           ::_wcsicmp(m_processName.c_str(), L"explorer.exe") == 0 ||
-                           ::_wcsicmp(m_processName.c_str(), L"ReClockHelper.dll") == 0;
+    BOOL bHWDecBlackList = (::_wcsicmp(m_processName.c_str(), L"dllhost.exe") == 0) ||
+                           (::_wcsicmp(m_processName.c_str(), L"explorer.exe") == 0) ||
+                           (::_wcsicmp(m_processName.c_str(), L"ReClockHelper.dll") == 0);
     DbgLog((LOG_TRACE, 10, L"-> Process is %s, blacklist: %d", m_processName.c_str(), bHWDecBlackList));
 
-    BITMAPINFOHEADER *pBMI = nullptr;
+    BITMAPINFOHEADER *pBMI{ nullptr };
     videoFormatTypeHandler(*pmt, &pBMI);
 
     CreateSideDataCache(pSideData);
@@ -141,7 +141,7 @@ STDMETHODIMP CDecodeManager::CreateDecoder(const CMediaType *pmt, AVCodecID code
     // disable HW for DVD decoding
     if (m_pLAVVideo->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_DVD) {
         bHWDecBlackList = true;
-}
+    }
 
     // Declared above the reuse goto. That jump would otherwise skip this initialization.
     LAVHWAccel const hwAccel = m_pLAVVideo->GetHWAccel();
@@ -180,7 +180,7 @@ softwaredec:
         }
         else {
             m_pDecoder = CreateDecoderAVCodec();
-}
+        }
     }
     DbgLog((LOG_TRACE, 10, L"-> Created Codec '%s'", m_pDecoder->GetDecoderName()));
 
@@ -227,7 +227,7 @@ done:
 STDMETHODIMP CDecodeManager::Decode(IMediaSample *pSample)
 {
     CAutoLock const decoderLock(this);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (!m_pDecoder) { return E_UNEXPECTED; }
 
@@ -295,7 +295,7 @@ STDMETHODIMP CDecodeManager::InitAllocator(IMemAllocator **ppAlloc)
 STDMETHODIMP CDecodeManager::PostConnect(IPin *pPin)
 {
     CAutoLock const decoderLock(this);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     if (m_pDecoder)
     {
         hr = m_pDecoder->PostConnect(pPin);

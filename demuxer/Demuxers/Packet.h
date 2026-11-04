@@ -58,7 +58,7 @@ class Packet
     REFERENCE_TIME rtPTS = INVALID_TIME;
     REFERENCE_TIME rtDTS = INVALID_TIME;
 
-    AM_MEDIA_TYPE *pmt = nullptr;
+    AM_MEDIA_TYPE *pmt{ nullptr };
 
 #define LAV_PACKET_PARSED 0x0001
 #define LAV_PACKET_MOV_TEXT 0x0002
@@ -69,5 +69,5 @@ class Packet
     DWORD dwFlags{ 0U };
 
   private:
-    AVPacket *m_Packet = nullptr;
+    AVPacket *m_Packet{ nullptr };
 };

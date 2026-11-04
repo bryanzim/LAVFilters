@@ -23,8 +23,8 @@ struct BufferDetails;
 
 typedef struct ExtendedChannelMap_s
 {
-    int idx;
-    int factor;
+    int idx{ 0 };
+    int factor{ 0 };
 } ExtendedChannelMap[8U];
 
 inline void ExtChMapSet(ExtendedChannelMap *map, int ch, int idx, int factor)

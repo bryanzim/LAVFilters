@@ -59,7 +59,10 @@ class CBitstreamBuffer
         {
             BYTE *p = m_pStorage->Ptr();
             std::memmove(p, p + m_nConsumed, m_pStorage->GetCount() - m_nConsumed);
-            m_pStorage->SetSize(DWORD(m_pStorage->GetCount() - m_nConsumed));
+            if (FAILED(m_pStorage->SetSize(static_cast<DWORD>(m_pStorage->GetCount() - m_nConsumed))))
+            {
+                m_pStorage->Clear();
+            }
         }
         else
         {
@@ -67,9 +70,12 @@ class CBitstreamBuffer
         }
     }
 
-    void Allocate(std::size_t size) { m_pStorage->Allocate(static_cast<DWORD>(size)); }
+    [[nodiscard]] HRESULT Allocate(std::size_t size) { return m_pStorage->Allocate(static_cast<DWORD>(size)); }
 
-    void Append(const BYTE *buffer, std::size_t size) { m_pStorage->Append(buffer, DWORD(size)); }
+    [[nodiscard]] HRESULT Append(const BYTE *buffer, std::size_t size)
+    {
+        return m_pStorage->Append(buffer, static_cast<DWORD>(size));
+    }
 
     void Consume(std::size_t count) { m_nConsumed += min(count, GetBufferSize()); }
 
@@ -105,7 +111,7 @@ STDMETHODIMP CDecMSDKMVC::Init()
     // Check if HWAccel is allowed
     if (!m_pSettings->GetHWAccelCodec(HWCodec_H264MVC)) {
         impls[0U] = MFX_IMPL_SOFTWARE;
-}
+    }
 
     for (int i{ 0 }; i < countof(impls); ++i)
     {
@@ -193,7 +199,7 @@ STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
 
     if (*pmt->FormatType() != FORMAT_MPEG2Video) {
         return E_UNEXPECTED;
-}
+    }
 
     DestroyDecoder(false);
 
@@ -223,7 +229,7 @@ STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                                 AV_NOPTS_VALUE, TRUE, TRUE, nullptr);
             if (FAILED(hr)) {
                 return hr;
-}
+            }
         }
 
         m_nMP4NALUSize = mp2vi->dwFlags;
@@ -237,7 +243,7 @@ STDMETHODIMP CDecMSDKMVC::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
                                 AV_NOPTS_VALUE, TRUE, TRUE, nullptr);
             if (FAILED(hr)) {
                 return hr;
-}
+            }
         }
     }
 
@@ -281,7 +287,7 @@ STDMETHODIMP CDecMSDKMVC::AllocateMVCExtBuffers()
 MVCBuffer *CDecMSDKMVC::GetBuffer()
 {
     CAutoLock const lock(&m_BufferCritSec);
-    MVCBuffer *pBuffer = nullptr;
+    MVCBuffer *pBuffer{ nullptr };
     for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if ((!(*it)->surface.Data.Locked) && (!(*it)->queued))
@@ -334,7 +340,7 @@ void CDecMSDKMVC::ReleaseBuffer(mfxFrameSurface1 *pSurface)
 {
     if (!pSurface) {
         return;
-}
+    }
 
     CAutoLock const lock(&m_BufferCritSec);
     MVCBuffer *pBuffer = FindBuffer(pSurface);
@@ -354,7 +360,7 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
 {
     if (!m_mfxSession) { return E_UNEXPECTED; }
 
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     CBitstreamBuffer bsBuffer(&m_buff);
     mfxStatus sts = MFX_ERR_NONE;
     mfxBitstream bs = {nullptr};
@@ -364,13 +370,16 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         bs.TimeStamp = rtStart + TIMESTAMP_OFFSET;
     } else {
         bs.TimeStamp = MFX_TIMESTAMP_UNKNOWN;
-}
+    }
 
     bs.DecodeTimeStamp = MFX_TIMESTAMP_UNKNOWN;
 
     if (!bFlush)
     {
-        bsBuffer.Allocate(bsBuffer.GetBufferSize() + buflen);
+        if (FAILED(bsBuffer.Allocate(bsBuffer.GetBufferSize() + static_cast<std::size_t>(buflen))))
+        {
+            return E_OUTOFMEMORY;
+        }
 
         // Check the buffer for SEI NALU, and some unwanted NALUs that need filtering
         // MSDK's SEI reading functionality is slightly buggy
@@ -381,7 +390,7 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
             // Don't include End-of-Sequence or AUD NALUs
             if ((nalu.GetType() == NALU_TYPE_EOSEQ) || (nalu.GetType() == NALU_TYPE_AUD)) {
                 continue;
-}
+            }
 
             if (nalu.GetType() == NALU_TYPE_SEI)
             {
@@ -393,18 +402,27 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
             if (m_nMP4NALUSize)
             {
                 // write annex b nal
-                if ((nalu.GetNALPos() == 0) || (nalu.GetType() == NALU_TYPE_SPS) || (nalu.GetType() == NALU_TYPE_PPS)) {
-                    bsBuffer.Append(s_AnnexBStartCode4.data(), 4);
-                } else {
-                    bsBuffer.Append(s_AnnexBStartCode3.data(), 3);
-}
+                if ((nalu.GetNALPos() == 0) || (nalu.GetType() == NALU_TYPE_SPS) || (nalu.GetType() == NALU_TYPE_PPS))
+                {
+                    if (FAILED(bsBuffer.Append(s_AnnexBStartCode4.data(), 4)))
+                    {
+                        return E_OUTOFMEMORY;
+                    }
+                }
+                else if (FAILED(bsBuffer.Append(s_AnnexBStartCode3.data(), 3)))
+                {
+                    return E_OUTOFMEMORY;
+                }
 
                 // append nal data
-                bsBuffer.Append(nalu.GetDataBuffer(), nalu.GetDataLength());
+                if (FAILED(bsBuffer.Append(nalu.GetDataBuffer(), nalu.GetDataLength())))
+                {
+                    return E_OUTOFMEMORY;
+                }
             }
-            else
+            else if (FAILED(bsBuffer.Append(nalu.GetNALBuffer(), nalu.GetLength())))
             {
-                bsBuffer.Append(nalu.GetNALBuffer(), nalu.GetLength());
+                return E_OUTOFMEMORY;
             }
         }
 
@@ -423,7 +441,7 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
             hr = AllocateMVCExtBuffers();
             if (FAILED(hr)) {
                 return hr;
-}
+            }
 
             sts = MFXVideoDECODE_DecodeHeader(m_mfxSession, &bs, &m_mfxVideoParams);
         }
@@ -463,7 +481,7 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
         MVCBuffer *pInputBuffer = GetBuffer();
         if (pInputBuffer == nullptr) { return E_OUTOFMEMORY; }
 
-        mfxFrameSurface1 *outsurf = nullptr;
+        mfxFrameSurface1 *outsurf{ nullptr };
         sts = MFXVideoDECODE_DecodeFrameAsync(m_mfxSession, bFlush ? nullptr : &bs, &pInputBuffer->surface, &outsurf,
                                               &sync);
 
@@ -487,7 +505,7 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
 
         if ((sts != MFX_ERR_MORE_SURFACE) && (sts < 0)) {
             break;
-}
+        }
     }
 
     if (!bs.DataOffset && !sync && !bFlush)
@@ -519,7 +537,7 @@ HRESULT CDecMSDKMVC::ParseSEI(const BYTE *buffer, std::size_t size, mfxU64 times
         {
             if (seiParser.RemainingBits() < 8) {
                 return E_FAIL;
-}
+            }
             type += seiParser.BitRead(8, true);
         } while (seiParser.BitRead(8) == 0xFF);
 
@@ -527,7 +545,7 @@ HRESULT CDecMSDKMVC::ParseSEI(const BYTE *buffer, std::size_t size, mfxU64 times
         {
             if (seiParser.RemainingBits() < 8) {
                 return E_FAIL;
-}
+            }
             size += seiParser.BitRead(8, true);
         } while (seiParser.BitRead(8) == 0xFF);
 
@@ -655,7 +673,7 @@ HRESULT CDecMSDKMVC::ParseOffsetMetadata(const BYTE *buffer, std::size_t size, m
 
             if (direction_flag) {
                 value = -value;
-}
+            }
 
             GOP.offsets[f].offset[o] = value;
         }
@@ -670,14 +688,14 @@ void CDecMSDKMVC::AddFrameToGOP(mfxU64 timestamp)
 {
     if (m_GOPs.size() > 0) {
         m_GOPs.back().timestamps.push_back(timestamp);
-}
+    }
 }
 
 BOOL CDecMSDKMVC::RemoveFrameFromGOP(MVCGOP *pGOP, mfxU64 timestamp)
 {
     if ((pGOP->timestamps.empty()) || (pGOP->offsets.empty())) {
         return FALSE;
-}
+    }
 
     auto const e = std::find(pGOP->timestamps.begin(), pGOP->timestamps.end(), timestamp);
     if (e != pGOP->timestamps.end())
@@ -739,7 +757,7 @@ void CDecMSDKMVC::GetOffsetSideData(LAVFrame *pFrame, mfxU64 timestamp)
             pFrame, IID_MediaSideData3DOffset, sizeof(MediaSideData3DOffset)));
         if (FrameOffset) {
             *FrameOffset = offset;
-}
+        }
     }
 }
 
@@ -772,7 +790,7 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
 {
     mfxStatus sts = MFX_ERR_NONE;
 
-    ASSERT((pBaseView->surface.Info.FrameId.ViewId == 0 && pExtraView->surface.Info.FrameId.ViewId > 0));
+    ASSERT(((pBaseView->surface.Info.FrameId.ViewId == 0) && (pExtraView->surface.Info.FrameId.ViewId > 0)));
     ASSERT(pBaseView->surface.Data.FrameOrder == pExtraView->surface.Data.FrameOrder);
 
     // Sync base view
@@ -789,8 +807,14 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
     } while (sts == MFX_WRN_IN_EXECUTION);
     pExtraView->sync = nullptr;
 
-    LAVFrame *pFrame = nullptr;
-    AllocateFrame(&pFrame);
+    LAVFrame *pFrame{ nullptr };
+    HRESULT const hrFrame = AllocateFrame(&pFrame);
+    if (FAILED(hrFrame))
+    {
+        ReleaseBuffer(&pBaseView->surface);
+        ReleaseBuffer(&pExtraView->surface);
+        return hrFrame;
+    }
 
     pFrame->width = pBaseView->surface.Info.CropW;
     pFrame->height = pBaseView->surface.Info.CropH;
@@ -811,7 +835,7 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
 
     if (!(pBaseView->surface.Data.DataFlag & MFX_FRAMEDATA_ORIGINAL_TIMESTAMP)) {
         pBaseView->surface.Data.TimeStamp = MFX_TIMESTAMP_UNKNOWN;
-}
+    }
 
     if (pBaseView->surface.Data.TimeStamp != MFX_TIMESTAMP_UNKNOWN)
     {
@@ -873,7 +897,7 @@ STDMETHODIMP CDecMSDKMVC::Flush()
     {
         if (m_bDecodeReady) {
             MFXVideoDECODE_Reset(m_mfxSession, &m_mfxVideoParams);
-}
+        }
         // TODO: decode sequence data
 
         for (int i{ 0 }; i < ASYNC_QUEUE_SIZE; ++i)

@@ -63,15 +63,15 @@ HRESULT CHEVCSequenceParser::ParseNALs(const BYTE *buffer, std::size_t buflen, i
 HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
 {
     CByteParser parser(buffer, buflen);
-    int i;
+    int i{ 0 };
 
     ZeroMemory(&sps, sizeof(sps));
     sps.valid = 1;
 
     struct
     {
-        int profile_present;
-        int level_present;
+        int profile_present{ 0 };
+        int level_present{ 0 };
     } Sublayers[7U];
 
     parser.BitSkip(4);                      // sps_video_parameter_set_id
@@ -88,7 +88,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
         int const flag = parser.BitRead(1);
         if ((sps.profile == 0) && (i > 0) && flag) {
             sps.profile = i;
-}
+        }
     }
     parser.BitSkip(1); // general_progressive_source_flag
     parser.BitSkip(1); // general_interlaced_source_flag
@@ -122,7 +122,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
     {
         for (i = max_sub_layers; i < 8; ++i) {
             parser.BitSkip(2); // reserved_zero_2bits
-}
+        }
     }
 
     for (i = 0; i < max_sub_layers; ++i)
@@ -151,7 +151,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, std::size_t buflen)
     sps.chroma = parser.UExpGolombRead(); // chroma_format_idc
     if (sps.chroma == 3) {
         parser.BitRead(1); // separate_color_plane_flag
-}
+    }
 
     parser.UExpGolombRead(); // width
     parser.UExpGolombRead(); // height

@@ -44,7 +44,7 @@ template <class T> class GrowableArray
     virtual ~GrowableArray() { std::free(m_pArray); }
 
     // Allocate: Reserves memory for the array, but does not increase the count.
-    HRESULT Allocate(DWORD alloc)
+    [[nodiscard]] HRESULT Allocate(DWORD alloc)
     {
         HRESULT const hr = S_OK;
         if ((alloc > m_allocated) || !m_pArray)
@@ -73,9 +73,9 @@ template <class T> class GrowableArray
     }
 
     // SetSize: Changes the count, and grows the array if needed.
-    HRESULT SetSize(DWORD count)
+    [[nodiscard]] HRESULT SetSize(DWORD count)
     {
-        HRESULT hr = S_OK;
+        HRESULT hr{ S_OK };
         if (count > m_allocated)
         {
             hr = Allocate(count);
@@ -89,7 +89,7 @@ template <class T> class GrowableArray
 
     [[nodiscard]] HRESULT Append(GrowableArray<T> *other) { return Append(other->Ptr(), other->GetCount()); }
 
-    HRESULT Append(const T *other, DWORD dwSize)
+    [[nodiscard]] HRESULT Append(const T *other, DWORD dwSize)
     {
         DWORD const old = GetCount();
         if (dwSize > ~old)
@@ -108,7 +108,7 @@ template <class T> class GrowableArray
         return S_OK;
     }
 
-    HRESULT AppendZero(DWORD dwSize)
+    [[nodiscard]] HRESULT AppendZero(DWORD dwSize)
     {
         DWORD const old = GetCount();
         if (dwSize > ~old)
@@ -164,7 +164,7 @@ template <class T> class GrowableArray
     GrowableArray &operator=(const GrowableArray &r);
     GrowableArray(const GrowableArray &r);
 
-    T *m_pArray = nullptr;
+    T *m_pArray{ nullptr };
     DWORD m_count{ 0U };     // Nominal count.
     DWORD m_allocated{ 0U }; // Actual allocation size.
 };

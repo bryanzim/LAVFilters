@@ -32,13 +32,13 @@ class CMPEG2HeaderParser
   public:
     struct
     {
-        int valid;
+        int valid{ 0 };
 
-        int profile;
-        int level;
+        int profile{ 0 };
+        int level{ 0 };
 
-        int interlaced;
-        int chroma;
+        int interlaced{ 0 };
+        int chroma{ 0 };
     } hdr;
 
   private:

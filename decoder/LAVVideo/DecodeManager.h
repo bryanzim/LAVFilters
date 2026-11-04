@@ -70,13 +70,13 @@ class CDecodeManager : protected CCritSec
         {
             if (pPix) {
                 *pPix = LAVPixFmt_None;
-}
+            }
             if (pBpp) {
                 *pBpp = 8;
-}
+            }
             if (pPixSoftware) {
                 *pPixSoftware = LAVPixFmt_None;
-}
+            }
 
             return S_FALSE;
         }
@@ -96,8 +96,8 @@ class CDecodeManager : protected CCritSec
     void FreeSideDataCache();
 
   private:
-    CLAVVideo *m_pLAVVideo = nullptr;
-    ILAVDecoder *m_pDecoder = nullptr;
+    CLAVVideo *m_pLAVVideo{ nullptr };
+    ILAVDecoder *m_pDecoder{ nullptr };
 
     AVCodecID m_Codec = AV_CODEC_ID_NONE;
 

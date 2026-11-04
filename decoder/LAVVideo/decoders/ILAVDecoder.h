@@ -100,8 +100,8 @@ typedef struct AVPixelFormatMapping
 {
     AVPixelFormat ffpixfmt;
     LAVPixelFormat lavpixfmt;
-    BOOL conversion;
-    int bpp;
+    BOOL conversion{ FALSE };
+    int bpp{ 0 };
 } AVPixelFormatMapping;
 AVPixelFormatMapping getFFToLAVPixFmtMapping(AVPixelFormat pixfmt);
 
@@ -169,13 +169,13 @@ typedef struct LAVFrame
 #define LAV_FRAME_FLAG_MVC 0x00000020
 
     LAVFrameSideData *side_data;
-    int side_data_count;
+    int side_data_count{ 0 };
 
     /* destruct function to free any buffers being held by this frame (may be null) */
     void (*destruct)(struct LAVFrame *);
     void *priv_data; ///< private data from the decoder (mostly for destruct)
 
-    bool direct;
+    bool direct{ false };
     bool (*direct_lock)(struct LAVFrame *, struct LAVDirectBuffer *);
     void (*direct_unlock)(struct LAVFrame *);
 } LAVFrame;
@@ -228,7 +228,7 @@ typedef struct LAVPinInfo
 {
     DWORD flags;           ///< Flags that describe the video content (see ILAVPinInfo.h for valid values)
     AVPixelFormat pix_fmt; ///< The pixel format used
-    int has_b_frames;
+    int has_b_frames{ 0 };
 } LAVPinInfo;
 
 /**

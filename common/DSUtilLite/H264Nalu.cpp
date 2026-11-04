@@ -41,14 +41,14 @@ void CH264Nalu::SetBuffer(const BYTE *pBuffer, std::size_t nSize, int nNALSize)
     // In AnnexB, the buffer is not guaranteed to start on a NAL boundary
     if ((nNALSize == 0) && (nSize > 0)) {
         MoveToNextAnnexBStartcode();
-}
+    }
 }
 
 bool CH264Nalu::MoveToNextAnnexBStartcode()
 {
     if (m_nSize < 4) {
         goto notfound;
-}
+    }
 
     std::size_t const nBuffEnd = m_nSize - 4;
 
@@ -171,7 +171,7 @@ CH264NALUnescape::CH264NALUnescape(const BYTE *src, std::size_t nSize)
 
     while (si < nSize) {
         dst[di++] = src[si++];
-}
+    }
 
     m_nSize = di;
 }

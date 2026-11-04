@@ -160,7 +160,7 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
         get_bits(gb, 3);                 /* ExSS frame duration code */
         if (get_bits(gb, 1)) {             /* Timestamp flag */
             get_bits(gb, 36);            /* Timestamp */
-}
+        }
         NumAudio = get_bits(gb, 3) + 1;  /* Num audio present */
         NumAssets = get_bits(gb, 3) + 1; /* Num assets */
         for (std::uint8_t Pos{ 0U }; Pos < NumAudio; ++Pos)
@@ -172,9 +172,9 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
             for (std::uint8_t Pos2{ 0U }; Pos2 < SubIdx + 1; Pos2 += 2) {
                 if (ActiveExSSMasks[Pos] % 2) {
                     get_bits(gb, 8); /* Active ExSS masks 2 */
-}
-}
-}
+                }
+            }
+        }
         if (get_bits(gb, 1))
         {                                    /* Mix Metadata Flag */
             get_bits(gb, 2);                 /* Mix Metadata Adjustment Level */
@@ -183,7 +183,7 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
             unsigned const num = get_bits(gb, 2) + 1; /* Num Configs */
             for (std::uint8_t Pos{ 0U }; Pos < num; ++Pos) {
                 get_bits(gb, bits); /* Mix Out Ch Mask */
-}
+            }
         }
     } /* END: Static Fields */
     // Sizes
@@ -207,16 +207,16 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
         {
             if (get_bits(gb, 1)) {  /* Asset type descriptor present */
                 get_bits(gb, 4);  /* Asset type descriptor */
-}
+            }
             if (get_bits(gb, 1)) {  /* Language descriptor present */
                 get_bits(gb, 24); /* Language descriptor */
-}
+            }
             if (get_bits(gb, 1))
             {                                          /* Info text present */
                 unsigned const bytes = get_bits(gb, 10) + 1; /* Info text size */
                 for (unsigned Pos{ 0U }; Pos < bytes; ++Pos) {
                     get_bits(gb, 8); /* Info Text */
-}
+                }
             }
             get_bits(gb, 5);                                /* Bit Resolution */
             get_bits(gb, 4);                                /* Maximum Sample Rate */
@@ -226,10 +226,10 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
                 unsigned SpeakerActivityMaskBits = 0, SpeakerRemapSetsCount;
                 if (pHeader->HDTotalChannels > 2) {
                     get_bits(gb, 1); /* Embedded stereo flag */
-}
+                }
                 if (pHeader->HDTotalChannels > 6) {
                     get_bits(gb, 1); /* Embedded 6 channels flag */
-}
+                }
                 if (get_bits(gb, 1))
                 {                                              /* Speaker Mask Flag */
                     SpeakerActivityMaskBits = get_bits(gb, 2); /* Speaker mask bits */
@@ -239,7 +239,7 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
                 SpeakerRemapSetsCount = get_bits(gb, 3); /* Speaker remap sets count */
                 for (std::uint8_t Pos{ 0U }; Pos < SpeakerRemapSetsCount; ++Pos) {
                     get_bits(gb, SpeakerActivityMaskBits); /* Standard Speaker Layout mask */
-}
+                }
                                                            /* unfinished
                                                            for (uint8_t Pos{ 0U }; Pos < SpeakerRemapSetsCount; ++Pos)
                                                            get_bits(gb, 5);                            /* NumDecCh4Remap
@@ -293,7 +293,7 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, std::uint8_
         skip_bits1(gb);                  /* Predictor History */
         if (pHeader->CRCPresent) {
             skip_bits(gb, 16);       /* CRC */
-}
+        }
         skip_bits1(gb);              /* Multirate Interpolator */
         skip_bits(gb, 4);            /* Encoder Software Revision */
         skip_bits(gb, 2);            /* Copy history */
@@ -314,7 +314,7 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, std::uint8_
     if ((pHeader->HasCore) && !is16be) { return 0; }
 
     // DTS-HD parsing
-    const std::uint8_t *pHD = nullptr;
+    const std::uint8_t *pHD{ nullptr };
     if (pHeader->HasCore)
     { // If we have a core, only search after the normal buffer
         if (uSize > (pHeader->FrameSize + 4))

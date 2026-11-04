@@ -63,24 +63,24 @@ class CLAVAudioSettingsProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVAudioSettings *m_pAudioSettings = nullptr;
+    ILAVAudioSettings *m_pAudioSettings{ nullptr };
 
-    BOOL m_bDRCEnabled;
-    int m_iDRCLevel;
+    BOOL m_bDRCEnabled{ FALSE };
+    int m_iDRCLevel{ 0 };
 
     std::array<bool, Bitstream_NB> m_bBitstreaming{};
-    BOOL m_bDTSHDFraming;
-    BOOL m_bBitstreamingFallback;
-    BOOL m_bAutoAVSync;
-    BOOL m_bOutputStdLayout;
-    BOOL m_bOutput51Legacy;
-    BOOL m_bExpandMono;
-    BOOL m_bExpand61;
+    BOOL m_bDTSHDFraming{ FALSE };
+    BOOL m_bBitstreamingFallback{ FALSE };
+    BOOL m_bAutoAVSync{ FALSE };
+    BOOL m_bOutputStdLayout{ FALSE };
+    BOOL m_bOutput51Legacy{ FALSE };
+    BOOL m_bExpandMono{ FALSE };
+    BOOL m_bExpand61{ FALSE };
     std::array<bool, SampleFormat_NB> m_bSampleFormats{};
-    BOOL m_bDither;
-    BOOL m_bAudioDelay;
-    int m_iAudioDelay;
-    BOOL m_TrayIcon;
+    BOOL m_bDither{ FALSE };
+    BOOL m_bAudioDelay{ FALSE };
+    int m_iAudioDelay{ 0 };
+    BOOL m_TrayIcon{ FALSE };
 };
 
 class CLAVAudioMixingProp : public CBaseDSPropPage
@@ -108,15 +108,15 @@ class CLAVAudioMixingProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVAudioSettings *m_pAudioSettings = nullptr;
+    ILAVAudioSettings *m_pAudioSettings{ nullptr };
 
-    BOOL m_bMixing;
-    DWORD m_dwSpeakerLayout;
-    DWORD m_dwFlags;
-    DWORD m_dwMixingMode;
-    DWORD m_dwMixCenter;
-    DWORD m_dwMixSurround;
-    DWORD m_dwMixLFE;
+    BOOL m_bMixing{ FALSE };
+    DWORD m_dwSpeakerLayout{ 0U };
+    DWORD m_dwFlags{ 0U };
+    DWORD m_dwMixingMode{ 0U };
+    DWORD m_dwMixCenter{ 0U };
+    DWORD m_dwMixSurround{ 0U };
+    DWORD m_dwMixLFE{ 0U };
 };
 
 class CLAVAudioFormatsProp : public CBaseDSPropPage
@@ -144,7 +144,7 @@ class CLAVAudioFormatsProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVAudioSettings *m_pAudioSettings = nullptr;
+    ILAVAudioSettings *m_pAudioSettings{ nullptr };
 
     std::array<bool, Codec_AudioNB> m_bFormats{};
 };
@@ -165,6 +165,6 @@ class CLAVAudioStatusProp : public CBaseDSPropPage
     void UpdateVolumeDisplay();
 
   private:
-    ILAVAudioStatus *m_pAudioStatus = nullptr;
+    ILAVAudioStatus *m_pAudioStatus{ nullptr };
     int m_nChannels{ 0 };
 };

@@ -114,7 +114,7 @@ HRESULT CStreamParser::Parse(const GUID &gSubtype, Packet *pPacket)
     {
         ParseSRT(pPacket);
     }
-    else if ((m_gSubtype == MEDIASUBTYPE_PCM || m_gSubtype == MEDIASUBTYPE_PCM_TWOS) &&
+    else if (((m_gSubtype == MEDIASUBTYPE_PCM) || (m_gSubtype == MEDIASUBTYPE_PCM_TWOS)) &&
              (pPacket->dwFlags & LAV_PACKET_PLANAR_PCM))
     {
         ParsePlanarPCM(pPacket);
@@ -145,7 +145,7 @@ HRESULT CStreamParser::Queue(Packet *pPacket) const
 
 static Packet *InitPacket(Packet *pSource)
 {
-    Packet *pNew = nullptr;
+    Packet *pNew{ nullptr };
 
     pNew = new Packet();
     pNew->StreamId = pSource->StreamId;
@@ -178,7 +178,7 @@ static BYTE H264NaluType(const Packet *pPacket)
 
 static bool H264NaluIsVcl(BYTE naluType)
 {
-    return naluType >= 1 && naluType <= 5;
+    return (naluType >= 1) && (naluType <= 5);
 }
 
 // first_mb_in_slice == 0 is coded as a single 1 bit, so a new picture starts
@@ -229,7 +229,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
         CH264Nalu Nalu;
         Nalu.SetBuffer(start, static_cast<int>(size), 0);
 
-        Packet *p2 = nullptr;
+        Packet *p2{ nullptr };
 
         while (Nalu.ReadNext())
         {
@@ -253,7 +253,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
 
         if (!p2) {
             break;
-}
+        }
 
         p2->StreamId = m_pPacketBuffer->StreamId;
         p2->bDiscontinuity = m_pPacketBuffer->bDiscontinuity;
@@ -366,7 +366,7 @@ HRESULT CStreamParser::ParseH264AnnexB(Packet *pPacket)
         if (pPacket)
         {
             Packet *p = m_queue.Get();
-            Packet *p2 = nullptr;
+            Packet *p2{ nullptr };
             while ((p2 = m_queue.Get()) != pPacket)
             {
                 p->Append(p2);
@@ -418,7 +418,11 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
         goto done;
     }
 
-    m_pgsBuffer.SetSize(0);
+    if (FAILED(m_pgsBuffer.SetSize(0)))
+    {
+        delete pPacket;
+        return E_OUTOFMEMORY;
+    }
 
     while ((buf + 3) <= buf_end)
     {
@@ -473,7 +477,11 @@ HRESULT CStreamParser::ParsePGS(Packet *pPacket)
         }
         if (!m_bPGSDropState)
         {
-            m_pgsBuffer.Append(segment_start, static_cast<DWORD>((segment_length + 3)));
+            if (FAILED(m_pgsBuffer.Append(segment_start, static_cast<DWORD>(segment_length + 3))))
+            {
+                delete pPacket;
+                return E_OUTOFMEMORY;
+            }
         }
 
         buf += segment_length;
@@ -574,7 +582,7 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
 
     if (pPacket->GetDataSize() == 0) {
         return S_FALSE;
-}
+    }
 
     while (ptr && (end > ptr) && *ptr)
     {
@@ -593,7 +601,7 @@ HRESULT CStreamParser::ParseSRT(Packet *pPacket)
                 {
                     if (*ptr++ == '\n') {
                         break;
-}
+                    }
                 }
             }
             std::size_t const size = ptr - linestart;

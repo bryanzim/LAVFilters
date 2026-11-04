@@ -56,7 +56,7 @@ static void str_replace(string &s, const string &search, const string &replace)
         pos = s.find(search, pos);
         if (pos == string::npos) {
             break;
-}
+        }
 
         s.erase(pos, search.length());
         s.insert(pos, replace);
@@ -85,7 +85,7 @@ static string GetCueParam(string line, bool firstWord = false)
         idx = param.find_first_of(delims);
         if (idx != string::npos) {
             param = param.substr(0, idx);
-}
+        }
     }
     return param;
 }
@@ -189,7 +189,7 @@ std::string CCueSheet::FormatTrack(Track &track)
     string trackFormat = track.Id + ". ";
     if (!track.Performer.empty()) {
         trackFormat += track.Performer + " - ";
-}
+    }
     trackFormat += track.Title;
     return trackFormat;
 }

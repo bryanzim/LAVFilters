@@ -110,13 +110,13 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
         {
             if (audio_map[i].subtype) {
                 mediaType.subtype = *audio_map[i].subtype;
-}
+            }
             if (audio_map[i].codecTag) {
                 codecTag = audio_map[i].codecTag;
-}
+            }
             if (audio_map[i].format) {
                 mediaType.formattype = *audio_map[i].format;
-}
+            }
             break;
         }
     }
@@ -128,7 +128,7 @@ CMediaType CLAVFAudioHelper::initAudioType(AVCodecParameters *codecpar, unsigned
         // Qt PCM
         if (codecTag == MKTAG('f', 'l', '6', '4')) {
             mediaType.subtype = MEDIASUBTYPE_PCM_FL64_le;
-}
+        }
         break;
     }
     return mediaType;
@@ -166,12 +166,12 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
                 DbgOutString(L"BitsPerSample is 0, no good!");
             }
             wvfmt->nBlockAlign =
-                static_cast<WORD>((wvfmt->nChannels * av_get_bytes_per_sample((AVSampleFormat)avstream->codecpar->format)));
+                static_cast<WORD>((wvfmt->nChannels * av_get_bytes_per_sample(static_cast<AVSampleFormat>(avstream->codecpar->format))));
         }
     }
     if (!wvfmt->nAvgBytesPerSec) {
         wvfmt->nAvgBytesPerSec = (wvfmt->nSamplesPerSec * wvfmt->nChannels * wvfmt->wBitsPerSample) >> 3;
-}
+    }
 
     if (avstream->codecpar->extradata_size > 0)
     {
@@ -274,7 +274,7 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
     }
     else
     {
-        wfe->wBitsPerSample = av_get_bytes_per_sample((AVSampleFormat)avstream->codecpar->format) << 3;
+        wfe->wBitsPerSample = av_get_bytes_per_sample(static_cast<AVSampleFormat>(avstream->codecpar->format)) << 3;
     }
     wfe->nBlockAlign = wfe->nChannels * wfe->wBitsPerSample / 8;
     wfe->nAvgBytesPerSec = wfe->nSamplesPerSec * wfe->nBlockAlign;
@@ -288,7 +288,7 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
 
         if (avstream->codecpar->ch_layout.order == AV_CHANNEL_ORDER_NATIVE) {
             dwChannelMask = static_cast<DWORD>(avstream->codecpar->ch_layout.u.mask);
-}
+        }
 
         if (!dwChannelMask)
         {
@@ -299,9 +299,9 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
 
         if (dwChannelMask && (av_popcount(dwChannelMask) != wfe->nChannels)) {
             dwChannelMask = 0;
-}
+        }
     }
-    else if ((wfe->wBitsPerSample > 16 || wfe->nSamplesPerSec > 48000) && (wfe->nChannels <= 2))
+    else if (((wfe->wBitsPerSample > 16) || (wfe->nSamplesPerSec > 48000)) && (wfe->nChannels <= 2))
     {
         bUseExtensible = true;
         dwChannelMask = wfe->nChannels == 2 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT) : SPEAKER_FRONT_CENTER;
@@ -398,7 +398,7 @@ VORBISFORMAT2 *CLAVFAudioHelper::CreateVorbis2(const AVStream *avstream, ULONG *
     int totalsize{ 0 };
     for (unsigned int i{ 0U }; i < sizes.size(); ++i) {
         totalsize += sizes[i];
-}
+    }
 
     // Get the size of the last block
     sizes.push_back(avstream->codecpar->extradata_size - static_cast<int>((p - avstream->codecpar->extradata)) - totalsize);

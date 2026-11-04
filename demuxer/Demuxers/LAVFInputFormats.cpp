@@ -30,9 +30,9 @@ static const char *RAW_AUDIO_DESC = "raw audio files";
 
 struct lavf_iformat_map
 {
-    const char *orig_format;
-    const char *new_format;
-    const char *new_description;
+    const char *orig_format{ nullptr };
+    const char *new_format{ nullptr };
+    const char *new_description{ nullptr };
 } lavf_input_formats[] = {
     // Shorten these formats
     {"matroska,webm", "matroska", nullptr},
@@ -98,15 +98,15 @@ void lavf_get_iformat_infos(const AVInputFormat *pFormat, const char **pszName, 
             name = lavf_input_formats[i].new_format;
             if (lavf_input_formats[i].new_description) {
                 desc = lavf_input_formats[i].new_description;
-}
+            }
             break;
         }
     }
 
     if (pszName) {
         *pszName = name;
-}
+    }
     if (pszDescription) {
         *pszDescription = desc;
-}
+    }
 }

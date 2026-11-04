@@ -51,7 +51,7 @@ class CH264Nalu
     std::size_t m_nNALStartPos{ 0U }; //! NALU start (including startcode / size)
     std::size_t m_nNALDataPos{ 0U };  //! Useful part
 
-    const BYTE *m_pBuffer = nullptr;
+    const BYTE *m_pBuffer{ nullptr };
     std::size_t m_nCurPos{ 0U };
     std::size_t m_nNextRTP{ 0U };
     std::size_t m_nSize{ 0U };
@@ -104,6 +104,6 @@ class CH264NALUnescape
     [[nodiscard]] constexpr std::size_t GetSize() const noexcept { return m_nSize; }
 
   private:
-    BYTE *m_pBuffer = nullptr;
+    BYTE *m_pBuffer{ nullptr };
     std::size_t m_nSize{ 0U };
 };

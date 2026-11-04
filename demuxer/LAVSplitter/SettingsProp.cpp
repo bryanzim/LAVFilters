@@ -68,9 +68,9 @@ HRESULT CLAVSplitterSettingsProp::OnDisconnect()
 HRESULT CLAVSplitterSettingsProp::OnApplyChanges()
 {
     ASSERT(m_pLAVF != nullptr);
-    HRESULT hr = S_OK;
-    DWORD dwVal;
-    BOOL bFlag;
+    HRESULT hr{ S_OK };
+    DWORD dwVal{ 0U };
+    BOOL bFlag{ FALSE };
 
     std::array<WCHAR, LANG_BUFFER_SIZE> buffer{};
     // Save audio language
@@ -93,7 +93,7 @@ HRESULT CLAVSplitterSettingsProp::OnApplyChanges()
 
     // Save subtitle mode
     dwVal = static_cast<DWORD>(SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0));
-    CHECK_HR(hr = m_pLAVF->SetSubtitleMode((LAVSubtitleMode)dwVal));
+    CHECK_HR(hr = m_pLAVF->SetSubtitleMode(static_cast<LAVSubtitleMode>(dwVal)));
 
     bFlag = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0));
     CHECK_HR(hr = m_pLAVF->SetPGSForcedStream(bFlag));
@@ -190,7 +190,7 @@ void CLAVSplitterSettingsProp::UpdateSubtitleMode(LAVSubtitleMode mode)
 
 HRESULT CLAVSplitterSettingsProp::OnActivate()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     INITCOMMONCONTROLSEX icc;
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icc.dwICC = ICC_BAR_CLASSES | ICC_STANDARD_CLASSES;
@@ -210,7 +210,7 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
     m_selectedSubMode = LAVSubtitleMode_Default;
     if (m_pszAdvSubConfig) {
         ::wcsncpy_s(m_advSubBuffer.data(), m_advSubBuffer.size(),  m_pszAdvSubConfig, _TRUNCATE);
-}
+    }
 
     // Notify the UI about those settings
     SendDlgItemMessage(m_Dlg, IDC_PREF_LANG, WM_SETTEXT, 0, (LPARAM)m_pszPrefLang);
@@ -314,7 +314,7 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
 }
 HRESULT CLAVSplitterSettingsProp::LoadData()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     // Free old strings
     SAFE_CO_FREE(m_pszPrefLang);
@@ -360,7 +360,7 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
             SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, LANG_BUFFER_SIZE, (LPARAM)buffer.data());
 
             int dirty{ 0 };
-            WCHAR *source = nullptr;
+            WCHAR *source{ nullptr };
             if (LOWORD(wParam) == IDC_PREF_LANG)
             {
                 source = m_pszPrefLang;
@@ -387,7 +387,7 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
         else if ((HIWORD(wParam) == CBN_SELCHANGE) && (LOWORD(wParam) == IDC_SUBTITLE_MODE))
         {
             DWORD const dwVal = static_cast<DWORD>(SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0));
-            UpdateSubtitleMode((LAVSubtitleMode)dwVal);
+            UpdateSubtitleMode(static_cast<LAVSubtitleMode>(dwVal));
             if (dwVal != m_subtitleMode)
             {
                 SetDirty();
@@ -488,10 +488,10 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 ::swprintf_s(buffer.data(), buffer.size(),  L"%d", maxMem);
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_SETTEXT, 0, (LPARAM)buffer.data());
-}
+                }
                 if (maxMem != m_QueueMaxMem) {
                     SetDirty();
-}
+                }
             }
         }
         else if ((LOWORD(wParam) == IDC_QUEUE_PACKETS) && (HIWORD(wParam) == EN_CHANGE))
@@ -509,10 +509,10 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 ::swprintf_s(buffer.data(), buffer.size(),  L"%d", maxMem);
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_SETTEXT, 0, (LPARAM)buffer.data());
-}
+                }
                 if (maxMem != m_QueueMaxPackets) {
                     SetDirty();
-}
+                }
             }
         }
         else if ((LOWORD(wParam) == IDC_STREAM_ANADUR) && (HIWORD(wParam) == EN_CHANGE))
@@ -530,10 +530,10 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 ::swprintf_s(buffer.data(), buffer.size(),  L"%d", duration);
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_SETTEXT, 0, (LPARAM)buffer.data());
-}
+                }
                 if (duration != m_NetworkAnalysisDuration) {
                     SetDirty();
-}
+                }
             }
         }
         break;

@@ -40,11 +40,11 @@ struct MediaSideDataHDR
     std::array<double, 3U> display_primaries_x{};
     std::array<double, 3U> display_primaries_y{};
     // white point
-    double white_point_x;
-    double white_point_y;
+    double white_point_x{ 0.0 };
+    double white_point_y{ 0.0 };
     // luminance
-    double max_display_mastering_luminance;
-    double min_display_mastering_luminance;
+    double max_display_mastering_luminance{ 0.0 };
+    double min_display_mastering_luminance{ 0.0 };
 };
 #pragma pack(pop)
 
@@ -56,10 +56,10 @@ DEFINE_GUID(IID_MediaSideDataHDRContentLightLevel, 0xed6ae576, 0x7cbe, 0x41a6, 0
 struct MediaSideDataHDRContentLightLevel
 {
     // maximum content light level (cd/m2)
-    unsigned int MaxCLL;
+    unsigned int MaxCLL{ 0U };
 
     // maximum frame average light level (cd/m2)
-    unsigned int MaxFALL;
+    unsigned int MaxFALL{ 0U };
 };
 #pragma pack(pop)
 
@@ -82,61 +82,61 @@ DEFINE_GUID(IID_MediaSideDataHDR10Plus, 0x6ff47d98, 0x3ef9, 0x4335, 0xa6, 0x5e, 
 struct MediaSideDataHDR10Plus
 {
     // spec identification
-    unsigned int itu_t_t35_country_code;
-    unsigned int application_version;
+    unsigned int itu_t_t35_country_code{ 0U };
+    unsigned int application_version{ 0U };
 
     // number of windows (1-3)
-    unsigned int num_windows;
+    unsigned int num_windows{ 0U };
 
     // processing windows
     struct
     {
-        unsigned int upper_left_corner_x;
-        unsigned int upper_left_corner_y;
-        unsigned int lower_right_corner_x;
-        unsigned int lower_right_corner_y;
-        unsigned int center_of_ellipse_x;
-        unsigned int center_of_ellipse_y;
-        unsigned int rotation_angle;
-        unsigned int semimajor_axis_internal_ellipse;
-        unsigned int semimajor_axis_external_ellipse;
-        unsigned int semiminor_axis_external_ellipse;
-        unsigned int overlap_process_option;
+        unsigned int upper_left_corner_x{ 0U };
+        unsigned int upper_left_corner_y{ 0U };
+        unsigned int lower_right_corner_x{ 0U };
+        unsigned int lower_right_corner_y{ 0U };
+        unsigned int center_of_ellipse_x{ 0U };
+        unsigned int center_of_ellipse_y{ 0U };
+        unsigned int rotation_angle{ 0U };
+        unsigned int semimajor_axis_internal_ellipse{ 0U };
+        unsigned int semimajor_axis_external_ellipse{ 0U };
+        unsigned int semiminor_axis_external_ellipse{ 0U };
+        unsigned int overlap_process_option{ 0U };
 
         std::array<double, 3U> maxscl{};
-        double average_maxrgb;
+        double average_maxrgb{ 0.0 };
 
-        unsigned int num_distribution_maxrgb_percentiles;
+        unsigned int num_distribution_maxrgb_percentiles{ 0U };
         struct
         {
-            unsigned int percentage;
-            double percentile;
+            unsigned int percentage{ 0U };
+            double percentile{ 0.0 };
         } distribution_maxrgb_percentiles[15U];
 
-        double fraction_bright_pixels;
+        double fraction_bright_pixels{ 0.0 };
 
-        unsigned int tone_mapping_flag;
+        unsigned int tone_mapping_flag{ 0U };
 
-        double knee_point_x;
-        double knee_point_y;
+        double knee_point_x{ 0.0 };
+        double knee_point_y{ 0.0 };
 
-        unsigned int num_bezier_curve_anchors;
+        unsigned int num_bezier_curve_anchors{ 0U };
         std::array<double, 15U> bezier_curve_anchors{};
 
-        unsigned int color_saturation_mapping_flag;
-        double color_saturation_weight;
+        unsigned int color_saturation_mapping_flag{ 0U };
+        double color_saturation_weight{ 0.0 };
     } windows[3U];
 
-    double targeted_system_display_maximum_luminance;
+    double targeted_system_display_maximum_luminance{ 0.0 };
 
-    unsigned int targeted_system_display_actual_peak_luminance_flag;
-    unsigned int num_rows_targeted_system_display_actual_peak_luminance;
-    unsigned int num_cols_targeted_system_display_actual_peak_luminance;
+    unsigned int targeted_system_display_actual_peak_luminance_flag{ 0U };
+    unsigned int num_rows_targeted_system_display_actual_peak_luminance{ 0U };
+    unsigned int num_cols_targeted_system_display_actual_peak_luminance{ 0U };
     std::array<std::array<double, 25U>, 25U> targeted_system_display_actual_peak_luminance{};
 
-    unsigned int mastering_display_actual_peak_luminance_flag;
-    unsigned int num_rows_mastering_display_actual_peak_luminance;
-    unsigned int num_cols_mastering_display_actual_peak_luminance;
+    unsigned int mastering_display_actual_peak_luminance_flag{ 0U };
+    unsigned int num_rows_mastering_display_actual_peak_luminance{ 0U };
+    unsigned int num_cols_mastering_display_actual_peak_luminance{ 0U };
     std::array<std::array<double, 25U>, 25U> mastering_display_actual_peak_luminance{};
 };
 #pragma pack(pop)
@@ -322,8 +322,8 @@ struct MediaSideDataDOVIMetadata
             {
                 /* Source display characteristics */
                 std::uint8_t source_primary_index;
-                double white_point_x;
-                double white_point_y;
+                double white_point_x{ 0.0 };
+                double white_point_y{ 0.0 };
                 /* primaries are in R-G-B order */
                 std::array<double, 3U> display_primaries_x{};
                 std::array<double, 3U> display_primaries_y{};
@@ -335,8 +335,8 @@ struct MediaSideDataDOVIMetadata
                 std::uint16_t target_max_pq;
                 std::uint16_t target_min_pq;
                 std::uint8_t target_primary_index;
-                double white_point_x;
-                double white_point_y;
+                double white_point_x{ 0.0 };
+                double white_point_y{ 0.0 };
                 /* primaries are in R-G-B order */
                 std::array<double, 3U> display_primaries_x{};
                 std::array<double, 3U> display_primaries_y{};
@@ -370,7 +370,7 @@ DEFINE_GUID(IID_MediaSideData3DOffset, 0xf169b76c, 0x75a3, 0x49e6, 0xa2, 0x3a, 0
 struct MediaSideData3DOffset
 {
     // Number of valid offsets (up to 32)
-    int offset_count;
+    int offset_count{ 0 };
 
     // Offset Value, can be positive or negative
     // positive values offset closer to the viewer (move right on the left view, left on the right view)

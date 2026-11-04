@@ -381,7 +381,7 @@ HRESULT FreeLAVFrameBuffers(LAVFrame *pFrame)
 
 HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
 {
-    ASSERT((pSrc->format != LAVPixFmt_DXVA2 && pSrc->format != LAVPixFmt_D3D11));
+    ASSERT(((pSrc->format != LAVPixFmt_DXVA2) && (pSrc->format != LAVPixFmt_D3D11)));
     *ppDst = reinterpret_cast<LAVFrame *>(CoTaskMemAlloc(sizeof(LAVFrame)));
     if (!*ppDst) { return E_OUTOFMEMORY; }
     **ppDst = *pSrc;
@@ -392,7 +392,7 @@ HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
     HRESULT const hr = AllocLAVFrameBuffers(*ppDst);
     if (FAILED(hr)) {
         return hr;
-}
+    }
 
     LAVPixFmtDesc const desc = getPixelFormatDesc(pSrc->format);
     for (int plane{ 0 }; plane < desc.planes; ++plane)
@@ -429,7 +429,7 @@ HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
         BYTE *p = AddLAVFrameSideData(*ppDst, pSrc->side_data[i].guidType, pSrc->side_data[i].size);
         if (p) {
             std::memcpy(p, pSrc->side_data[i].data, pSrc->side_data[i].size);
-}
+        }
     }
 
     return S_OK;
@@ -437,7 +437,7 @@ HRESULT CopyLAVFrame(LAVFrame *pSrc, LAVFrame **ppDst)
 
 HRESULT CopyLAVFrameInPlace(LAVFrame *pFrame)
 {
-    LAVFrame *tmpFrame = nullptr;
+    LAVFrame *tmpFrame{ nullptr };
     CopyLAVFrame(pFrame, &tmpFrame);
     FreeLAVFrameBuffers(pFrame);
     *pFrame = *tmpFrame;
@@ -499,7 +499,7 @@ bool ValidateLAVFrameBuffers(LAVFrame* pFrame)
         std::ptrdiff_t const min_linesize = (pFrame->width / desc.planeWidth[i]) * desc.codedbytes;
         if ((std::abs)(pFrame->stride[i]) < min_linesize) {
             return false;
-}
+        }
     }
 
     return true;

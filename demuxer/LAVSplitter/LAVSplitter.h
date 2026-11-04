@@ -224,7 +224,7 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
     {
         if (m_pDemuxer) { return m_pDemuxer->GetSideData(dwStream, guidType, pData, pSize); } else {
             return E_FAIL;
-}
+        }
     }
 
     // Settings helper
@@ -289,7 +289,7 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
     std::wstring m_fileName;
     std::wstring m_processName;
 
-    CBaseDemuxer *m_pDemuxer = nullptr;
+    CBaseDemuxer *m_pDemuxer{ nullptr };
 
     BOOL m_bPlaybackStarted{ FALSE };
     BOOL m_bFakeASFReader{ FALSE };
@@ -321,36 +321,36 @@ class __declspec(uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")) CLAVSplitter
     // Settings
     struct Settings
     {
-        BOOL TrayIcon;
+        BOOL TrayIcon{ FALSE };
         std::wstring prefAudioLangs;
         std::wstring prefSubLangs;
         std::wstring subtitleAdvanced;
         LAVSubtitleMode subtitleMode;
-        BOOL PGSForcedStream;
-        BOOL PGSOnlyForced;
-        int vc1Mode;
-        BOOL substreams;
+        BOOL PGSForcedStream{ FALSE };
+        BOOL PGSOnlyForced{ FALSE };
+        int vc1Mode{ 0 };
+        BOOL substreams{ FALSE };
 
-        BOOL MatroskaExternalSegments;
+        BOOL MatroskaExternalSegments{ FALSE };
 
-        BOOL StreamSwitchReselectSubs;
+        BOOL StreamSwitchReselectSubs{ FALSE };
 
-        BOOL StreamSwitchRemoveAudio;
-        BOOL ImpairedAudio;
-        BOOL PreferHighQualityAudio;
-        DWORD QueueMaxPackets;
-        DWORD QueueMaxMemSize;
-        DWORD NetworkAnalysisDuration;
+        BOOL StreamSwitchRemoveAudio{ FALSE };
+        BOOL ImpairedAudio{ FALSE };
+        BOOL PreferHighQualityAudio{ FALSE };
+        DWORD QueueMaxPackets{ 0U };
+        DWORD QueueMaxMemSize{ 0U };
+        DWORD NetworkAnalysisDuration{ 0U };
 
-        BOOL DemuxEnhancementLayer;
+        BOOL DemuxEnhancementLayer{ FALSE };
 
         std::map<std::string, BOOL> formats;
     } m_settings;
 
     BOOL m_bRuntimeConfig{ FALSE };
 
-    IUnknown *m_pSite = nullptr;
-    CBaseTrayIcon *m_pTrayIcon = nullptr;
+    IUnknown *m_pSite{ nullptr };
+    CBaseTrayIcon *m_pTrayIcon{ nullptr };
 };
 
 class __declspec(uuid("B98D13E7-55DB-4385-A33D-09FD1BA26338")) CLAVSplitterSource : public CLAVSplitter

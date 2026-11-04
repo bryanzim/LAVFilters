@@ -64,10 +64,10 @@ class CDecBase : public ILAVDecoder
 
     STDMETHODIMP Decode(IMediaSample *pSample)
     {
-        HRESULT hr;
+        HRESULT hr{ S_OK };
 
         // Retrieve buffer
-        BYTE *pData = nullptr;
+        BYTE *pData{ nullptr };
         if (FAILED(hr = pSample->GetPointer(&pData)))
         {
             return hr;
@@ -116,8 +116,8 @@ class CDecBase : public ILAVDecoder
     [[nodiscard]] inline HRESULT ReleaseFrame(LAVFrame **ppFrame) { return m_pCallback->ReleaseFrame(ppFrame); }
 
   protected:
-    ILAVVideoSettings *m_pSettings = nullptr;
-    ILAVVideoCallback *m_pCallback = nullptr;
+    ILAVVideoSettings *m_pSettings{ nullptr };
+    ILAVVideoCallback *m_pCallback{ nullptr };
 
     REFERENCE_TIME m_rtTimestampBuffer = AV_NOPTS_VALUE;
 

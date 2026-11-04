@@ -55,7 +55,7 @@ BOOL CBaseTrayIcon::ProcessBlackList()
     {
         if (::_wcsicmp(processName, noTrayProcesses[i]) == 0) {
             return TRUE;
-}
+        }
     }
     return FALSE;
 }
@@ -103,14 +103,14 @@ unsigned int WINAPI CBaseTrayIcon::InitialThreadProc(LPVOID pv)
 
     if (SUCCEEDED(hrCo)) {
         CoUninitialize();
-}
+    }
 
     return ret;
 }
 
 DWORD CBaseTrayIcon::TrayMessageThread()
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     MSG msg;
 
     // Create the Window Class if it doesn't exist yet

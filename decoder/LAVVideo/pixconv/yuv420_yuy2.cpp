@@ -219,7 +219,7 @@ static int __stdcall yuv420yuy2_process_lines(const std::uint8_t *srcY, const st
     {
         if (dithertype == LAVDither_Random) {
             lineDither = dithers + (line * 16 * DITHER_STEPS);
-}
+        }
 
         y = srcY + line * srcStrideY;
 
@@ -239,7 +239,7 @@ static int __stdcall yuv420yuy2_process_lines(const std::uint8_t *srcY, const st
     // This needs special handling because of the chroma offset of YUV420
     if (dithertype == LAVDither_Random) {
         lineDither = dithers + ((height - 2) * 16 * DITHER_STEPS);
-}
+    }
 
     y = srcY + (height - 1) * srcStrideY;
     u = srcU + ((height >> 1) - 1) * srcStrideUV;

@@ -106,16 +106,16 @@ class CDecD3D11 : public CDecAvcodec
     static int get_d3d11_buffer(struct AVCodecContext *c, AVFrame *pic, int flags);
 
   private:
-    CD3D11SurfaceAllocator *m_pAllocator = nullptr;
+    CD3D11SurfaceAllocator *m_pAllocator{ nullptr };
 
-    AVBufferRef *m_pDevCtx = nullptr;
-    AVBufferRef *m_pFramesCtx = nullptr;
+    AVBufferRef *m_pDevCtx{ nullptr };
+    AVBufferRef *m_pFramesCtx{ nullptr };
 
     D3D11_VIDEO_DECODER_CONFIG m_DecoderConfig;
-    ID3D11VideoDecoder *m_pDecoder = nullptr;
+    ID3D11VideoDecoder *m_pDecoder{ nullptr };
 
     int m_nOutputViews{ 0 };
-    ID3D11VideoDecoderOutputView **m_pOutputViews = nullptr;
+    ID3D11VideoDecoderOutputView **m_pOutputViews{ nullptr };
 
     DWORD m_dwSurfaceWidth{ 0U };
     DWORD m_dwSurfaceHeight{ 0U };
@@ -128,7 +128,7 @@ class CDecD3D11 : public CDecAvcodec
 
     BOOL m_bP016ToP010Fallback{ FALSE };
 
-    ID3D11Texture2D *m_pD3D11StagingTexture = nullptr;
+    ID3D11Texture2D *m_pD3D11StagingTexture{ nullptr };
 
     LAVFrame *m_FrameQueue[D3D11_QUEUE_SURFACES];
     int m_FrameQueuePosition{ 0 };

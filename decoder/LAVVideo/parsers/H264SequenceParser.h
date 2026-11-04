@@ -32,26 +32,26 @@ class CH264SequenceParser
   public:
     struct
     {
-        int valid;
+        int valid{ 0 };
 
-        int profile;
-        int level;
-        int chroma;
-        int luma_bitdepth;
-        int chroma_bitdepth;
-        int ref_frames;
-        int interlaced;
-        int ar_present;
+        int profile{ 0 };
+        int level{ 0 };
+        int chroma{ 0 };
+        int luma_bitdepth{ 0 };
+        int chroma_bitdepth{ 0 };
+        int ref_frames{ 0 };
+        int interlaced{ 0 };
+        int ar_present{ 0 };
 
-        int full_range;
-        int primaries;
-        int trc;
-        int colorspace;
+        int full_range{ 0 };
+        int primaries{ 0 };
+        int trc{ 0 };
+        int colorspace{ 0 };
     } sps;
 
     struct
     {
-        int valid;
+        int valid{ 0 };
     } pps;
 
   private:

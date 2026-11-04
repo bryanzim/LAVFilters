@@ -115,6 +115,6 @@ class CLAVSubtitleFrame
     RECT m_outputRect;
     RECT m_clipRect;
 
-    CLAVSubRect **m_Bitmaps = nullptr;
+    CLAVSubRect **m_Bitmaps{ nullptr };
     int m_NumBitmaps{ 0 };
 };

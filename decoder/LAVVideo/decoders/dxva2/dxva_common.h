@@ -29,11 +29,11 @@ DWORD dxva_align_dimensions(AVCodecID codec, DWORD dim);
 /* hardware mode description */
 typedef struct
 {
-    const char *name;
+    const char *name{ nullptr };
     const GUID *guid;
-    int codec;
-    const int *profiles;
-    const int level;
+    int codec{ 0 };
+    const int *profiles{ nullptr };
+    const int level{ 0 };
 } dxva_mode_t;
 
 extern const dxva_mode_t dxva_modes[];
@@ -45,4 +45,4 @@ int check_dxva_codec_profile(const AVCodecContext *ctx, int hwpixfmt);
 
 #define H264_CHECK_PROFILE(profile) (((profile) & ~AV_PROFILE_H264_CONSTRAINED) <= AV_PROFILE_H264_HIGH)
 #define HEVC_CHECK_PROFILE(profile) ((profile) <= AV_PROFILE_HEVC_MAIN_10)
-#define VP9_CHECK_PROFILE(profile) ((profile) == AV_PROFILE_VP9_0 || (profile) == AV_PROFILE_VP9_2)
+#define VP9_CHECK_PROFILE(profile) (((profile) == AV_PROFILE_VP9_0) || ((profile) == AV_PROFILE_VP9_2))

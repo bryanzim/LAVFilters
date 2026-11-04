@@ -59,13 +59,13 @@ HRESULT CLAVInputPin::CheckMediaType(const CMediaType *pmt)
 
 HRESULT CLAVInputPin::CheckConnect(IPin *pPin)
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     if (FAILED(hr = __super::CheckConnect(pPin)))
     {
         return hr;
     }
 
-    IAsyncReader *pReader = nullptr;
+    IAsyncReader *pReader{ nullptr };
     if ((FAILED(hr = pPin->QueryInterface(&pReader))) || (pReader == nullptr))
     {
         return E_FAIL;
@@ -78,7 +78,7 @@ HRESULT CLAVInputPin::CheckConnect(IPin *pPin)
 
 HRESULT CLAVInputPin::BreakConnect()
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
 
     if (FAILED(hr = __super::BreakConnect()))
     {
@@ -105,7 +105,7 @@ HRESULT CLAVInputPin::BreakConnect()
 
 HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
 {
-    HRESULT hr;
+    HRESULT hr{ S_OK };
 
     if (FAILED(hr = __super::CompleteConnect(pPin)))
     {
@@ -123,7 +123,7 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
 
     if (FAILED(pPin->QueryInterface(&m_pStreamControl))) {
         m_pStreamControl = nullptr;
-}
+    }
 
     PIN_INFO pinInfo = {nullptr};
     if ((SUCCEEDED(pPin->QueryPinInfo(&pinInfo))) && pinInfo.pFilter)
@@ -137,8 +137,8 @@ HRESULT CLAVInputPin::CompleteConnect(IPin *pPin)
         if (m_pStreamControl == nullptr) {
             if (FAILED(pinInfo.pFilter->QueryInterface(&m_pStreamControl))) {
                 m_pStreamControl = nullptr;
-}
-}
+            }
+        }
 
         SafeRelease(&(pinInfo.pFilter));
     }
@@ -207,7 +207,7 @@ int CLAVInputPin::Read(void *opaque, std::uint8_t *buf, int buf_size)
     // The URL source doesn't properly signal EOF in all cases, so make sure no stale data is in the buffer
     if (pin->m_bURLSource) {
         std::memset(buf, 0, buf_size);
-}
+    }
 
     HRESULT hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, buf_size, buf);
     if (ReadWasCanceled(pin)) {
@@ -291,13 +291,13 @@ std::int64_t CLAVInputPin::Seek(void *opaque, std::int64_t offset, int whence)
     }
     else {
         return -1;
-}
+    }
 
     if (pin->m_llPos > available) {
         pin->m_llPos = available;
     } else if (pin->m_llPos < 0) {
         pin->m_llPos = 0;
-}
+    }
 
     return pin->m_llPos;
 }

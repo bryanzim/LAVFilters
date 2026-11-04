@@ -59,30 +59,30 @@ class CLAVSplitterSettingsProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVFSettingsInternal *m_pLAVF = nullptr;
+    ILAVFSettingsInternal *m_pLAVF{ nullptr };
 
     // Settings
-    WCHAR *m_pszPrefLang = nullptr;
-    WCHAR *m_pszPrefSubLang = nullptr;
-    WCHAR *m_pszAdvSubConfig = nullptr;
+    WCHAR *m_pszPrefLang{ nullptr };
+    WCHAR *m_pszPrefSubLang{ nullptr };
+    WCHAR *m_pszAdvSubConfig{ nullptr };
 
     LAVSubtitleMode m_subtitleMode;
-    BOOL m_PGSForcedStream;
-    BOOL m_PGSOnlyForced;
-    int m_VC1Mode;
-    BOOL m_substreams;
-    BOOL m_MKVExternal;
+    BOOL m_PGSForcedStream{ FALSE };
+    BOOL m_PGSOnlyForced{ FALSE };
+    int m_VC1Mode{ 0 };
+    BOOL m_substreams{ FALSE };
+    BOOL m_MKVExternal{ FALSE };
 
-    BOOL m_StreamSwitchReselectSubs;
+    BOOL m_StreamSwitchReselectSubs{ FALSE };
 
-    BOOL m_StreamSwitchRemoveAudio;
-    BOOL m_PreferHighQualityAudio;
-    BOOL m_ImpairedAudio;
-    DWORD m_QueueMaxMem;
-    DWORD m_QueueMaxPackets;
-    DWORD m_NetworkAnalysisDuration;
+    BOOL m_StreamSwitchRemoveAudio{ FALSE };
+    BOOL m_PreferHighQualityAudio{ FALSE };
+    BOOL m_ImpairedAudio{ FALSE };
+    DWORD m_QueueMaxMem{ 0U };
+    DWORD m_QueueMaxPackets{ 0U };
+    DWORD m_NetworkAnalysisDuration{ 0U };
 
-    BOOL m_TrayIcon;
+    BOOL m_TrayIcon{ FALSE };
 
     LAVSubtitleMode m_selectedSubMode;
     std::array<WCHAR, LANG_BUFFER_SIZE> m_subLangBuffer{};
@@ -114,10 +114,10 @@ class CLAVSplitterFormatsProp : public CBaseDSPropPage
     }
 
   private:
-    ILAVFSettingsInternal *m_pLAVF = nullptr;
+    ILAVFSettingsInternal *m_pLAVF{ nullptr };
 
     std::set<FormatInfo> m_Formats;
-    BOOL *m_bFormats = nullptr;
+    BOOL *m_bFormats{ nullptr };
 
     std::array<WCHAR, 256U> stringBuffer{};
 };

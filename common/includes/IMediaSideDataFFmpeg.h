@@ -34,6 +34,6 @@ extern "C" {
 struct MediaSideDataFFMpeg
 {
   AVPacketSideData *side_data;
-  int side_data_elems;
+  int side_data_elems{ 0 };
 };
 #pragma pack(pop)

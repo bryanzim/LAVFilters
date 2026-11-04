@@ -100,7 +100,7 @@ HRESULT CBitstreamParser::ParseAC3(BYTE *pBuffer, DWORD dwSize)
     {
         if (m_dwSampleRate == 0) { // not seen a valid frame yet, error out
             return E_FAIL;
-}
+        }
     }
 
     return S_OK;

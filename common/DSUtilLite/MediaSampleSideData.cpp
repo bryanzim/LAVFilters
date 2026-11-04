@@ -54,7 +54,7 @@ STDMETHODIMP CMediaSampleSideData::QueryInterface(REFIID riid, __deref_out void 
 STDMETHODIMP_(ULONG) CMediaSampleSideData::Release()
 {
     /* Decrement our own private reference count */
-    LONG lRef;
+    LONG lRef{ 0 };
     if (m_cRef == 1)
     {
         lRef = 0;

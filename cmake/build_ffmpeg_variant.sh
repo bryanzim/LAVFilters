@@ -122,7 +122,7 @@ fi
 # FFmpeg's config.h defines HAVE_UNISTD_H as 0. zlib treats any definition
 # as "the header exists" and then includes unistd.h, which the Windows SDK
 # does not provide.
-sed -i 's/^#ifdef HAVE_UNISTD_H$/#if defined(HAVE_UNISTD_H) \&\& HAVE_UNISTD_H/' \
+sed -i 's/^#ifdef HAVE_UNISTD_H/#if defined(HAVE_UNISTD_H) \&\& HAVE_UNISTD_H/' \
     "$ZLIB_SRC_U/zconf.h"
 if [ ! -f "$ZLIB_OUT_U/zlib.lib" ]; then
     mkdir -p "$ZLIB_OUT_U"

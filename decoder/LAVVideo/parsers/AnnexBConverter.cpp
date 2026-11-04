@@ -70,7 +70,7 @@ HRESULT CAnnexBConverter::Convert(BYTE **poutbuf, int *poutbuf_size, const BYTE 
     {
         if (buf + m_NaluSize > buf_end) {
             goto fail;
-}
+        }
 
         if (m_NaluSize == 1)
         {
@@ -85,18 +85,18 @@ HRESULT CAnnexBConverter::Convert(BYTE **poutbuf, int *poutbuf_size, const BYTE 
             nal_size = AV_RB32(buf);
             if (m_NaluSize == 3) {
                 nal_size >>= 8;
-}
+            }
         }
 
         buf += m_NaluSize;
 
         if ((buf + nal_size > buf_end) || (nal_size < 0)) {
             goto fail;
-}
+        }
 
         if (FAILED(alloc_and_copy(poutbuf, poutbuf_size, buf, nal_size))) {
             goto fail;
-}
+        }
 
         buf += nal_size;
         buf_size -= (nal_size + m_NaluSize);
@@ -124,7 +124,7 @@ HRESULT CAnnexBConverter::ConvertHEVCExtradata(BYTE **poutbuf, int *poutbuf_size
     {
         if (remaining_size < 3) {
             break;
-}
+        }
         int const cnt = AV_RB16(buf + 1);
         buf += 3;
         remaining_size -= 3;
@@ -132,11 +132,11 @@ HRESULT CAnnexBConverter::ConvertHEVCExtradata(BYTE **poutbuf, int *poutbuf_size
         {
             if (remaining_size < 2) {
                 break;
-}
+            }
             int const len = AV_RB16(buf) + 2;
             if (remaining_size < len) {
                 break;
-}
+            }
             alloc_and_copy(poutbuf, poutbuf_size, buf + 2, len - 2);
             buf += len;
             remaining_size -= len;

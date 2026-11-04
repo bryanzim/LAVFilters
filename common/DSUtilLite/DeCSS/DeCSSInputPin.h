@@ -23,7 +23,7 @@
 
 class CDeCSSPinHelper : public IKsPropertySet
 {
-    int m_varient;
+    int m_varient{ 0 };
     BYTE m_Challenge[10U], m_KeyCheck[5U], m_Key[10U];
     BYTE m_DiscKey[6U], m_TitleKey[6U];
 

@@ -58,7 +58,7 @@ STDMETHODIMP CDSMResourceBag::ResGet(DWORD iIndex, BSTR *ppName, BSTR *ppDesc, B
 
     if (iIndex >= m_resources.size()) {
         return E_INVALIDARG;
-}
+    }
 
     CDSMResource &r = m_resources[iIndex];
 
@@ -97,21 +97,21 @@ STDMETHODIMP CDSMResourceBag::ResSet(DWORD iIndex, LPCWSTR pName, LPCWSTR pDesc,
 
     if (iIndex >= m_resources.size()) {
         return E_INVALIDARG;
-}
+    }
 
     CDSMResource &r = m_resources[iIndex];
 
     if (pName) {
         r.name = pName;
-}
+    }
 
     if (pDesc) {
         r.desc = pDesc;
-}
+    }
 
     if (pMime) {
         r.mime = pMime;
-}
+    }
 
     if (pData || (len == 0))
     {
@@ -141,7 +141,7 @@ STDMETHODIMP CDSMResourceBag::ResRemoveAt(DWORD iIndex)
 
     if (iIndex >= m_resources.size()) {
         return E_INVALIDARG;
-}
+    }
 
     m_resources.erase(m_resources.cbegin() + iIndex);
 

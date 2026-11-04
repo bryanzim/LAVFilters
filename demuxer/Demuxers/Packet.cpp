@@ -49,13 +49,13 @@ int Packet::SetDataSize(int len)
         m_Packet = av_packet_alloc();
         if (av_new_packet(m_Packet, len) < 0) {
             return -1;
-}
+        }
     }
     else
     {
         if (av_grow_packet(m_Packet, (len - m_Packet->size)) < 0) {
             return -1;
-}
+        }
     }
 
     return 0;

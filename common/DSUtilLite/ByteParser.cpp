@@ -56,14 +56,14 @@ unsigned int CByteParser::BitRead(unsigned int numBits, bool peek)
 
     if (peek) { return show_bits_long(m_gbCtx, numBits); } else {
         return get_bits_long(m_gbCtx, numBits);
-}
+    }
 }
 
 void CByteParser::BitSkip(unsigned int numBits)
 {
     if (numBits == 0) {
         return;
-}
+    }
 
     skip_bits_long(m_gbCtx, numBits);
 }
@@ -106,7 +106,7 @@ int CByteParser::SExpGolombRead()
     // Note that we added 1 to the unsigned value already, so the check is inverted
     if (k & 1) { return -(k >> 1); } else {
         return (k >> 1);
-}
+    }
 }
 
 void CByteParser::BitByteAlign()

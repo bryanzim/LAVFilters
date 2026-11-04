@@ -33,7 +33,7 @@ CPopupMenu::~CPopupMenu(void)
 {
     if (m_hMenu) {
         DestroyMenu(m_hMenu);
-}
+    }
 }
 
 HRESULT CPopupMenu::AddItem(UINT id, LPWSTR caption, BOOL checked, BOOL enabled)

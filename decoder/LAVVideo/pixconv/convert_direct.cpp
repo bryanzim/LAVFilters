@@ -40,7 +40,7 @@ DECLARE_CONV_FUNC_IMPL(plane_copy_direct_nv12_sse4)
     const std::ptrdiff_t chromaHeight = (height >> 1);
 
     const std::ptrdiff_t byteWidth =
-        (outputFormat == LAVOutPixFmt_P010 || outputFormat == LAVOutPixFmt_P016) ? width << 1 : width;
+        ((outputFormat == LAVOutPixFmt_P010) || (outputFormat == LAVOutPixFmt_P016)) ? width << 1 : width;
     const std::ptrdiff_t stride = min(FFALIGN(byteWidth, 64), min(inStride, outStride));
 
     __m128i xmm0, xmm1, xmm2, xmm3;
@@ -265,7 +265,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
     const std::uint16_t *dithers = GetRandomDitherCoeffs(height, 4, 8, 0);
     if (dithers == nullptr) {
         ditherMode = LAVDither_Ordered;
-}
+    }
 
     __m128i xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 

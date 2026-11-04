@@ -108,7 +108,7 @@ STDMETHODIMP CLAVSplitter::CreateTrayIcon()
     if (m_pTrayIcon) { return E_UNEXPECTED; }
     if (CBaseTrayIcon::ProcessBlackList()) {
         return S_FALSE;
-}
+    }
     m_pTrayIcon = new CLAVSplitterTrayIcon(this, TEXT(LAV_SPLITTER), IDI_ICON1);
     return S_OK;
 }
@@ -180,103 +180,103 @@ STDMETHODIMP CLAVSplitter::LoadSettings()
 
 STDMETHODIMP CLAVSplitter::ReadSettings(HKEY rootKey)
 {
-    HRESULT hr;
-    DWORD dwVal;
-    BOOL bFlag;
+    HRESULT hr{ S_OK };
+    DWORD dwVal{ 0U };
+    BOOL bFlag{ FALSE };
     std::wstring strVal;
 
-    CRegistry reg = CRegistry(rootKey, LAVF_REGISTRY_KEY, hr, TRUE);
+    CRegistry reg{ rootKey, LAVF_REGISTRY_KEY, hr, TRUE };
     if (SUCCEEDED(hr))
     {
         bFlag = reg.ReadBOOL(L"TrayIcon", hr);
         if (SUCCEEDED(hr)) {
             m_settings.TrayIcon = bFlag;
-}
+        }
 
         // Language preferences
         strVal = reg.ReadString(L"prefAudioLangs", hr);
         if (SUCCEEDED(hr)) {
             m_settings.prefAudioLangs = strVal;
-}
+        }
 
         strVal = reg.ReadString(L"prefSubLangs", hr);
         if (SUCCEEDED(hr)) {
             m_settings.prefSubLangs = strVal;
-}
+        }
 
         strVal = reg.ReadString(L"subtitleAdvanced", hr);
         if (SUCCEEDED(hr)) {
             m_settings.subtitleAdvanced = strVal;
-}
+        }
 
         // Subtitle mode, defaults to all subtitles
         dwVal = reg.ReadDWORD(L"subtitleMode", hr);
         if (SUCCEEDED(hr)) {
-            m_settings.subtitleMode = (LAVSubtitleMode)dwVal;
-}
+            m_settings.subtitleMode = static_cast<LAVSubtitleMode>(dwVal);
+        }
 
         bFlag = reg.ReadBOOL(L"PGSForcedStream", hr);
         if (SUCCEEDED(hr)) {
             m_settings.PGSForcedStream = bFlag;
-}
+        }
 
         bFlag = reg.ReadBOOL(L"PGSOnlyForced", hr);
         if (SUCCEEDED(hr)) {
             m_settings.PGSOnlyForced = bFlag;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"vc1TimestampMode", hr);
         if (SUCCEEDED(hr)) {
             m_settings.vc1Mode = dwVal;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"substreams", hr);
         if (SUCCEEDED(hr)) {
             m_settings.substreams = bFlag;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"MatroskaExternalSegments", hr);
         if (SUCCEEDED(hr)) {
             m_settings.MatroskaExternalSegments = bFlag;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"StreamSwitchReselectSubs", hr);
         if (SUCCEEDED(hr)) {
             m_settings.StreamSwitchReselectSubs = bFlag;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"StreamSwitchRemoveAudio", hr);
         if (SUCCEEDED(hr)) {
             m_settings.StreamSwitchRemoveAudio = bFlag;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"PreferHighQualityAudio", hr);
         if (SUCCEEDED(hr)) {
             m_settings.PreferHighQualityAudio = bFlag;
-}
+        }
 
         bFlag = reg.ReadDWORD(L"ImpairedAudio", hr);
         if (SUCCEEDED(hr)) {
             m_settings.ImpairedAudio = bFlag;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"QueueMaxSize", hr);
         if (SUCCEEDED(hr)) {
             m_settings.QueueMaxMemSize = dwVal;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"NetworkAnalysisDuration", hr);
         if (SUCCEEDED(hr)) {
             m_settings.NetworkAnalysisDuration = dwVal;
-}
+        }
 
         dwVal = reg.ReadDWORD(L"QueueMaxPackets", hr);
         if (SUCCEEDED(hr)) {
             m_settings.QueueMaxPackets = dwVal;
-}
+        }
     }
 
-    CRegistry regF = CRegistry(rootKey, LAVF_REGISTRY_KEY_FORMATS, hr, TRUE);
+    CRegistry regF{ rootKey, LAVF_REGISTRY_KEY_FORMATS, hr, TRUE };
     if (SUCCEEDED(hr))
     {
         std::array<WCHAR, 80U> wBuffer{};
@@ -286,7 +286,7 @@ STDMETHODIMP CLAVSplitter::ReadSettings(HKEY rootKey)
             bFlag = regF.ReadBOOL(wBuffer.data(), hr);
             if (SUCCEEDED(hr)) {
                 m_settings.formats[std::string(fmt.strName)] = bFlag;
-}
+            }
         }
     }
 
@@ -299,13 +299,13 @@ STDMETHODIMP CLAVSplitter::SaveSettings()
     {
         if (m_pDemuxer) {
             m_pDemuxer->SettingsChanged(static_cast<ILAVFSettingsInternal *>(this));
-}
+        }
         return S_FALSE;
     }
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     CreateRegistryKey(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY);
-    CRegistry reg = CRegistry(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY, hr);
+    CRegistry reg{ HKEY_CURRENT_USER, LAVF_REGISTRY_KEY, hr };
     if (SUCCEEDED(hr))
     {
         reg.WriteBOOL(L"TrayIcon", m_settings.TrayIcon);
@@ -328,7 +328,7 @@ STDMETHODIMP CLAVSplitter::SaveSettings()
     }
 
     CreateRegistryKey(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY_FORMATS);
-    CRegistry regF = CRegistry(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY_FORMATS, hr);
+    CRegistry regF{ HKEY_CURRENT_USER, LAVF_REGISTRY_KEY_FORMATS, hr };
     if (SUCCEEDED(hr))
     {
         std::array<WCHAR, 80U> wBuffer{};
@@ -381,7 +381,7 @@ STDMETHODIMP CLAVSplitter::GetPages(CAUUID *pPages)
 STDMETHODIMP CLAVSplitter::CreatePage(const GUID &guid, IPropertyPage **ppPage)
 {
     CheckPointer(ppPage, E_POINTER);
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     if (*ppPage != nullptr) { return E_INVALIDARG; }
 
@@ -389,7 +389,7 @@ STDMETHODIMP CLAVSplitter::CreatePage(const GUID &guid, IPropertyPage **ppPage)
         *ppPage = new CLAVSplitterSettingsProp(nullptr, &hr);
     } else if (guid == CLSID_LAVSplitterFormatsProp) {
         *ppPage = new CLAVSplitterFormatsProp(nullptr, &hr);
-}
+    }
 
     if (SUCCEEDED(hr) && *ppPage)
     {
@@ -443,7 +443,7 @@ STDMETHODIMP CLAVSplitter::GetStatus(int i, int &samples, int &size)
     CAutoLock const pinLock(&m_csPins);
     if (static_cast<std::size_t>(i) >= m_pPins.size()) {
         return E_FAIL;
-}
+    }
 
     CLAVOutputPin *pPin = m_pPins.at(i);
     if (!pPin) { return E_FAIL; }
@@ -479,7 +479,7 @@ int CLAVSplitter::GetPinCount()
     int count = static_cast<int>(m_pPins.size());
     if (m_pInput) {
         ++count;
-}
+    }
 
     return count;
 }
@@ -490,13 +490,13 @@ CBasePin *CLAVSplitter::GetPin(int n)
 
     if ((n < 0) || (n >= GetPinCount())) {
         return nullptr;
-}
+    }
 
     if (m_pInput)
     {
         if (n == 0) { return m_pInput; } else {
             --n;
-}
+        }
     }
 
     return m_pPins[n];
@@ -534,17 +534,17 @@ CLAVOutputPin *CLAVSplitter::GetOutputPin(DWORD streamId, BOOL bActiveOnly)
 
 STDMETHODIMP CLAVSplitter::CompleteInputConnection()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     BOOL bFileInput{ FALSE };
 
     // Check if blacklisted
     if (!m_bRuntimeConfig && CheckApplicationBlackList(LAVF_REGISTRY_KEY L"\\Blacklist")) {
         return E_FAIL;
-}
+    }
 
     SAFE_DELETE(m_pDemuxer);
 
-    AVIOContext *pContext = nullptr;
+    AVIOContext *pContext{ nullptr };
 
     if (FAILED(hr = m_pInput->GetAVIOContext(&pContext)))
     {
@@ -557,7 +557,7 @@ STDMETHODIMP CLAVSplitter::CompleteInputConnection()
     hr = m_pInput->GetConnected()->QueryPinInfo(&info);
     if (SUCCEEDED(hr) && info.pFilter)
     {
-        IFileSourceFilter *pSource = nullptr;
+        IFileSourceFilter *pSource{ nullptr };
         if ((SUCCEEDED(info.pFilter->QueryInterface(&pSource))) && pSource)
         {
             pSource->GetCurFile(&pszFileName, nullptr);
@@ -571,7 +571,7 @@ STDMETHODIMP CLAVSplitter::CompleteInputConnection()
         SafeRelease(&info.pFilter);
     }
 
-    const char *format = nullptr;
+    const char *format{ nullptr };
     if (m_pInput->CurrentMediaType().subtype == MEDIASUBTYPE_MPEG2_TRANSPORT)
     {
         format = "mpegts";
@@ -610,14 +610,14 @@ STDMETHODIMP CLAVSplitter::LoadURL(LPCOLESTR pszURL, LPCOLESTR pszUserAgent, LPC
     // Check if blacklisted
     if (!m_bRuntimeConfig && CheckApplicationBlackList(LAVF_REGISTRY_KEY L"\\Blacklist")) {
         return E_FAIL;
-}
+    }
 
     // Close, just in case we're being re-used
     Close();
 
     m_fileName = std::wstring(pszURL);
 
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     SAFE_DELETE(m_pDemuxer);
     LPWSTR extension = PathFindExtensionW(pszURL);
 
@@ -652,7 +652,7 @@ STDMETHODIMP CLAVSplitter::GetCurFile(LPOLESTR *ppszFileName, AM_MEDIA_TYPE *pmt
 
     if (!(*ppszFileName)) {
         return E_OUTOFMEMORY;
-}
+    }
 
     ::wcsncpy_s(*ppszFileName, strlen, m_fileName.c_str(), _TRUNCATE);
     return S_OK;
@@ -660,13 +660,13 @@ STDMETHODIMP CLAVSplitter::GetCurFile(LPOLESTR *ppszFileName, AM_MEDIA_TYPE *pmt
 
 STDMETHODIMP CLAVSplitter::InitDemuxer()
 {
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
 
     // Disable subtitles in applications known to fail with them (explorer thumbnail generator, power point, basically
     // all applications using MCI)
     bool const bNoSubtitles =
-        ::_wcsicmp(m_processName.c_str(), L"dllhost.exe") == 0 || ::_wcsicmp(m_processName.c_str(), L"explorer.exe") == 0 ||
-        ::_wcsicmp(m_processName.c_str(), L"powerpnt.exe") == 0 || ::_wcsicmp(m_processName.c_str(), L"pptview.exe") == 0;
+        (::_wcsicmp(m_processName.c_str(), L"dllhost.exe") == 0) || (::_wcsicmp(m_processName.c_str(), L"explorer.exe") == 0) ||
+        (::_wcsicmp(m_processName.c_str(), L"powerpnt.exe") == 0) || (::_wcsicmp(m_processName.c_str(), L"pptview.exe") == 0);
 
     m_rtStart = m_rtNewStart = m_rtCurrent = 0;
     m_rtStop = m_rtNewStop = m_pDemuxer->GetDuration();
@@ -773,7 +773,7 @@ STDMETHODIMP CLAVSplitter::DeleteOutputs()
     {
         if (IPin *pPinTo = pPin->GetConnected()) {
             pPinTo->Disconnect();
-}
+        }
         pPin->Disconnect();
         m_pRetiredPins.push_back(pPin);
     }
@@ -829,7 +829,7 @@ DWORD CLAVSplitter::ThreadProc()
 
         bool const seekCommand = cmd == CMD_SEEK;
         LONG const seekSerial = InterlockedCompareExchange(&m_ActiveSeekSerial, 0, 0);
-        bool performSeek = m_bPlaybackStarted || m_rtStart != 0 || seekCommand;
+        bool performSeek = m_bPlaybackStarted || (m_rtStart != 0) || seekCommand;
         if (seekCommand)
         {
             // A newer fast-forward or rewind already replaced this skip.
@@ -844,17 +844,17 @@ DWORD CLAVSplitter::ThreadProc()
 
         if (performSeek)
         {
-            HRESULT hr = S_FALSE;
+            HRESULT hr{ S_FALSE };
             if (m_pInput)
             {
                 hr = m_pInput->SeekStream(m_rtStart);
                 if (SUCCEEDED(hr)) {
                     m_pDemuxer->Reset();
-}
+                }
             }
             if (hr != S_OK) {
                 DemuxSeek(m_rtStart);
-}
+            }
         }
 
         if (seekCommand && (m_pDemuxer != nullptr)) {
@@ -863,14 +863,14 @@ DWORD CLAVSplitter::ThreadProc()
 
         if (cmd != static_cast<DWORD>(-1)) {
             Reply(S_OK);
-}
+        }
 
         // Wait for the end of any flush
         m_eEndFlush.Wait();
 
         m_pActivePins.clear();
 
-        for (pinIter = m_pPins.begin(); pinIter != m_pPins.end() && !m_fFlushing; ++pinIter)
+        for (pinIter = m_pPins.begin(); (pinIter != m_pPins.end()) && !m_fFlushing; ++pinIter)
         {
             if ((*pinIter)->IsConnected())
             {
@@ -885,7 +885,7 @@ DWORD CLAVSplitter::ThreadProc()
         m_bPlaybackStarted = TRUE;
         m_ePlaybackInit.Set();
 
-        HRESULT hr = S_OK;
+        HRESULT hr{ S_OK };
         while (SUCCEEDED(hr) && !CheckRequest(&cmd))
         {
             hr = DemuxNextPacket();
@@ -922,7 +922,7 @@ HRESULT CLAVSplitter::DemuxSeek(REFERENCE_TIME rtStart)
 HRESULT CLAVSplitter::DemuxNextPacket()
 {
     Packet *pPacket;
-    HRESULT hr = S_OK;
+    HRESULT hr{ S_OK };
     hr = m_pDemuxer->GetNextPacket(&pPacket);
     // Only S_OK indicates we have a proper packet
     // S_FALSE is a "soft error", don't deliver the packet
@@ -935,11 +935,11 @@ HRESULT CLAVSplitter::DemuxNextPacket()
 
 HRESULT CLAVSplitter::DeliverPacket(Packet *pPacket)
 {
-    HRESULT hr = S_FALSE;
+    HRESULT hr{ S_FALSE };
 
     if (pPacket->dwFlags & LAV_PACKET_FORCED_SUBTITLE) {
         pPacket->StreamId = FORCED_SUBTITLE_PID;
-}
+    }
 
     CLAVOutputPin *pPin = GetOutputPin(pPacket->StreamId, TRUE);
     if (!pPin || (!pPin->IsConnected()))
@@ -985,7 +985,7 @@ HRESULT CLAVSplitter::DeliverPacket(Packet *pPacket)
                     m_rtOffset += pPin->m_rtPrev - rt;
                     if (!(m_pDemuxer->GetContainerFlags() & LAVFMT_TS_DISCONT_NO_DOWNSTREAM)) {
                         m_bDiscontinuitySent.clear();
-}
+                    }
                     DbgLog((LOG_TRACE, 10,
                             L"::DeliverPacket(): MPEG-TS/PS discontinuity detected, adjusting offset to %I64d (stream: "
                             L"%d, prev: %I64d, now: %I64d)",
@@ -1036,7 +1036,7 @@ STDMETHODIMP_(CMediaType *) CLAVSplitter::GetOutputMediatype(int stream)
     CLAVOutputPin *pPin = GetOutputPin(stream, FALSE);
     if (!pPin || (!pPin->IsConnected())) {
         return nullptr;
-}
+    }
 
     CMediaType *pmt = new CMediaType(pPin->GetActiveMediaType());
     return pmt;
@@ -1076,7 +1076,7 @@ STDMETHODIMP CLAVSplitter::Stop()
         m_pInput->ResumePendingRead();
     }
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     if (FAILED(hr = __super::Stop()))
     {
         return hr;
@@ -1092,7 +1092,7 @@ STDMETHODIMP CLAVSplitter::Pause()
 
     FILTER_STATE const fs = m_State;
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     if (FAILED(hr = __super::Pause()))
     {
         return hr;
@@ -1110,7 +1110,7 @@ STDMETHODIMP CLAVSplitter::Pause()
         // Create demuxing thread
         if (!ThreadExists()) {
             m_ePlaybackInit.Reset();
-}
+        }
         Create();
     }
 
@@ -1121,7 +1121,7 @@ STDMETHODIMP CLAVSplitter::Run(REFERENCE_TIME tStart)
 {
     CAutoLock const cAutoLock(this);
 
-    HRESULT hr;
+    HRESULT hr{ S_OK };
     if (FAILED(hr = __super::Run(tStart)))
     {
         return hr;
@@ -1171,7 +1171,7 @@ STDMETHODIMP CLAVSplitter::CheckCapabilities(DWORD *pCapabilities)
     // capabilities is empty, all is good
     if (*pCapabilities == 0) { return S_OK; }
     // read caps
-    DWORD caps;
+    DWORD caps{ 0U };
     GetCapabilities(&caps);
 
     // Store the caps that we wanted
@@ -1218,12 +1218,12 @@ STDMETHODIMP CLAVSplitter::GetDuration(LONGLONG *pDuration)
     {
         if (FAILED(m_pInput->GetStreamDuration(&rtDuration))) {
             rtDuration = -1;
-}
+        }
     }
 
     if (rtDuration < 0) {
         rtDuration = m_pDemuxer->GetDuration();
-}
+    }
 
     if (rtDuration < 0) { return E_FAIL; }
 
@@ -1342,17 +1342,17 @@ STDMETHODIMP CLAVSplitter::GetPositions(LONGLONG *pCurrent, LONGLONG *pStop)
 {
     if (pCurrent) {
         *pCurrent = m_rtCurrent;
-}
+    }
     if (pStop) {
         *pStop = m_rtStop;
-}
+    }
     return S_OK;
 }
 STDMETHODIMP CLAVSplitter::GetAvailable(LONGLONG *pEarliest, LONGLONG *pLatest)
 {
     if (pEarliest) {
         *pEarliest = 0;
-}
+    }
     return GetDuration(pLatest);
 }
 STDMETHODIMP CLAVSplitter::SetRate(double dRate)
@@ -1436,7 +1436,7 @@ STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst,
     // So instead block it from doing anything here.
     if (!m_bPlaybackStarted && (m_processName == L"wmplayer.exe" || m_processName == L"ehshell.exe")) {
         return S_OK;
-}
+    }
 
     CLAVOutputPin *pPin = GetOutputPin(TrackNumSrc);
 
@@ -1449,9 +1449,9 @@ STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst,
     {
         bool reselectSubsAtEnd{ false };
 
-        HRESULT hr = S_OK;
+        HRESULT hr{ S_OK };
 
-        IMediaControl *pControl = nullptr;
+        IMediaControl *pControl{ nullptr };
         hr = m_pGraph->QueryInterface(IID_IMediaControl, reinterpret_cast<void **>(&pControl));
 
         FILTER_STATE oldState;
@@ -1473,7 +1473,7 @@ STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst,
 
         // IGraphRebuildDelegate support
         // Query our Site for the appropriate interface, and if its present, delegate graph building there
-        IGraphRebuildDelegate *pDelegate = nullptr;
+        IGraphRebuildDelegate *pDelegate{ nullptr };
         if ((SUCCEEDED(GetSite(IID_IGraphRebuildDelegate, reinterpret_cast<void **>(&pDelegate)))) && pDelegate)
         {
             hr = pDelegate->RebuildPin(m_pGraph, pPin);
@@ -1530,7 +1530,7 @@ STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst,
                         WStringFromGUID(guidFilter).c_str(), hr));
 #endif
                 // Use IGraphBuilder to rebuild the graph
-                IGraphBuilder *pGraphBuilder = nullptr;
+                IGraphBuilder *pGraphBuilder{ nullptr };
                 if (SUCCEEDED(hr = m_pGraph->QueryInterface(__uuidof(IGraphBuilder), reinterpret_cast<void **>(&pGraphBuilder))))
                 {
                     // Instruct the GraphBuilder to connect us again
@@ -1547,7 +1547,7 @@ STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst,
 
             if ((pPin->IsAudioPin()) && m_settings.PGSForcedStream) {
                 UpdateForcedSubtitleMediaType();
-}
+            }
 
             if ((pPin->IsAudioPin()) && m_settings.StreamSwitchReselectSubs)
             {
@@ -1614,18 +1614,18 @@ STDMETHODIMP CLAVSplitter::Count(DWORD *pcStreams)
     {
         if ((i == CBaseDemuxer::video_el) && !m_settings.DemuxEnhancementLayer) {
             continue;
-}
+        }
 
         CBaseDemuxer::CStreamList* pStreamList = m_pDemuxer->GetStreams((CBaseDemuxer::StreamType)i);
         if (pStreamList) {
             *pcStreams += static_cast<DWORD>(pStreamList->size());
-}
+        }
     }
 
     int const num_titles = m_pDemuxer->GetNumTitles();
     if (num_titles > 1) {
         *pcStreams += num_titles;
-}
+    }
 
     return S_OK;
 }
@@ -1644,7 +1644,7 @@ STDMETHODIMP CLAVSplitter::Enable(long lIndex, DWORD dwFlags)
         CBaseDemuxer::CStreamList *streams = m_pDemuxer->GetStreams((CBaseDemuxer::StreamType)i);
         if (!streams) {
             continue;
-}
+        }
 
         int const cnt = static_cast<int>(streams->size());
 
@@ -1662,7 +1662,7 @@ STDMETHODIMP CLAVSplitter::Enable(long lIndex, DWORD dwFlags)
                     continue;
                 }
 
-                HRESULT hr;
+                HRESULT hr{ S_OK };
                 if (FAILED(hr = RenameOutputPin(*it, to, to.streamInfo->mtypes)))
                 {
                     return hr;
@@ -1682,7 +1682,7 @@ STDMETHODIMP CLAVSplitter::Enable(long lIndex, DWORD dwFlags)
         if (SUCCEEDED(hr))
         {
             // Perform a seek to the start of the new title
-            IMediaSeeking *pSeek = nullptr;
+            IMediaSeeking *pSeek{ nullptr };
             hr = m_pGraph->QueryInterface(&pSeek);
             if (SUCCEEDED(hr))
             {
@@ -1702,13 +1702,13 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
                                 WCHAR **ppszName, IUnknown **ppObject, IUnknown **ppUnk)
 {
     CheckPointer(m_pDemuxer, E_UNEXPECTED);
-    HRESULT hr = S_FALSE;
+    HRESULT hr{ S_FALSE };
     int i, j;
     for (i = 0, j = 0; i < CBaseDemuxer::unknown; ++i)
     {
         if ((i == CBaseDemuxer::video_el) && !m_settings.DemuxEnhancementLayer) {
             continue;
-}
+        }
 
         CBaseDemuxer::CStreamList *streams = m_pDemuxer->GetStreams((CBaseDemuxer::StreamType)i);
         int const cnt = static_cast<int>(streams->size());
@@ -1721,26 +1721,26 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
 
             if (ppmt) {
                 *ppmt = CreateMediaType(&s.streamInfo->mtypes[0U]);
-}
+            }
             if (pdwFlags) {
                 *pdwFlags = GetOutputPin(s) ? (AMSTREAMSELECTINFO_ENABLED | AMSTREAMSELECTINFO_EXCLUSIVE) : 0;
-}
+            }
             if (pdwGroup) {
                 *pdwGroup = i;
-}
+            }
             if (ppObject) {
                 *ppObject = nullptr;
-}
+            }
             if (ppUnk) {
                 *ppUnk = nullptr;
-}
+            }
 
             // Special case for the "no subtitles" pin
             if (s.pid == NO_SUBTITLE_PID)
             {
                 if (plcid) {
                     *plcid = LCID_NOSUBTITLES;
-}
+                }
                 if (ppszName)
                 {
                     WCHAR str[] = L"S: " NO_SUB_STRING;
@@ -1748,7 +1748,7 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
                     *ppszName = reinterpret_cast<WCHAR *>(CoTaskMemAlloc(len * sizeof(WCHAR)));
                     if (*ppszName) {
                         ::wcsncpy_s(*ppszName, len, str, _TRUNCATE);
-}
+                    }
                 }
             }
             else if (s.pid == FORCED_SUBTITLE_PID)
@@ -1764,7 +1764,7 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
                     *ppszName = reinterpret_cast<WCHAR *>(CoTaskMemAlloc(len * sizeof(WCHAR)));
                     if (*ppszName) {
                         ::wcsncpy_s(*ppszName, len, str, _TRUNCATE);
-}
+                    }
                 }
             }
             else
@@ -1793,20 +1793,20 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
         {
             if (ppmt) {
                 *ppmt = nullptr;
-}
+            }
             if (pdwFlags) {
                 *pdwFlags =
                     m_pDemuxer->GetTitle() == idx ? (AMSTREAMSELECTINFO_ENABLED | AMSTREAMSELECTINFO_EXCLUSIVE) : 0;
-}
+            }
             if (pdwGroup) {
                 *pdwGroup = 18;
-}
+            }
             if (ppObject) {
                 *ppObject = nullptr;
-}
+            }
             if (ppUnk) {
                 *ppUnk = nullptr;
-}
+            }
             m_pDemuxer->GetTitleInfo(idx, nullptr, ppszName);
 
             hr = S_OK;
@@ -1867,7 +1867,7 @@ std::list<CSubtitleSelector> CLAVSplitter::GetSubtitleSelectors()
             {
                 if (m_settings.subtitleMode == LAVSubtitleMode_Default) {
                     tokenList.push_back(token + "|d");
-}
+                }
                 tokenList.push_back(token + "|f");
             }
             else
@@ -1881,7 +1881,7 @@ std::list<CSubtitleSelector> CLAVSplitter::GetSubtitleSelectors()
         // Add fallbacks (forced/default)
         if (m_settings.subtitleMode == LAVSubtitleMode_Default) {
             tokenList.push_back("*:*|d");
-}
+        }
         tokenList.push_back("*:*|f");
     }
     else if (m_settings.subtitleMode == LAVSubtitleMode_Advanced)
@@ -1933,44 +1933,44 @@ std::list<CSubtitleSelector> CLAVSplitter::GetSubtitleSelectors()
             {
                 if (flagsSet.find('d') != std::string::npos) {
                     selector.dwFlagsSet |= SUBTITLE_FLAG_DEFAULT;
-}
+                }
                 if (flagsSet.find('f') != std::string::npos) {
                     selector.dwFlagsSet |= SUBTITLE_FLAG_FORCED;
-}
+                }
                 if (flagsSet.find('n') != std::string::npos) {
                     selector.dwFlagsSet |= SUBTITLE_FLAG_NORMAL;
-}
+                }
                 if (flagsSet.find('h') != std::string::npos) {
                     selector.dwFlagsSet |= SUBTITLE_FLAG_IMPAIRED;
-}
+                }
 
                 if (m_settings.subtitleMode == LAVSubtitleMode_Default)
                 {
                     if ((selector.subtitleLanguage == "*") && (selector.dwFlagsSet & SUBTITLE_FLAG_DEFAULT)) {
                         selector.dwFlagsSet |= SUBTITLE_FLAG_VIRTUAL;
-}
+                    }
                 }
                 else
                 {
                     if (selector.dwFlagsSet & SUBTITLE_FLAG_FORCED) {
                         selector.dwFlagsSet |= SUBTITLE_FLAG_VIRTUAL;
-}
+                    }
                 }
             }
             if (flagsNot.length() > 0)
             {
                 if (flagsNot.find('d') != std::string::npos) {
                     selector.dwFlagsNot |= SUBTITLE_FLAG_DEFAULT;
-}
+                }
                 if (flagsNot.find('f') != std::string::npos) {
                     selector.dwFlagsNot |= SUBTITLE_FLAG_FORCED;
-}
+                }
                 if (flagsNot.find('n') != std::string::npos) {
                     selector.dwFlagsNot |= SUBTITLE_FLAG_NORMAL;
-}
+                }
                 if (flagsNot.find('h') != std::string::npos) {
                     selector.dwFlagsNot |= SUBTITLE_FLAG_IMPAIRED;
-}
+                }
             }
 
             selector.subtitleTrackName = res[4U];
@@ -2014,7 +2014,7 @@ STDMETHODIMP CLAVSplitter::GetPreferredLanguages(LPWSTR *ppLanguages)
         *ppLanguages = reinterpret_cast<WCHAR *>(CoTaskMemAlloc(sizeof(WCHAR) * len));
         if (*ppLanguages) {
             ::wcsncpy_s(*ppLanguages, len, m_settings.prefAudioLangs.c_str(), _TRUNCATE);
-}
+        }
     }
     else
     {
@@ -2038,7 +2038,7 @@ STDMETHODIMP CLAVSplitter::GetPreferredSubtitleLanguages(LPWSTR *ppLanguages)
         *ppLanguages = reinterpret_cast<WCHAR *>(CoTaskMemAlloc(sizeof(WCHAR) * len));
         if (*ppLanguages) {
             ::wcsncpy_s(*ppLanguages, len, m_settings.prefSubLangs.c_str(), _TRUNCATE);
-}
+        }
     }
     else
     {
@@ -2189,7 +2189,7 @@ STDMETHODIMP CLAVSplitter::GetAdvancedSubtitleConfig(LPWSTR *ppAdvancedConfig)
         *ppAdvancedConfig = reinterpret_cast<WCHAR *>(CoTaskMemAlloc(sizeof(WCHAR) * len));
         if (*ppAdvancedConfig) {
             ::wcsncpy_s(*ppAdvancedConfig, len, m_settings.subtitleAdvanced.c_str(), _TRUNCATE);
-}
+        }
     }
     else
     {

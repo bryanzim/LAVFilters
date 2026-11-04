@@ -78,7 +78,7 @@ class CBDDemuxer
     {
         if (m_lavfDemuxer) { return m_lavfDemuxer->GetStreams(type); } else {
             return __super::GetStreams(type);
-}
+        }
     }
     HRESULT SetActiveStream(StreamType type, int pid)
     {
@@ -89,14 +89,14 @@ class CBDDemuxer
         }
         else {
             return E_FAIL;
-}
+        }
     }
 
     void SettingsChanged(ILAVFSettingsInternal *pSettings)
     {
         if (m_lavfDemuxer) {
             m_lavfDemuxer->SettingsChanged(pSettings);
-}
+        }
     }
 
     STDMETHODIMP_(DWORD) GetStreamFlags(DWORD dwStream)
@@ -157,19 +157,19 @@ class CBDDemuxer
     static std::int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, std::int64_t offset, int whence);
 
   private:
-    BLURAY *m_pBD = nullptr;
-    AVIOContext *m_pb = nullptr;
+    BLURAY *m_pBD{ nullptr };
+    AVIOContext *m_pb{ nullptr };
     std::array<char, 4096U> m_cBDRootPath{0};
 
-    ILAVFSettingsInternal *m_pSettings = nullptr;
-    CLAVFDemuxer *m_lavfDemuxer = nullptr;
+    ILAVFSettingsInternal *m_pSettings{ nullptr };
+    CLAVFDemuxer *m_lavfDemuxer{ nullptr };
 
-    BLURAY_TITLE_INFO *m_pTitle = nullptr;
+    BLURAY_TITLE_INFO *m_pTitle{ nullptr };
     std::uint32_t m_nTitleCount{ 0U };
 
-    std::uint16_t *m_StreamClip = nullptr;
+    std::uint16_t *m_StreamClip{ nullptr };
     std::uint16_t m_NewClip{ 0U };
-    REFERENCE_TIME *m_rtOffset = nullptr;
+    REFERENCE_TIME *m_rtOffset{ nullptr };
     REFERENCE_TIME m_rtNewOffset{ 0 };
     std::int64_t m_bNewOffsetPos{ 0 };
 
@@ -177,7 +177,7 @@ class CBDDemuxer
     int m_MVCExtensionSubPathIndex{ 0 };
     int m_MVCExtensionClip{ -1 };
 
-    AVFormatContext *m_MVCFormatContext = nullptr;
+    AVFormatContext *m_MVCFormatContext{ nullptr };
     int m_MVCStreamIndex{ -1 };
 
     BOOL m_EndOfStreamPacketFlushProtection{ FALSE };

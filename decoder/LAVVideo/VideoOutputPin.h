@@ -30,5 +30,5 @@ class CVideoOutputPin : public CTransformOutputPin
     HRESULT InitAllocator(IMemAllocator **ppAlloc);
 
   private:
-    CLAVVideo *m_pFilter = nullptr;
+    CLAVVideo *m_pFilter{ nullptr };
 };

@@ -57,7 +57,7 @@ class CLAVVideoSubtitleInputPin
   protected:
     CCritSec m_csReceive;
 
-    ISubRenderConsumer *m_pConsumer = nullptr;
-    CLAVSubtitleProvider *m_pProvider = nullptr;
-    CLAVVideo *m_pLAVVideo = nullptr;
+    ISubRenderConsumer *m_pConsumer{ nullptr };
+    CLAVSubtitleProvider *m_pProvider{ nullptr };
+    CLAVVideo *m_pLAVVideo{ nullptr };
 };

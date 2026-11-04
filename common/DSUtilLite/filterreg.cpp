@@ -45,7 +45,7 @@ bool DeleteRegKey(std::wstring szKey, std::wstring szSubkey)
     {
         if (szSubkey.length() > 0) {
             ec = ::RegDeleteKey(hKey, szSubkey.c_str());
-}
+        }
 
         bOK = (ec == ERROR_SUCCESS);
 
@@ -61,7 +61,7 @@ bool SetRegKeyValue(std::wstring szKey, std::wstring szSubkey, std::wstring szVa
 
     if (szSubkey.length() > 0) {
         szKey += _T("\\") + szSubkey;
-}
+    }
 
     HKEY hKey;
     LONG ec =
