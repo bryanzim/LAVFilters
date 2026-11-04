@@ -137,6 +137,11 @@ The Inno Setup 7 installer packages the MSVC x86 and x64 outputs. Install Inno S
 
 The setup executable is written to `dist`.
 
+The build number in the version (the `-N` in `0.83.0-N`) is the number of commits on upstream master since the last upstream release. Add the upstream repository as a remote named `upstream` and fetch it so that count matches the upstream beta number; without it the count falls back to `origin/master`, which includes this fork's own commits:
+
+    git remote add upstream https://github.com/Nevcairiel/LAVFilters.git
+    git fetch upstream
+
 FFmpeg is included as a submodule, pointing to a custom fork with patches for LAV and DirectShow. The CMake matrix builds the MSVC and Clang copies. `build_ffmpeg.sh` (MinGW GCC) and `build_ffmpeg_msvc.sh` remain available for a single architecture.
 
 The custom fork of FFmpeg can be found here:
