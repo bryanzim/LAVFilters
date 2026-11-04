@@ -299,11 +299,11 @@ STDMETHODIMP CDecCuvid::FlushParser()
 static int _ConvertSMVer2CoresDrvApi(int major, int minor)
 {
     // Defines for GPU Architecture types (using the SM version to determine the # of cores per SM
-    typedef struct
+    struct sSMtoCores
     {
         int SM; // 0xMm (hexadecimal notation), M = SM Major version, and m = SM minor version
         int Cores{ 0 };
-    } sSMtoCores;
+    };
 
     sSMtoCores const nGpuArchCoresPerSM[] = {{0x10, 8},   {0x11, 8},   {0x12, 8},   {0x13, 8},   {0x20, 32},
                                        {0x21, 48},  {0x30, 192}, {0x32, 192}, {0x35, 192}, {0x37, 192},
@@ -664,17 +664,19 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
         m_DisplayDelay /= 2;
     }
 
-    cudaVideoCodec cudaCodec = (cudaVideoCodec)-1;
+    cudaVideoCodec cudaCodec{};
+    bool codecMapped = false;
     for (int i{ 0 }; i < countof(cuda_codecs); ++i)
     {
         if (cuda_codecs[i].ffcodec == codec)
         {
             cudaCodec = cuda_codecs[i].cudaCodec;
+            codecMapped = true;
             break;
         }
     }
 
-    if (cudaCodec == -1)
+    if (!codecMapped)
     {
         DbgLog((LOG_TRACE, 10, L"-> Codec id %d does not map to a CUVID codec", codec));
         return E_FAIL;
@@ -733,7 +735,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
         {
             BYTE *bHEVCHeader = reinterpret_cast<BYTE *>(mp2vi->dwSequenceHeader);
             int const nal_len_size = (bHEVCHeader[21U] & 3) + 1;
-            if (nal_len_size != mp2vi->dwFlags)
+            if (static_cast<DWORD>(nal_len_size) != mp2vi->dwFlags)
             {
                 DbgLog((LOG_ERROR, 10, L"hvcC nal length size doesn't match media type"));
             }
@@ -906,8 +908,6 @@ retry:
 
 STDMETHODIMP CDecCuvid::DecodeSequenceData()
 {
-    CUresult oResult;
-
     CUVIDSOURCEDATAPACKET pCuvidPacket;
     ZeroMemory(&pCuvidPacket, sizeof(pCuvidPacket));
 
@@ -917,7 +917,7 @@ STDMETHODIMP CDecCuvid::DecodeSequenceData()
     if (pCuvidPacket.payload && pCuvidPacket.payload_size)
     {
         cuda.cuvidCtxLock(m_cudaCtxLock, 0);
-        oResult = cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
+        cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
         cuda.cuvidCtxUnlock(m_cudaCtxLock, 0);
     }
 
@@ -1060,6 +1060,8 @@ int CUDAAPI CDecCuvid::HandlePictureDecode(void *obj, CUVIDPICPARAMS *cuvidpic)
             DbgLog((LOG_ERROR, 10, L"CDecCuvid::HandlePictureDecode(): cuvidDecodePicture returned error code %d",
                     cuStatus));
         }
+#else
+        (void)cuStatus;
 #endif
     }
     __except (1)
@@ -1364,7 +1366,6 @@ STDMETHODIMP CDecCuvid::CheckHEVCSequence(const BYTE *buffer, int buflen, int *b
 STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rtStart, REFERENCE_TIME rtStop,
                                BOOL bSyncPoint, BOOL bDiscontinuity, IMediaSample *pSample)
 {
-    CUresult result;
     HRESULT hr{ S_OK };
 
     CUVIDSOURCEDATAPACKET pCuvidPacket;
@@ -1448,7 +1449,7 @@ STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rt
     cuda.cuvidCtxLock(m_cudaCtxLock, 0);
     __try
     {
-        result = cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
+        cuda.cuvidParseVideoData(m_hParser, &pCuvidPacket);
     }
     __except (1)
     {

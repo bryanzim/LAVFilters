@@ -79,7 +79,7 @@ std::set<FormatInfo> CLAVFDemuxer::GetFormatList()
     const AVInputFormat *f{ nullptr };
     void *state{ nullptr };
 
-    while (f = av_demuxer_iterate(&state))
+    while ((f = av_demuxer_iterate(&state)) != nullptr)
     {
         FormatInfo format;
         lavf_get_iformat_infos(f, &format.strName, &format.strDescription);
@@ -126,7 +126,6 @@ CLAVFDemuxer::CLAVFDemuxer(CCritSec *pLock, ILAVFSettingsInternal *settings)
             BOOL bInfoPresent = VerQueryValue(versionInfo, TEXT("\\"), reinterpret_cast<LPVOID *>(&info), &cbInfo);
             if (bInfoPresent)
             {
-                bInfoPresent = bInfoPresent;
                 std::uint64_t version = info->dwFileVersionMS;
                 version <<= 32;
                 version += info->dwFileVersionLS;
@@ -396,8 +395,6 @@ trynoformat:
     if (m_avFormat->pb) {
         m_avFormat->flags |= AVFMT_FLAG_CUSTOM_IO;
     }
-
-    LPWSTR extension = pszFileName ? PathFindExtensionW(pszFileName) : nullptr;
 
     const AVInputFormat *inputFormat{ nullptr };
     if (format)
@@ -793,8 +790,6 @@ STDMETHODIMP CLAVFDemuxer::InitAVFormat(LPCOLESTR pszFileName, BOOL bForce)
 
     m_bVC1SeenTimestamp = FALSE;
 
-    LPWSTR extension = pszFileName ? PathFindExtensionW(pszFileName) : nullptr;
-
     m_bMatroska = (::_strnicmp(m_pszInputFormat, "matroska", 8) == 0);
     m_bOgg = (::_strnicmp(m_pszInputFormat, "ogg", 3) == 0);
     m_bAVI = (::_strnicmp(m_pszInputFormat, "avi", 3) == 0);
@@ -1153,7 +1148,7 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
         AVStream *st = m_avFormat->streams[idx];
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
         {
-            st->discard = ((m_dActiveStreams[video] == idx) || (m_dActiveStreams[video_el] == idx)) ? AVDISCARD_DEFAULT : AVDISCARD_ALL;
+            st->discard = ((m_dActiveStreams[video] == static_cast<int>(idx)) || (m_dActiveStreams[video_el] == static_cast<int>(idx))) ? AVDISCARD_DEFAULT : AVDISCARD_ALL;
 
             // don't discard h264 mvc streams
             if (m_bH264MVCCombine && (st->codecpar->codec_id == AV_CODEC_ID_H264_MVC)) {
@@ -1161,13 +1156,13 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
             }
 
             // don't discard the DOVI EL stream if we're merging
-            if (m_DOVI.bRPUMerge && (idx == m_DOVI.nELStreamId)) {
+            if (m_DOVI.bRPUMerge && (static_cast<int>(idx) == m_DOVI.nELStreamId)) {
                 st->discard = AVDISCARD_DEFAULT;
             }
         }
         else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
         {
-            st->discard = (m_dActiveStreams[audio] == idx) ? AVDISCARD_DEFAULT : AVDISCARD_ALL;
+            st->discard = (m_dActiveStreams[audio] == static_cast<int>(idx)) ? AVDISCARD_DEFAULT : AVDISCARD_ALL;
             // If the stream is a sub stream, make sure to activate the main stream as well
             if (m_bMPEGTS && (st->disposition & LAVF_DISPOSITION_SUB_STREAM) && (st->discard == AVDISCARD_DEFAULT))
             {
@@ -1184,8 +1179,8 @@ HRESULT CLAVFDemuxer::SetActiveStream(StreamType type, int pid)
         }
         else if (st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE)
         {
-            st->discard = ((m_dActiveStreams[subpic] == idx) ||
-                           (m_dActiveStreams[subpic] == FORCED_SUBTITLE_PID && m_ForcedSubStream == idx))
+            st->discard = ((m_dActiveStreams[subpic] == static_cast<int>(idx)) ||
+                           (m_dActiveStreams[subpic] == FORCED_SUBTITLE_PID && m_ForcedSubStream == static_cast<int>(idx)))
                               ? AVDISCARD_DEFAULT
                               : AVDISCARD_ALL;
         }
@@ -1422,14 +1417,14 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
                 {
                     WAVEFORMATEX *wfex =
                         reinterpret_cast<WAVEFORMATEX *>(pmt->ReallocFormatBuffer(sizeof(WAVEFORMATEX) + extradata_size));
-                    wfex->cbSize = extradata_size;
+                    wfex->cbSize = static_cast<WORD>(extradata_size);
                     std::memcpy(reinterpret_cast<BYTE *>(wfex) + sizeof(WAVEFORMATEX), extradata, extradata_size);
                 }
                 else if (pmt->formattype == FORMAT_WaveFormatExFFMPEG)
                 {
                     WAVEFORMATEXFFMPEG *wfex =
                         reinterpret_cast<WAVEFORMATEXFFMPEG *>(pmt->ReallocFormatBuffer(sizeof(WAVEFORMATEXFFMPEG) + extradata_size));
-                    wfex->wfex.cbSize = extradata_size;
+                    wfex->wfex.cbSize = static_cast<WORD>(extradata_size);
                     std::memcpy(reinterpret_cast<BYTE *>(wfex) + sizeof(WAVEFORMATEXFFMPEG), extradata, extradata_size);
                 }
                 else if (pmt->formattype == FORMAT_VorbisFormat2)
@@ -1551,7 +1546,7 @@ STDMETHODIMP CLAVFDemuxer::CreatePacketMediaType(Packet *pPacket, enum AVCodecID
                         wfex = reinterpret_cast<WAVEFORMATEX *>(pmt->pbFormat);
                     }
                     if (channels) {
-                        wfex->nChannels = channels;
+                        wfex->nChannels = static_cast<WORD>(channels);
                     }
                     if (sample_rate) {
                         wfex->nSamplesPerSec = sample_rate;
@@ -1931,7 +1926,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         }
     }
 
-    if (m_bH264MVCCombine && pPacket && (pPacket->StreamId == m_nH264MVCExtensionStream))
+    if (m_bH264MVCCombine && pPacket && (pPacket->StreamId == static_cast<DWORD>(m_nH264MVCExtensionStream)))
     {
         if (FAILED(QueueMVCExtension(pPacket)))
         {
@@ -1942,7 +1937,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         return S_FALSE;
     }
 
-    if (m_bH264MVCCombine && pPacket && (pPacket->StreamId == m_nH264MVCBaseStream))
+    if (m_bH264MVCCombine && pPacket && (pPacket->StreamId == static_cast<DWORD>(m_nH264MVCBaseStream)))
     {
         HRESULT const hr = CombineMVCBaseExtension(pPacket);
         if (hr != S_OK)
@@ -1956,7 +1951,7 @@ STDMETHODIMP CLAVFDemuxer::GetNextPacket(Packet **ppPacket)
         }
     }
 
-    if (m_DOVI.bRPUMerge && pPacket && (pPacket->StreamId == m_DOVI.nBLStreamId || pPacket->StreamId == m_DOVI.nELStreamId))
+    if (m_DOVI.bRPUMerge && pPacket && (pPacket->StreamId == static_cast<DWORD>(m_DOVI.nBLStreamId) || pPacket->StreamId == static_cast<DWORD>(m_DOVI.nELStreamId)))
     {
         HRESULT const hr = CombineDOVIRPU(pPacket);
 
@@ -2065,7 +2060,7 @@ STDMETHODIMP CLAVFDemuxer::FetchDOVIPacket(Packet** ppPacket)
 STDMETHODIMP CLAVFDemuxer::CombineDOVIRPU(Packet *pPacket)
 {
     CheckPointer(pPacket, E_POINTER);
-    if (pPacket->StreamId == m_DOVI.nBLStreamId)
+    if (pPacket->StreamId == static_cast<DWORD>(m_DOVI.nBLStreamId))
     {
         while (!m_DOVI.queueRPU.empty())
         {
@@ -2101,7 +2096,7 @@ STDMETHODIMP CLAVFDemuxer::CombineDOVIRPU(Packet *pPacket)
         m_DOVI.queueBLPackets.push_back(pPacket);
         return S_FALSE;
     }
-    else if (pPacket->StreamId == m_DOVI.nELStreamId)
+    else if (pPacket->StreamId == static_cast<DWORD>(m_DOVI.nELStreamId))
     {
         Packet *pPacketRPU = CreateRPUPacketFromEL(pPacket);
         while (!m_DOVI.queueBLPackets.empty())
@@ -2162,7 +2157,7 @@ Packet* CLAVFDemuxer::CreateRPUPacketFromEL(Packet* pPacketEL)
     Nalu.SetBuffer(pPacketEL->GetData(), pPacketEL->GetDataSize(), m_DOVI.nELNALSize);
     while (Nalu.ReadNext())
     {
-        if (Nalu.GetType() == 62) // RPU
+        if (Nalu.GetType() == HEVC_NAL_UNSPEC62) // RPU
         {
             int const nDataSize = static_cast<int>(Nalu.GetDataLength());
 
@@ -2174,9 +2169,13 @@ Packet* CLAVFDemuxer::CreateRPUPacketFromEL(Packet* pPacketEL)
             switch (m_DOVI.nBLNALSize)
             {
             case 0: AV_WB32(dst, 1); break;
-            case 1: AV_WB8(dst, nDataSize); break;
-            case 2: AV_WB16(dst, nDataSize); break;
-            case 3: AV_WB24(dst, nDataSize); break;
+            case 1: AV_WB8(dst, static_cast<std::uint8_t>(nDataSize)); break;
+            case 2: AV_WB16(dst, static_cast<std::uint16_t>(nDataSize)); break;
+            case 3:
+                dst[0] = static_cast<BYTE>(nDataSize >> 16);
+                dst[1] = static_cast<BYTE>(nDataSize >> 8);
+                dst[2] = static_cast<BYTE>(nDataSize);
+                break;
             case 4: AV_WB32(dst, nDataSize); break;
             }
 
@@ -3514,23 +3513,23 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
         else
         {
             // Check for quality
-            std::deque<stream *>::iterator sit;
-            for (sit = checkedStreams.begin(); sit != checkedStreams.end(); ++sit)
+            std::deque<stream *>::iterator qualityIt;
+            for (qualityIt = checkedStreams.begin(); qualityIt != checkedStreams.end(); ++qualityIt)
             {
                 if (!best)
                 {
-                    best = *sit;
+                    best = *qualityIt;
                     continue;
                 }
                 AVStream *old_stream = m_avFormat->streams[best->pid];
-                AVStream *new_stream = m_avFormat->streams[(*sit)->pid];
+                AVStream *new_stream = m_avFormat->streams[(*qualityIt)->pid];
 
                 // ignore streams with an unknown codec or no decoder
                 if ((new_stream->codecpar->codec_id == AV_CODEC_ID_NONE) || (avcodec_find_decoder(new_stream->codecpar->codec_id) == nullptr)) {
                     continue;
                 } else if ((old_stream->codecpar->codec_id == AV_CODEC_ID_NONE) || (avcodec_find_decoder(old_stream->codecpar->codec_id) == nullptr))
                 {
-                    best = *sit;
+                    best = *qualityIt;
                     continue;
                 }
 
@@ -3538,7 +3537,7 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                 int const best_nb_f = av_lav_stream_codec_info_nb_frames(old_stream);
                 if (m_bRM && (check_nb_f > 0 && best_nb_f <= 0))
                 {
-                    best = *sit;
+                    best = *qualityIt;
                 }
                 else if (!m_bRM || (check_nb_f > 0))
                 {
@@ -3547,7 +3546,7 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                         if ((bImpaired && !(old_stream->disposition & DISPO_IMPAIRED)) ||
                             (!bImpaired && !(new_stream->disposition & DISPO_IMPAIRED)))
                         {
-                            best = *sit;
+                            best = *qualityIt;
                         }
                         continue;
                     }
@@ -3560,7 +3559,7 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                     int const new_num_chans = new_stream->codecpar->ch_layout.nb_channels;
                     if (new_num_chans > old_num_chans)
                     {
-                        best = *sit;
+                        best = *qualityIt;
                     }
                     else if (new_num_chans == old_num_chans)
                     {
@@ -3569,7 +3568,7 @@ const CBaseDemuxer::stream *CLAVFDemuxer::SelectAudioStream(std::list<std::strin
                         int const new_priority = audio_codec_priority(new_stream->codecpar);
                         if (new_priority > old_priority)
                         {
-                            best = *sit;
+                            best = *qualityIt;
                         }
                     }
                 }
@@ -3698,7 +3697,7 @@ STDMETHODIMP_(DWORD) CLAVFDemuxer::GetStreamFlags(DWORD dwStream)
     if (!m_avFormat || (dwStream >= m_avFormat->nb_streams)) { return 0; }
 
     // redirect to the original stream
-    if (m_bMP4 && m_DOVI.bBSFSplit && (dwStream == m_DOVI.nELStreamId)) {
+    if (m_bMP4 && m_DOVI.bBSFSplit && (dwStream == static_cast<DWORD>(m_DOVI.nELStreamId))) {
         dwStream = m_DOVI.nBLStreamId;
     }
 

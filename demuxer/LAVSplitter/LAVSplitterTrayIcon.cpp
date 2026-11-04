@@ -124,7 +124,7 @@ HMENU CLAVSplitterTrayIcon::GetPopupMenu()
             // Sanitize any tab chars in the chapter name (replace by space)
             // More then one tab in the string messes with the popup menu rendering
             WCHAR *nextMatch, *tabMatch = std::wcsstr(chapterName.data(), L"\t");
-            while (nextMatch = std::wcsstr(tabMatch + 1, L"\t"))
+            while ((nextMatch = std::wcsstr(tabMatch + 1, L"\t")) != nullptr)
             {
                 *tabMatch = L' ';
                 tabMatch = nextMatch;

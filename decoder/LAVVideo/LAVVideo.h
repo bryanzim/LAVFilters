@@ -51,11 +51,11 @@ extern "C"
 #define DEBUG_FRAME_TIMINGS 0
 #define DEBUG_PIXELCONV_TIMINGS 0
 
-typedef struct
+struct TimingCache
 {
     REFERENCE_TIME rtStart{ 0 };
     REFERENCE_TIME rtStop{ 0 };
-} TimingCache;
+};
 
 class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     : public CTransformFilter
@@ -296,9 +296,9 @@ class __declspec(uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")) CLAVVideo
     std::wstring m_strExtension;
 
     BOOL m_bDXVAExtFormatSupport{ TRUE };
-    DWORD m_bMadVR = -1;
-    DWORD m_bJRVR = -1;
-    DWORD m_bOverlayMixer = -1;
+    DWORD m_bMadVR{ static_cast<DWORD>(-1) };
+    DWORD m_bJRVR{ static_cast<DWORD>(-1) };
+    DWORD m_bOverlayMixer{ static_cast<DWORD>(-1) };
     DWORD m_dwDecodeFlags{ 0U };
 
     BOOL m_bInDVDMenu{ FALSE };

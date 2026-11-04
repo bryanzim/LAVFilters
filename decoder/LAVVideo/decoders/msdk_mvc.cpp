@@ -106,7 +106,7 @@ CDecMSDKMVC::~CDecMSDKMVC()
 STDMETHODIMP CDecMSDKMVC::Init()
 {
     mfxIMPL impls[] = {MFX_IMPL_AUTO_ANY, MFX_IMPL_SOFTWARE};
-    mfxVersion version = {8, 1};
+    mfxVersion version = {{8, 1}};
 
     // Check if HWAccel is allowed
     if (!m_pSettings->GetHWAccelCodec(HWCodec_H264MVC)) {
@@ -363,13 +363,13 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     HRESULT hr{ S_OK };
     CBitstreamBuffer bsBuffer(&m_buff);
     mfxStatus sts = MFX_ERR_NONE;
-    mfxBitstream bs = {nullptr};
+    mfxBitstream bs = {{{nullptr}}};
     BOOL bFlush = (buffer == nullptr);
 
     if ((rtStart >= -TIMESTAMP_OFFSET) && (rtStart != AV_NOPTS_VALUE)) {
         bs.TimeStamp = rtStart + TIMESTAMP_OFFSET;
     } else {
-        bs.TimeStamp = MFX_TIMESTAMP_UNKNOWN;
+        bs.TimeStamp = static_cast<mfxU64>(MFX_TIMESTAMP_UNKNOWN);
     }
 
     bs.DecodeTimeStamp = MFX_TIMESTAMP_UNKNOWN;
@@ -531,7 +531,7 @@ HRESULT CDecMSDKMVC::ParseSEI(const BYTE *buffer, std::size_t size, mfxU64 times
     while ((seiParser.RemainingBits() > 16) && seiParser.BitRead(16, true))
     {
         int type{ 0 };
-        unsigned size{ 0U };
+        unsigned payloadSize{ 0U };
 
         do
         {
@@ -546,23 +546,23 @@ HRESULT CDecMSDKMVC::ParseSEI(const BYTE *buffer, std::size_t size, mfxU64 times
             if (seiParser.RemainingBits() < 8) {
                 return E_FAIL;
             }
-            size += seiParser.BitRead(8, true);
+            payloadSize += seiParser.BitRead(8, true);
         } while (seiParser.BitRead(8) == 0xFF);
 
-        if (size > seiParser.Remaining())
+        if (payloadSize > seiParser.Remaining())
         {
-            DbgLog((LOG_TRACE, 10, L"CDecMSDKMVC::ParseSEI(): SEI type %d size %d truncated, available: %d", type, size,
+            DbgLog((LOG_TRACE, 10, L"CDecMSDKMVC::ParseSEI(): SEI type %d size %d truncated, available: %d", type, payloadSize,
                     seiParser.Remaining()));
             return E_FAIL;
         }
 
         switch (type)
         {
-        case 5: ParseUnregUserDataSEI(buffer + seiParser.Pos(), size, timestamp); break;
-        case 37: ParseMVCNestedSEI(buffer + seiParser.Pos(), size, timestamp); break;
+        case 5: ParseUnregUserDataSEI(buffer + seiParser.Pos(), payloadSize, timestamp); break;
+        case 37: ParseMVCNestedSEI(buffer + seiParser.Pos(), payloadSize, timestamp); break;
         }
 
-        seiParser.BitSkip(size * 8);
+        seiParser.BitSkip(payloadSize * 8);
     }
 
     return S_OK;
@@ -834,7 +834,7 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
     pFrame->flags |= LAV_FRAME_FLAG_MVC;
 
     if (!(pBaseView->surface.Data.DataFlag & MFX_FRAMEDATA_ORIGINAL_TIMESTAMP)) {
-        pBaseView->surface.Data.TimeStamp = MFX_TIMESTAMP_UNKNOWN;
+        pBaseView->surface.Data.TimeStamp = static_cast<mfxU64>(MFX_TIMESTAMP_UNKNOWN);
     }
 
     if (pBaseView->surface.Data.TimeStamp != MFX_TIMESTAMP_UNKNOWN)

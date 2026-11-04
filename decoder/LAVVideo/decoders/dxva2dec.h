@@ -33,13 +33,13 @@
 typedef HRESULT WINAPI pDirect3DCreate9Ex(UINT, IDirect3D9Ex **);
 typedef HRESULT WINAPI pCreateDeviceManager9(UINT *pResetToken, IDirect3DDeviceManager9 **);
 
-typedef struct
+struct d3d_surface_t
 {
     int index{ 0 };
     bool used{ false };
     LPDIRECT3DSURFACE9 d3d;
     std::uint64_t age;
-} d3d_surface_t;
+};
 
 class CDXVA2SurfaceAllocator;
 

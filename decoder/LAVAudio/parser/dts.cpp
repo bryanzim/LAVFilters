@@ -214,7 +214,7 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
             if (get_bits(gb, 1))
             {                                          /* Info text present */
                 unsigned const bytes = get_bits(gb, 10) + 1; /* Info text size */
-                for (unsigned Pos{ 0U }; Pos < bytes; ++Pos) {
+                for (unsigned infoPos{ 0U }; infoPos < bytes; ++infoPos) {
                     get_bits(gb, 8); /* Info Text */
                 }
             }
@@ -237,7 +237,7 @@ static int parse_dts_hd_header(DTSParserContext *pContext, DTSHeader *pHeader, c
                     pHeader->HDSpeakerMask = get_bits(gb, SpeakerActivityMaskBits); /* Speaker activity Mask */
                 }
                 SpeakerRemapSetsCount = get_bits(gb, 3); /* Speaker remap sets count */
-                for (std::uint8_t Pos{ 0U }; Pos < SpeakerRemapSetsCount; ++Pos) {
+                for (std::uint8_t remapPos{ 0U }; remapPos < SpeakerRemapSetsCount; ++remapPos) {
                     get_bits(gb, SpeakerActivityMaskBits); /* Standard Speaker Layout mask */
                 }
                                                            /* unfinished
@@ -335,15 +335,15 @@ int parse_dts_header(DTSParserContext *pContext, DTSHeader *pHeader, std::uint8_
         const std::uint8_t *pXChHD = find_marker32_position(pHD, remaining, DCA_XCH_MARKER);
         if (pXChHD)
         {
-            std::size_t const remaining = uSize - (pXChHD - pBuffer);
-            parse_dts_xch_hd_header(pContext, pHeader, pXChHD, static_cast<unsigned>(remaining));
+            std::size_t const xchRemaining = uSize - (pXChHD - pBuffer);
+            parse_dts_xch_hd_header(pContext, pHeader, pXChHD, static_cast<unsigned>(xchRemaining));
         }
 
         const std::uint8_t *pXXChHD = find_marker32_position(pHD, remaining, DCA_XXCH_MARKER);
         if (pXXChHD)
         {
-            std::size_t const remaining = uSize - (pXXChHD - pBuffer);
-            parse_dts_xxch_hd_header(pContext, pHeader, pXXChHD, static_cast<unsigned>(remaining));
+            std::size_t const xxchRemaining = uSize - (pXXChHD - pBuffer);
+            parse_dts_xxch_hd_header(pContext, pHeader, pXXChHD, static_cast<unsigned>(xxchRemaining));
         }
     }
 

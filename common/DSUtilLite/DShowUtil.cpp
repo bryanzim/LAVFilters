@@ -673,7 +673,7 @@ unsigned int lav_xiphlacing(unsigned char *s, unsigned int v)
         v -= 0xff;
         ++n;
     }
-    *s = v;
+    *s = static_cast<unsigned char>(v);
     ++n;
     return n;
 }
@@ -813,7 +813,6 @@ void getExtraData(const BYTE *format, const GUID *formattype, const std::size_t 
     std::size_t extralength{ 0U };
     if (*formattype == FORMAT_WaveFormatEx)
     {
-        WAVEFORMATEX *wfex = const_cast<WAVEFORMATEX *>(reinterpret_cast<const WAVEFORMATEX *>(format));
         extraposition = format + sizeof(WAVEFORMATEX);
         // Protected against over-reads
         extralength = formatlen - sizeof(WAVEFORMATEX);

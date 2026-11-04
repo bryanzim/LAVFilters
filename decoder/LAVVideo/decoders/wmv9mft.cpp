@@ -482,7 +482,6 @@ IMFMediaBuffer *CDecWMV9MFT::GetBuffer(DWORD dwRequiredSize)
 void CDecWMV9MFT::ReleaseBuffer(IMFMediaBuffer *pBuffer)
 {
     CAutoLock const lock(&m_BufferCritSec);
-    Buffer *buffer{ nullptr };
     for (auto it = m_BufferQueue.begin(); it != m_BufferQueue.end(); ++it)
     {
         if ((*it)->pBuffer == pBuffer)

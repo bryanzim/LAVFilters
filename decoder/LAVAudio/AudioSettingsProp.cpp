@@ -224,7 +224,7 @@ HRESULT CLAVAudioSettingsProp::OnActivate()
         EnableWindow(GetDlgItem(m_Dlg, IDC_DELAYSPIN), m_bAudioDelay);
         EnableWindow(GetDlgItem(m_Dlg, IDC_DELAY), m_bAudioDelay);
 
-        SendDlgItemMessage(m_Dlg, IDC_DELAYSPIN, UDM_SETRANGE32, -1000 * 60 * 60 * 24, 1000 * 60 * 60 * 24);
+        SendDlgItemMessage(m_Dlg, IDC_DELAYSPIN, UDM_SETRANGE32, static_cast<WPARAM>(-1000 * 60 * 60 * 24), static_cast<WPARAM>(1000 * 60 * 60 * 24));
 
         std::array<WCHAR, 100U> stringBuffer{};
         ::swprintf_s(stringBuffer.data(), stringBuffer.size(),  L"%d", m_iAudioDelay);
@@ -535,7 +535,6 @@ HRESULT CLAVAudioMixingProp::OnApplyChanges()
 
     m_pAudioSettings->SetMixingFlags(dwMixingFlags);
 
-    BOOL const bNormal = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXMODE_NORMAL, BM_GETCHECK, 0, 0));
     BOOL const bDolby = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DOLBY, BM_GETCHECK, 0, 0));
     BOOL const bDPL2 = static_cast<BOOL>(SendDlgItemMessage(m_Dlg, IDC_MIXMODE_DPL2, BM_GETCHECK, 0, 0));
     m_pAudioSettings->SetMixingMode(bDolby ? MatrixEncoding_Dolby
@@ -1021,7 +1020,7 @@ HRESULT CLAVAudioStatusProp::OnActivate()
     for (int i{ 0 }; i < MAX_CHANNELS; ++i)
     {
         SendDlgItemMessage(m_Dlg, iddVolumeControls[i], PBM_SETRANGE, 0, MAKELPARAM(0, 50));
-        _snwprintf_s(chBuffer.data(), chBuffer.size(), _TRUNCATE, L"%S", get_channel_desc(get_flag_from_channel(dwOutputChannelMask, i)));
+        _snwprintf_s(chBuffer.data(), chBuffer.size(), _TRUNCATE, L"%S", get_channel_desc(get_flag_from_channel(dwOutputChannelMask, static_cast<WORD>(i))));
         SendDlgItemMessage(m_Dlg, iddVolumeDescs[i], WM_SETTEXT, 0, (LPARAM)chBuffer.data());
     }
 
@@ -1040,7 +1039,7 @@ void CLAVAudioStatusProp::UpdateVolumeDisplay()
     for (int i{ 0 }; i < m_nChannels; ++i)
     {
         float fDB = 0.0f;
-        if (SUCCEEDED(m_pAudioStatus->GetChannelVolumeAverage(i, &fDB)))
+        if (SUCCEEDED(m_pAudioStatus->GetChannelVolumeAverage(static_cast<WORD>(i), &fDB)))
         {
             int const value = static_cast<int>(fDB) + 50;
             SendDlgItemMessage(m_Dlg, iddVolumeControls[i], PBM_SETPOS, value, 0);

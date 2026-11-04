@@ -125,17 +125,12 @@ std::wstring CRegistry::ReadString(LPCTSTR pszKey, HRESULT &hr)
 
 HRESULT CRegistry::WriteString(LPCTSTR pszKey, const LPCTSTR pszValue)
 {
-    LONG lRet{ 0 };
-    HRESULT hr{ S_OK };
-
-    hr = S_OK;
-
     if (m_key == nullptr)
     {
         return E_UNEXPECTED;
     }
 
-    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_SZ, reinterpret_cast<const BYTE *>(pszValue),
+    LONG const lRet = RegSetValueEx(*m_key, pszKey, 0, REG_SZ, reinterpret_cast<const BYTE *>(pszValue),
                          static_cast<DWORD>(((std::wcslen(pszValue) + 1) * sizeof(WCHAR))));
     if (lRet != ERROR_SUCCESS)
     {
@@ -170,17 +165,12 @@ DWORD CRegistry::ReadDWORD(LPCTSTR pszKey, HRESULT &hr)
 
 HRESULT CRegistry::WriteDWORD(LPCTSTR pszKey, DWORD dwValue)
 {
-    LONG lRet{ 0 };
-    HRESULT hr{ S_OK };
-
-    hr = S_OK;
-
     if (m_key == nullptr)
     {
         return E_UNEXPECTED;
     }
 
-    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_DWORD, reinterpret_cast<const BYTE *>(&dwValue), sizeof(dwValue));
+    LONG const lRet = RegSetValueEx(*m_key, pszKey, 0, REG_DWORD, reinterpret_cast<const BYTE *>(&dwValue), sizeof(dwValue));
     if (lRet != ERROR_SUCCESS)
     {
         return E_FAIL;
@@ -239,17 +229,12 @@ BYTE *CRegistry::ReadBinary(LPCTSTR pszKey, DWORD &dwSize, HRESULT &hr)
 
 HRESULT CRegistry::WriteBinary(LPCTSTR pszKey, const BYTE *pbValue, int iLen)
 {
-    LONG lRet{ 0 };
-    HRESULT hr{ S_OK };
-
-    hr = S_OK;
-
     if (m_key == nullptr)
     {
         return E_UNEXPECTED;
     }
 
-    lRet = RegSetValueEx(*m_key, pszKey, 0, REG_BINARY, reinterpret_cast<const BYTE *>(pbValue), iLen);
+    LONG const lRet = RegSetValueEx(*m_key, pszKey, 0, REG_BINARY, reinterpret_cast<const BYTE *>(pbValue), iLen);
     if (lRet != ERROR_SUCCESS)
     {
         return E_FAIL;

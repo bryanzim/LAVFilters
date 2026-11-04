@@ -110,6 +110,7 @@ std::size_t CExtradataParser::ParseMPEGSequenceHeader(BYTE *pTarget)
 
         int const startcode = BitRead(4); // Start Code Id; TODO: DIfferent start code ids mean different length of da2a
         ASSERT(startcode == 1);
+        (void)startcode;
 
         BitRead(1);  // Profile Level Escape
         BitRead(3);  // Profile

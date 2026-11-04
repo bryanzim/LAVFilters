@@ -508,21 +508,26 @@ STDMETHODIMP CLAVVideo::CreatePage(const GUID &guid, IPropertyPage **ppPage)
     if (*ppPage != nullptr) { return E_INVALIDARG; }
 
     if (guid == CLSID_LAVVideoSettingsProp) {
-        *ppPage = new CLAVVideoSettingsProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVVideoFormatsProp) {
-        *ppPage = new CLAVVideoFormatsProp(nullptr, &hr);
-    }
-
-    if (SUCCEEDED(hr) && *ppPage)
-    {
-        (*ppPage)->AddRef();
+        auto *pProp = new CLAVVideoSettingsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
         return S_OK;
     }
-    else
-    {
-        SAFE_DELETE(*ppPage);
-        return E_FAIL;
+    if (guid == CLSID_LAVVideoFormatsProp) {
+        auto *pProp = new CLAVVideoFormatsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
     }
+    return E_FAIL;
 }
 
 STDMETHODIMP_(LPWSTR) CLAVVideo::GetFileExtension()
@@ -1403,15 +1408,15 @@ HRESULT CLAVVideo::ReconnectOutput(int width, int height, AVRational ar, DXVA2_E
         dxvaExtFlags.value = 0;
     }
 
-    if (m_bMadVR == -1) {
+    if (m_bMadVR == static_cast<DWORD>(-1)) {
         m_bMadVR = FilterInGraph(PINDIR_OUTPUT, CLSID_madVR);
     }
 
-    if (m_bJRVR == -1) {
+    if (m_bJRVR == static_cast<DWORD>(-1)) {
         m_bJRVR = !m_bMadVR && FilterInGraph(PINDIR_OUTPUT, CLSID_JRVR);
     }
 
-    if (m_bOverlayMixer == -1)
+    if (m_bOverlayMixer == static_cast<DWORD>(-1))
     {
         m_bOverlayMixer = !m_bMadVR && FilterInGraph(PINDIR_OUTPUT, CLSID_OverlayMixer);
         if (m_bOverlayMixer) {
@@ -1511,8 +1516,8 @@ HRESULT CLAVVideo::ReconnectOutput(int width, int height, AVRational ar, DXVA2_E
         }
 
         bNeedReconnect =
-            ((vih2->rcTarget.right != width) || (vih2->rcTarget.bottom != height) || (vih2->dwPictAspectRatioX != num) ||
-             (vih2->dwPictAspectRatioY != den) || ((std::abs)(vih2->AvgTimePerFrame - avgFrameDuration) > 10) ||
+            ((vih2->rcTarget.right != width) || (vih2->rcTarget.bottom != height) || (vih2->dwPictAspectRatioX != static_cast<DWORD>(num)) ||
+             (vih2->dwPictAspectRatioY != static_cast<DWORD>(den)) || ((std::abs)(vih2->AvgTimePerFrame - avgFrameDuration) > 10) ||
              (m_bDXVAExtFormatSupport && vih2->dwControlFlags != dxvaExtFlags.value) ||
              (vih2->dwInterlaceFlags != dwInterlacedFlags));
     }
@@ -2536,10 +2541,9 @@ HRESULT CLAVVideo::RedrawStillImage()
 
         DbgLog((LOG_TRACE, 10, L"CLAVVideo::RedrawStillImage(): Redrawing still image"));
 
-        LAVFrame *pFrame{ nullptr };
-
         if (m_pLastSequenceFrame->format == LAVPixFmt_DXVA2)
         {
+            LAVFrame *pFrame{ nullptr };
             HRESULT hr = AllocateFrame(&pFrame);
             if (FAILED(hr)) {
                 return hr;
@@ -2767,7 +2771,7 @@ STDMETHODIMP_(DWORD) CLAVVideo::GetRGBOutputRange()
 
 STDMETHODIMP_(DWORD) CLAVVideo::CheckHWAccelSupport(LAVHWAccel hwAccel)
 {
-    if ((hwAccel == m_settings.HWAccel) && m_Decoder.IsHWDecoderActive()) {
+    if ((static_cast<DWORD>(hwAccel) == m_settings.HWAccel) && m_Decoder.IsHWDecoderActive()) {
         return 2;
     }
 

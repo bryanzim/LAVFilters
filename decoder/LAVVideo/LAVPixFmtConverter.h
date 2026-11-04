@@ -45,7 +45,7 @@
 
 // Important, when adding new pixel formats, they need to be added in LAVPixFmtConverter.cpp as well to the format
 // descriptors
-typedef struct
+struct LAVOutPixFmtDesc
 {
     GUID subtype;
     int bpp{ 0 };
@@ -53,7 +53,7 @@ typedef struct
     int planes{ 0 };
     std::array<int, 4U> planeHeight{};
     std::array<int, 4U> planeWidth{};
-} LAVOutPixFmtDesc;
+};
 
 typedef struct _RGBCoeffs
 {

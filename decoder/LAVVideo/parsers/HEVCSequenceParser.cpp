@@ -26,10 +26,6 @@
 #include <cstddef>
 
 
-#define HEVC_NAL_VPS 32
-#define HEVC_NAL_SPS 33
-#define HEVC_NAL_PPS 34
-
 CHEVCSequenceParser::CHEVCSequenceParser()
 {
     ZeroMemory(&sps, sizeof(sps));

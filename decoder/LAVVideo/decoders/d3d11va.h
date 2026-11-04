@@ -143,7 +143,7 @@ class CDecD3D11 : public CDecAvcodec
         PFN_CREATE_DXGI_FACTORY1 mCreateDXGIFactory1;
     } dx = {nullptr};
 
-    DXGI_ADAPTER_DESC m_AdapterDesc = {0};
+    DXGI_ADAPTER_DESC m_AdapterDesc{};
 
     friend class CD3D11SurfaceAllocator;
 };

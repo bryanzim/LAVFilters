@@ -56,7 +56,6 @@ ILAVDecoder *CreateDecoderQuickSync()
 // Codec FourCC map
 ////////////////////////////////////////////////////////////////////////////////
 
-static const FOURCC FourCC_MPG1 = mmioFOURCC('M', 'P', 'G', '1');
 static const FOURCC FourCC_MPG2 = mmioFOURCC('M', 'P', 'G', '2');
 static const FOURCC FourCC_VC1 = mmioFOURCC('W', 'V', 'C', '1');
 static const FOURCC FourCC_WMV3 = mmioFOURCC('W', 'M', 'V', '3');
@@ -78,7 +77,7 @@ static struct
 // CQSMediaSample Implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-class CQSMediaSample : public IMediaSample
+class CQSMediaSample final : public IMediaSample
 {
   public:
     CQSMediaSample(BYTE *pBuffer, long len)
@@ -207,7 +206,7 @@ class CQSMediaSample : public IMediaSample
     ULONG m_cRef{ 1U };
 };
 
-class CIDirect3DDeviceManager9Proxy : public IDirect3DDeviceManager9
+class CIDirect3DDeviceManager9Proxy final : public IDirect3DDeviceManager9
 {
   public:
     explicit CIDirect3DDeviceManager9Proxy(IPin *pPin)
@@ -373,8 +372,7 @@ STDMETHODIMP CDecQuickSync::Init()
         qs.quickSyncLib = LoadLibrary(wModuleFile.data());
         if (qs.quickSyncLib == nullptr)
         {
-            DWORD const dwError = GetLastError();
-            DbgLog((LOG_ERROR, 10, L"-> Loading of " TEXT(QS_DEC_DLL_NAME) L" failed (%d)", dwError));
+            DbgLog((LOG_ERROR, 10, L"-> Loading of " TEXT(QS_DEC_DLL_NAME) L" failed (%d)", GetLastError()));
             return E_FAIL;
         }
 
@@ -403,7 +401,6 @@ STDMETHODIMP CDecQuickSync::Init()
 
 STDMETHODIMP CDecQuickSync::PostConnect(IPin *pPin)
 {
-    HRESULT const hr = S_OK;
     DbgLog((LOG_TRACE, 10, L"CDecQuickSync::PostConnect()"));
 
     // Release the previous manager (if any)

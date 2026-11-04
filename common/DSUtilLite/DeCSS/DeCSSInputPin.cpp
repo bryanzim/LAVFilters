@@ -407,7 +407,7 @@ STDMETHODIMP CDeCSSPinHelper::Get(REFGUID PropSet, ULONG Id, LPVOID pInstanceDat
         AM_DVDCOPY_CHLGKEY *pChlgKey = reinterpret_cast<AM_DVDCOPY_CHLGKEY *>(pPropertyData);
         for (int i{ 0 }; i < 10; ++i)
         {
-            pChlgKey->ChlgKey[i] = 9 - (m_Challenge[i] = i);
+            pChlgKey->ChlgKey[i] = static_cast<BYTE>(9 - (m_Challenge[i] = static_cast<BYTE>(i)));
         }
         *pBytesReturned = sizeof(AM_DVDCOPY_CHLGKEY);
     }

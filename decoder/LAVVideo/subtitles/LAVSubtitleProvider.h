@@ -70,7 +70,7 @@ class CLAVSubtitleProvider
     DECLARE_ISUBRENDEROPTIONS;
 
     // ISubRenderProvider
-    STDMETHODIMP RequestFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID context);
+    STDMETHODIMP RequestFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID frameContext);
     STDMETHODIMP Disconnect(void);
 
     // CLAVSubtitleProvider public

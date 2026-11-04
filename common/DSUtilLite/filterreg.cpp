@@ -102,7 +102,7 @@ void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, LPCWSTR chkb
     va_list extensions;
     va_start(extensions, chkbytes);
     LPCWSTR ext{ nullptr };
-    while (ext = va_arg(extensions, LPCWSTR))
+    while ((ext = va_arg(extensions, LPCWSTR)) != nullptr)
     {
         DeleteRegKey(_T("Media Type\\Extensions"), ext);
     }
@@ -142,7 +142,7 @@ void RegisterSourceFilter(const CLSID &clsid, const GUID &subtype2, std::list<LP
     va_list extensions;
     va_start(extensions, chkbytes);
     LPCWSTR ext{ nullptr };
-    while (ext = va_arg(extensions, LPCWSTR))
+    while ((ext = va_arg(extensions, LPCWSTR)) != nullptr)
     {
         DeleteRegKey(_T("Media Type\\Extensions"), ext);
     }

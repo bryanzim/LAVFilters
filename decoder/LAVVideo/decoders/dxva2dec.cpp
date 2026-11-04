@@ -74,7 +74,7 @@ HRESULT VerifyD3D9Device(DWORD &dwIndex, DWORD dwDeviceId)
     IDirect3D9 *pD3D = Direct3DCreate9(D3D_SDK_VERSION);
     if (!pD3D) { return E_FAIL; }
 
-    D3DADAPTER_IDENTIFIER9 d3dai = {0};
+    D3DADAPTER_IDENTIFIER9 d3dai{};
 
     // Check the combination of adapter and device id
     hr = pD3D->GetAdapterIdentifier(dwIndex, 0, &d3dai);
@@ -385,7 +385,7 @@ static const struct
 {
     unsigned id;
     std::array<char, 32U> name{};
-} vendors[] = {{VEND_ID_ATI, "ATI"}, {VEND_ID_NVIDIA, "NVIDIA"}, {VEND_ID_INTEL, "Intel"}, {0, ""}};
+} vendors[] = {{VEND_ID_ATI, {"ATI"}}, {VEND_ID_NVIDIA, {"NVIDIA"}}, {VEND_ID_INTEL, {"Intel"}}, {0, {""}}};
 
 HRESULT CDecDXVA2::CreateD3DDeviceManager(IDirect3DDevice9 *pDevice, UINT *pReset, IDirect3DDeviceManager9 **ppManager)
 {
@@ -535,7 +535,7 @@ HRESULT CDecDXVA2::InitD3DAdapterIdentifier(UINT lAdapter)
 {
     ASSERT(m_pD3D);
 
-    D3DADAPTER_IDENTIFIER9 d3dai = {0};
+    D3DADAPTER_IDENTIFIER9 d3dai{};
     HRESULT const hr = m_pD3D->GetAdapterIdentifier(lAdapter, 0, &d3dai);
     if (FAILED(hr))
     {
@@ -555,6 +555,7 @@ HRESULT CDecDXVA2::InitD3DAdapterIdentifier(UINT lAdapter)
 
     DbgLog((LOG_TRACE, 10, L"-> Running on adapter %d, %S, vendor 0x%04X(%S), device 0x%04X", lAdapter,
             d3dai.Description, d3dai.VendorId, vendor, d3dai.DeviceId));
+    (void)vendor;
     m_dwVendorId = d3dai.VendorId;
     m_dwDeviceId = d3dai.DeviceId;
 
@@ -1817,7 +1818,7 @@ STDMETHODIMP CDecDXVA2::GetHWAccelDeviceInfo(DWORD dwIndex, BSTR *pstrDeviceName
 
     if (!m_pD3D) { return E_NOINTERFACE; }
 
-    D3DADAPTER_IDENTIFIER9 d3dai = {0};
+    D3DADAPTER_IDENTIFIER9 d3dai{};
     HRESULT const err = m_pD3D->GetAdapterIdentifier(dwIndex, 0, &d3dai);
     if (err != D3D_OK) { return E_INVALIDARG; }
 

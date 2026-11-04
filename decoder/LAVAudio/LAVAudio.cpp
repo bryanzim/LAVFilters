@@ -519,25 +519,46 @@ STDMETHODIMP CLAVAudio::CreatePage(const GUID &guid, IPropertyPage **ppPage)
     if (*ppPage != nullptr) { return E_INVALIDARG; }
 
     if (guid == CLSID_LAVAudioSettingsProp) {
-        *ppPage = new CLAVAudioSettingsProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVAudioMixingProp) {
-        *ppPage = new CLAVAudioMixingProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVAudioFormatsProp) {
-        *ppPage = new CLAVAudioFormatsProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVAudioStatusProp) {
-        *ppPage = new CLAVAudioStatusProp(nullptr, &hr);
-    }
-
-    if (SUCCEEDED(hr) && *ppPage)
-    {
-        (*ppPage)->AddRef();
+        auto *pProp = new CLAVAudioSettingsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
         return S_OK;
     }
-    else
-    {
-        SAFE_DELETE(*ppPage);
-        return E_FAIL;
+    if (guid == CLSID_LAVAudioMixingProp) {
+        auto *pProp = new CLAVAudioMixingProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
     }
+    if (guid == CLSID_LAVAudioFormatsProp) {
+        auto *pProp = new CLAVAudioFormatsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
+    }
+    if (guid == CLSID_LAVAudioStatusProp) {
+        auto *pProp = new CLAVAudioStatusProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
+    }
+    return E_FAIL;
 }
 
 // ILAVAudioSettings
@@ -1177,7 +1198,7 @@ HRESULT CLAVAudio::GetMediaType(int iPosition, CMediaType *pMediaType)
         lav_sample_fmt = GetBestAvailableSampleFormat(lav_sample_fmt, &bits, TRUE);
     }
 
-    *pMediaType = CreateMediaType(lav_sample_fmt, nSamplesPerSec, nChannels, dwChannelMask, bits);
+    *pMediaType = CreateMediaType(lav_sample_fmt, nSamplesPerSec, static_cast<WORD>(nChannels), dwChannelMask, static_cast<WORD>(bits));
     return S_OK;
 }
 
@@ -1263,8 +1284,8 @@ CMediaType CLAVAudio::CreateMediaType(LAVAudioSampleFormat outputFormat, DWORD n
     BOOL bUseExtensible{ FALSE };
 
     // non-standard mono/stereo
-    if ((dwChannelMask != 0) && (nChannels == 1 && dwChannelMask != KSAUDIO_SPEAKER_MONO ||
-                               nChannels == 2 && dwChannelMask != KSAUDIO_SPEAKER_STEREO)) {
+    if ((dwChannelMask != 0) && ((nChannels == 1 && dwChannelMask != KSAUDIO_SPEAKER_MONO) ||
+                                 (nChannels == 2 && dwChannelMask != KSAUDIO_SPEAKER_STEREO))) {
         bUseExtensible = TRUE;
     } else if (nChannels > 2) { // more then two channels
         bUseExtensible = TRUE;
@@ -1282,7 +1303,7 @@ CMediaType CLAVAudio::CreateMediaType(LAVAudioSampleFormat outputFormat, DWORD n
         if ((wBitsPerSample > 0) && (outputFormat == SampleFormat_24 || outputFormat == SampleFormat_32))
         {
             WORD wBpp = wBitsPerSample;
-            if (((outputFormat == SampleFormat_24) && (wBpp <= 16)) || (outputFormat == SampleFormat_32 && wBpp < 24)) {
+            if (((outputFormat == SampleFormat_24) && (wBpp <= 16)) || ((outputFormat == SampleFormat_32) && (wBpp < 24))) {
                 wBpp = 24;
             }
             wfex.Samples.wValidBitsPerSample = wBpp;
@@ -1316,7 +1337,7 @@ HRESULT CLAVAudio::CheckTransform(const CMediaType *mtIn, const CMediaType *mtOu
         if (!m_avBSContext && m_pAVCtx && (*mtOut != m_pOutput->CurrentMediaType()))
         {
             WAVEFORMATEX *wfex = reinterpret_cast<WAVEFORMATEX *>(mtOut->pbFormat);
-            if (wfex->nSamplesPerSec != m_pAVCtx->sample_rate)
+            if (static_cast<int>(wfex->nSamplesPerSec) != m_pAVCtx->sample_rate)
             {
                 return VFW_E_TYPE_NOT_ACCEPTED;
             }
@@ -1377,21 +1398,21 @@ HRESULT CLAVAudio::ffmpeg_init(AVCodecID codec, const void *format, const GUID f
         {
             WAVEFORMATEX *wfein = const_cast<WAVEFORMATEX *>(reinterpret_cast<const WAVEFORMATEX *>(format));
             ASSERT(((wfein->wBitsPerSample == 8) || (wfein->wBitsPerSample == 16)));
-            switch (codec)
+            switch (static_cast<int>(codec))
             {
-            case AV_CODEC_ID_PCM_QTRAW:
+            case static_cast<int>(AV_CODEC_ID_PCM_QTRAW):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_U8 : AV_CODEC_ID_PCM_S16BE;
                 break;
-            case AV_CODEC_ID_PCM_SxxBE:
+            case static_cast<int>(AV_CODEC_ID_PCM_SxxBE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_S8 : AV_CODEC_ID_PCM_S16BE;
                 break;
-            case AV_CODEC_ID_PCM_SxxLE:
+            case static_cast<int>(AV_CODEC_ID_PCM_SxxLE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_S8 : AV_CODEC_ID_PCM_S16LE;
                 break;
-            case AV_CODEC_ID_PCM_UxxBE:
+            case static_cast<int>(AV_CODEC_ID_PCM_UxxBE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_U8 : AV_CODEC_ID_PCM_U16BE;
                 break;
-            case AV_CODEC_ID_PCM_UxxLE:
+            case static_cast<int>(AV_CODEC_ID_PCM_UxxLE):
                 codec = wfein->wBitsPerSample == 8 ? AV_CODEC_ID_PCM_U8 : AV_CODEC_ID_PCM_U16LE;
                 break;
             }
@@ -2078,7 +2099,7 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
         if (m_bFindDTSInPCM)
         {
             int i = 0, count = 0;
-            std::uint32_t state = -1;
+            std::uint32_t state = static_cast<std::uint32_t>(-1);
             for (i = 0; i < buffer_size; ++i)
             {
                 state = (state << 8) | p[i];
@@ -2126,7 +2147,6 @@ HRESULT CLAVAudio::ProcessBuffer(IMediaSample *pMediaSample, BOOL bEOF)
             std::uint16_t const word2 = AV_RL16(p + 2);
             if ((word1 == SYNCWORD1) && (word2 == SYNCWORD2))
             {
-                std::uint16_t const type = AV_RL16(p + 4);
                 int const spdif_buffer_size = AV_RL16(p + 6) >> 3;
 
                 p += BURST_HEADER_SIZE;
@@ -2271,7 +2291,6 @@ static DWORD get_lav_channel_layout(AVChannelLayout *layout)
 HRESULT CLAVAudio::Decode(const BYTE *pDataBuffer, int buffsize, int &consumed, HRESULT *hrDeliver,
                           IMediaSample *pMediaSample)
 {
-    int got_frame{ 0 };
     BYTE *tmpProcessBuf{ nullptr };
     HRESULT hr{ S_FALSE };
 
@@ -2357,7 +2376,6 @@ HRESULT CLAVAudio::Decode(const BYTE *pDataBuffer, int buffsize, int &consumed, 
     consumed = 0;
     while ((buffsize > 0) || bFlush)
     {
-        got_frame = 0;
         if (bFlush) {
             buffsize = 0;
         }
@@ -2554,7 +2572,7 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
                 return E_OUTOFMEMORY;
             }
             out.sfFormat = SampleFormat_32;
-            out.wBitsPerSample = m_pAVCtx->bits_per_raw_sample;
+            out.wBitsPerSample = static_cast<WORD>(m_pAVCtx->bits_per_raw_sample);
             break;
         case AV_SAMPLE_FMT_FLT:
             if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->Append(m_pFrame->data[0U], dwPCMSize)))
@@ -2637,7 +2655,7 @@ HRESULT CLAVAudio::DecodeReceive(HRESULT *hrDeliver)
             }
         }
             out.sfFormat = SampleFormat_32;
-            out.wBitsPerSample = m_pAVCtx->bits_per_raw_sample;
+            out.wBitsPerSample = static_cast<WORD>(m_pAVCtx->bits_per_raw_sample);
             break;
         case AV_SAMPLE_FMT_FLTP: {
             if (FAILED(out.bBuffer->Allocate(dwPCMSizeAligned)) || FAILED(out.bBuffer->SetSize(dwPCMSize)))
@@ -2805,7 +2823,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
 
     if (m_bFlushing) { return S_FALSE; }
 
-    CMediaType mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, buffer.layout.nb_channels,
+    CMediaType mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, static_cast<WORD>(buffer.layout.nb_channels),
                                     static_cast<DWORD>(buffer.layout.u.mask),
                                     buffer.wBitsPerSample);
     WAVEFORMATEX *wfe = reinterpret_cast<WAVEFORMATEX *>(mt.Format());
@@ -2892,7 +2910,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
         {
             if (buffer.sfFormat != SampleFormat_16)
             {
-                mt = CreateMediaType(SampleFormat_16, buffer.dwSamplesPerSec, buffer.layout.nb_channels, static_cast<DWORD>(buffer.layout.u.mask),
+                mt = CreateMediaType(SampleFormat_16, buffer.dwSamplesPerSec, static_cast<WORD>(buffer.layout.nb_channels), static_cast<DWORD>(buffer.layout.u.mask),
                                      16);
                 hr = m_pOutput->GetConnected()->QueryAccept(&mt);
                 if (hr == S_OK)
@@ -2907,7 +2925,7 @@ HRESULT CLAVAudio::Deliver(BufferDetails &buffer)
             {
                 DbgLog((LOG_TRACE, 1, L"-> Trying to fallback to 5.1 back"));
                 buffer.layout.u.mask = AV_CH_LAYOUT_5POINT1_BACK;
-                mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, buffer.layout.nb_channels,
+                mt = CreateMediaType(buffer.sfFormat, buffer.dwSamplesPerSec, static_cast<WORD>(buffer.layout.nb_channels),
                                      static_cast<DWORD>(buffer.layout.u.mask),
                                      buffer.wBitsPerSample);
                 goto retry_qa;

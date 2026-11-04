@@ -61,7 +61,7 @@ DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb32_ssse3)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm5 = xmm6 = xmm7;
         }
         for (i = 0; i < processWidth; i += 24)
@@ -151,7 +151,7 @@ template <int out32> DECLARE_CONV_FUNC_IMPL(convert_rgb48_rgb)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm6 = xmm7;
         }
         for (i = 0; i < processWidth; i += 16)

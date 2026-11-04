@@ -256,7 +256,6 @@ void CVC1HeaderParser::VC1ParseSequenceHeader(GetBitContext *gb)
 AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int buflen)
 {
     AVPictureType pictype = AV_PICTURE_TYPE_NONE;
-    int skipped{ 0 };
     const BYTE *framestart = buf;
     if (IS_MARKER(AV_RB32(buf)))
     {
@@ -301,7 +300,6 @@ AVPictureType CVC1HeaderParser::ParseVC1PictureType(const std::uint8_t *buf, int
                 case 3: pictype = AV_PICTURE_TYPE_BI; break;
                 case 4:
                     pictype = AV_PICTURE_TYPE_P; // skipped pic
-                    skipped = 1;
                     break;
                 }
             }

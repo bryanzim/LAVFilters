@@ -230,19 +230,12 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
             // We'll put them all into one block and add a second block with 0 elements afterwards
             // The parsing logic does not care what type they are, it just expects 2 blocks.
             BYTE *p = extra + 6, *end = extra + 6 + actual_len;
-            BOOL bSPS = FALSE, bPPS = FALSE;
             while (p + 1 < end)
             {
                 unsigned const len = ((static_cast<unsigned>(p[0U]) << 8) | p[1U]) + 2;
                 if (p + len > end)
                 {
                     break;
-                }
-                if ((p[2U] & 0x1F) == 7) {
-                    bSPS = TRUE;
-                }
-                if ((p[2U] & 0x1F) == 8) {
-                    bPPS = TRUE;
                 }
                 ++ps_count;
                 p += len;
@@ -400,7 +393,7 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
             {
                 m_pAVCtx->extradata = reinterpret_cast<std::uint8_t *>(av_mallocz(1 + AV_INPUT_BUFFER_PADDING_SIZE));
                 m_pAVCtx->extradata_size = 1;
-                m_pAVCtx->extradata[0U] = (cropH << 4) | cropV;
+                m_pAVCtx->extradata[0U] = static_cast<std::uint8_t>((cropH << 4) | cropV);
             }
         }
     }

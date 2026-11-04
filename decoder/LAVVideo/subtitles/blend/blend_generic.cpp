@@ -164,9 +164,9 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
                     break;
                 default:
                     dstUV[(col << 1) + 0] =
-                        FAST_DIV255(dstUV[(col << 1) + 0] * (255 - alpha) + (srcU[col] << shift) * alpha);
+                        static_cast<pixT>(FAST_DIV255(dstUV[(col << 1) + 0] * (255 - alpha) + (srcU[col] << shift) * alpha));
                     dstUV[(col << 1) + 1] =
-                        FAST_DIV255(dstUV[(col << 1) + 1] * (255 - alpha) + (srcV[col] << shift) * alpha);
+                        static_cast<pixT>(FAST_DIV255(dstUV[(col << 1) + 1] * (255 - alpha) + (srcV[col] << shift) * alpha));
                     break;
                 }
             }
@@ -180,8 +180,8 @@ template <class pixT, int nv12> DECLARE_BLEND_FUNC_IMPL(blend_yuv_c)
                     dstV[col] = srcV[col] << shift;
                     break;
                 default:
-                    dstU[col] = FAST_DIV255(dstU[col] * (255 - alpha) + (srcU[col] << shift) * alpha);
-                    dstV[col] = FAST_DIV255(dstV[col] * (255 - alpha) + (srcV[col] << shift) * alpha);
+                    dstU[col] = static_cast<pixT>(FAST_DIV255(dstU[col] * (255 - alpha) + (srcU[col] << shift) * alpha));
+                    dstV[col] = static_cast<pixT>(FAST_DIV255(dstV[col] * (255 - alpha) + (srcV[col] << shift) * alpha));
                     break;
                 }
             }

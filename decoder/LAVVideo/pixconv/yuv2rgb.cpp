@@ -765,7 +765,9 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
             Kg = 0.6780;
             Kb = 0.0593;
             break;
-        default: DbgLog((LOG_TRACE, 10, L"::getRGBCoeffs(): Unknown color space: %d - defaulting to BT709", matrix));
+        default:
+            DbgLog((LOG_TRACE, 10, L"::getRGBCoeffs(): Unknown color space: %d - defaulting to BT709", matrix));
+            [[fallthrough]];
         case DXVA2_VideoTransferMatrix_BT709:
             Kr = 0.2126;
             Kg = 0.7152;
@@ -784,9 +786,9 @@ const RGBCoeffs *CLAVPixFmtConverter::getRGBCoeffs(int width, int height)
         ug_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kb) * Kb / Kg;
         vg_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kr) * Kr / Kg;
         ub_mul = (cspOptionsRGBrange / chr_range) * (1.0 - Kb);
-        short const sub = min(outputBlack, inputBlack);
-        short const Ysub = inputBlack - sub;
-        short const RGB_add1 = outputBlack - sub;
+        short const sub = static_cast<short>(min(outputBlack, inputBlack));
+        short const Ysub = static_cast<short>(inputBlack - sub);
+        short const RGB_add1 = static_cast<short>(outputBlack - sub);
 
         short const cy = short(y_mul * 16384 + 0.5);
         short const crv = short(vr_mul * 8192 + 0.5);

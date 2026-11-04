@@ -66,7 +66,7 @@ class CLAVSubtitleConsumer
     }
     STDMETHODIMP Connect(ISubRenderProvider *subtitleRenderer);
     STDMETHODIMP Disconnect(void);
-    STDMETHODIMP DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID context,
+    STDMETHODIMP DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID frameContext,
                               ISubRenderFrame *subtitleFrame);
     STDMETHODIMP Clear(REFERENCE_TIME clearNewerThan = 0);
 

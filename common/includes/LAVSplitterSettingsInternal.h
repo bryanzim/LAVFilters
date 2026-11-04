@@ -37,12 +37,12 @@ class FormatInfo
     LPCSTR strDescription{ nullptr };
 
     // Comparison operators for sorting (NULL safe)
-    bool FormatInfo::operator<(const FormatInfo &rhs) const
+    bool operator<(const FormatInfo &rhs) const
     {
         return strName ? (rhs.strName ? ::_stricmp(strName, rhs.strName) < 0 : false) : true;
     }
-    bool FormatInfo::operator>(const FormatInfo &rhs) const { return !(*this < rhs); }
-    bool FormatInfo::operator==(const FormatInfo &rhs) const
+    bool operator>(const FormatInfo &rhs) const { return !(*this < rhs); }
+    bool operator==(const FormatInfo &rhs) const
     {
         return (strName == rhs.strName) || (strName && rhs.strName && (::_stricmp(strName, rhs.strName) == 0));
     }

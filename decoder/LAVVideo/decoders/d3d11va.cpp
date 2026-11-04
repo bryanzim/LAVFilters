@@ -568,13 +568,13 @@ STDMETHODIMP CDecD3D11::PostConnect(IPin *pPin)
         }
 
         // get decoder configuration
-        D3D11_VIDEO_DECODER_DESC desc = {0};
+        D3D11_VIDEO_DECODER_DESC desc{};
         desc.Guid = guidConversion;
         desc.OutputFormat = m_SurfaceFormat;
         desc.SampleWidth = m_pAVCtx->coded_width;
         desc.SampleHeight = m_pAVCtx->coded_height;
 
-        D3D11_VIDEO_DECODER_CONFIG decoder_config = {0};
+        D3D11_VIDEO_DECODER_CONFIG decoder_config{};
         hr = FindDecoderConfiguration(&desc, &decoder_config);
         if (FAILED(hr))
         {
@@ -1087,7 +1087,7 @@ STDMETHODIMP CDecD3D11::FindDecoderConfiguration(const D3D11_VIDEO_DECODER_DESC 
     D3D11_VIDEO_DECODER_CONFIG best_config;
     for (UINT i{ 0U }; i < nConfig; ++i)
     {
-        D3D11_VIDEO_DECODER_CONFIG config = {0};
+        D3D11_VIDEO_DECODER_CONFIG config{};
         hr = pDeviceContext->video_device->GetVideoDecoderConfig(desc, i, &config);
         if (FAILED(hr)) {
             continue;
@@ -1155,13 +1155,13 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
     }
 
     // get decoder configuration
-    D3D11_VIDEO_DECODER_DESC desc = {0};
+    D3D11_VIDEO_DECODER_DESC desc{};
     desc.Guid = profileGUID;
     desc.OutputFormat = surface_format;
     desc.SampleWidth = m_pAVCtx->coded_width;
     desc.SampleHeight = m_pAVCtx->coded_height;
 
-    D3D11_VIDEO_DECODER_CONFIG decoder_config = {0};
+    D3D11_VIDEO_DECODER_CONFIG decoder_config{};
     hr = FindDecoderConfiguration(&desc, &decoder_config);
     if (FAILED(hr))
     {
@@ -1217,7 +1217,7 @@ STDMETHODIMP CDecD3D11::CreateD3D11Decoder()
     AVD3D11VAFramesContext *pFramesContext = reinterpret_cast<AVD3D11VAFramesContext *>(((AVHWFramesContext *)m_pFramesCtx->data)->hwctx);
     for (int i{ 0 }; i < m_nOutputViews; ++i)
     {
-        D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC viewDesc = {0};
+        D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC viewDesc{};
         viewDesc.DecodeProfile = profileGUID;
         viewDesc.ViewDimension = D3D11_VDOV_DIMENSION_TEXTURE2D;
         viewDesc.Texture2D.ArraySlice = i;

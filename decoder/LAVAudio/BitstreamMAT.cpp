@@ -207,7 +207,7 @@ void CLAVAudio::MATFlushPacket(HRESULT *hrDeliver)
 
         // we expect 24 frames per MAT frame, so calculate an offset from that
         // this is done after delivery, because it modifies the duration of the frame, eg. the start of the next frame
-        if (nMATSamples != m_TrueHDMATState.nSamples) {
+        if (static_cast<DWORD>(nMATSamples) != m_TrueHDMATState.nSamples) {
             m_TrueHDMATState.nSamplesOffset += m_TrueHDMATState.nSamples - nMATSamples;
         }
 
@@ -224,7 +224,6 @@ static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebi
 {
     ASSERT(AV_RB32(p + 4) == 0xf8726fba);
 
-    int const length = (AV_RB16(p) & 0xfff) * 2;
     if (buffsize < 32) { return false; }
 
     // parse major sync and look for a restart header
@@ -282,7 +281,7 @@ static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebi
             if (get_bits1(&gb))
             {                       // restart_header_exists
                 skip_bits(&gb, 14); // restart_sync_word
-                output_timing = get_bits(&gb, 16);
+                output_timing = static_cast<std::uint16_t>(get_bits(&gb, 16));
                 output_timing_present = true;
                 // XXX: restart header
             }

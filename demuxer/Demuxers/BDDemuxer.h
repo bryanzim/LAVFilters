@@ -154,7 +154,7 @@ class CBDDemuxer
     STDMETHODIMP OpenMVCExtensionDemuxer(int playItem);
 
     static int BDByteStreamRead(void *opaque, std::uint8_t *buf, int buf_size);
-    static std::int64_t CBDDemuxer::BDByteStreamSeek(void *opaque, std::int64_t offset, int whence);
+    static std::int64_t BDByteStreamSeek(void *opaque, std::int64_t offset, int whence);
 
   private:
     BLURAY *m_pBD{ nullptr };

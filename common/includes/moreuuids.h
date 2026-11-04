@@ -451,12 +451,12 @@ DEFINE_GUID(MEDIASUBTYPE_HDMVSUB, 0x4eba53e, 0x9330, 0x436c, 0x91, 0x33, 0x55, 0
 DEFINE_GUID(MEDIASUBTYPE_WEBVTT, 0xc886d215, 0xf485, 0x40bb, 0x8d, 0xb6, 0xfa, 0xdb, 0xc6, 0x19, 0xa4, 0x5d);
 
 #pragma pack(push, 1)
-typedef struct
+struct SUBTITLEINFO
 {
     DWORD dwOffset{ 0U };
     std::array<CHAR, 4U> IsoLang{}; // three letter lang code + terminating zero
     std::array<WCHAR, 256U> TrackName{}; // 256 chars ought to be enough for everyone :)
-} SUBTITLEINFO;
+};
 #pragma pack(pop)
 
 // SUBTITLEINFO structure content starting at dwOffset (also the content of CodecPrivate)

@@ -89,7 +89,7 @@ unsigned CByteParser::UExpGolombRead()
     int n{ -1 };
     for (BYTE b{ 0U }; !b && RemainingBits(); ++n)
     {
-        b = get_bits1(m_gbCtx);
+        b = static_cast<BYTE>(get_bits1(m_gbCtx));
     }
     // values with more than 31 leading zeros don't fit and are invalid
     if (!RemainingBits() || (n > 31)) { return 0; }

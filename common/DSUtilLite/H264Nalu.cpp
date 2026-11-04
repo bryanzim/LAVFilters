@@ -132,7 +132,7 @@ bool CH265Nalu::ReadNext()
 {
     if (CH264Nalu::ReadNext())
     {
-        nal_unit_type = (NALU_TYPE)((m_pBuffer[m_nNALDataPos] >> 1) & 0x3F);
+        m_hevcType = static_cast<HEVC_NALU_TYPE>((m_pBuffer[m_nNALDataPos] >> 1) & 0x3F);
         return true;
     }
 

@@ -354,7 +354,7 @@ const char *get_sample_format_desc(LAVAudioSampleFormat sfFormat)
 
 const char *get_sample_format_desc(CMediaType  const&mt)
 {
-    LAVAudioSampleFormat format;
+    LAVAudioSampleFormat format{ SampleFormat_16 };
     if (mt.subtype == MEDIASUBTYPE_IEEE_FLOAT)
     {
         format = SampleFormat_FP32;
@@ -369,7 +369,10 @@ const char *get_sample_format_desc(CMediaType  const&mt)
         case 16: format = SampleFormat_16; break;
         case 24: format = SampleFormat_24; break;
         case 32: format = SampleFormat_32; break;
-        default: ASSERT(false);
+        default:
+            ASSERT(false);
+            format = SampleFormat_16;
+            break;
         }
     }
     return get_sample_format_desc(format);
@@ -418,7 +421,7 @@ LAVAudioSampleFormat get_lav_sample_fmt(AVSampleFormat sample_fmt, int bits)
 
 AVSampleFormat get_ff_sample_fmt(LAVAudioSampleFormat sample_fmt)
 {
-    AVSampleFormat ff_sample_fmt;
+    AVSampleFormat ff_sample_fmt{ AV_SAMPLE_FMT_S16 };
     switch (sample_fmt)
     {
     case SampleFormat_16: ff_sample_fmt = AV_SAMPLE_FMT_S16; break;
@@ -426,7 +429,10 @@ AVSampleFormat get_ff_sample_fmt(LAVAudioSampleFormat sample_fmt)
     case SampleFormat_32: ff_sample_fmt = AV_SAMPLE_FMT_S32; break;
     case SampleFormat_FP32: ff_sample_fmt = AV_SAMPLE_FMT_FLT; break;
     case SampleFormat_U8: ff_sample_fmt = AV_SAMPLE_FMT_U8; break;
-    default: assert(0); break;
+    default:
+        assert(0);
+        ff_sample_fmt = AV_SAMPLE_FMT_S16;
+        break;
     }
     return ff_sample_fmt;
 }
@@ -477,8 +483,8 @@ static BYTE get_dvdlpcm_sample_rate_index(int sample_rate)
 void CLAVAudio::CreateDVDLPCMHeader(BYTE *const pBuf, const WAVEFORMATEX *const wfex) const
 {
     pBuf[0U] = 0;
-    pBuf[1U] = (((wfex->wBitsPerSample - 16) / 4) << 6) | (get_dvdlpcm_sample_rate_index(wfex->nSamplesPerSec) << 4) |
-              ((wfex->nChannels - 1) & 7);
+    pBuf[1U] = static_cast<BYTE>((((wfex->wBitsPerSample - 16) / 4) << 6) | (get_dvdlpcm_sample_rate_index(wfex->nSamplesPerSec) << 4) |
+                                   ((wfex->nChannels - 1) & 7));
     pBuf[2U] = 0;
 }
 
@@ -622,11 +628,12 @@ template <class T> T get_sample_from_buffer(const BYTE *const pBuffer, LAVAudioS
         fSample += pBuffer[0U] << 8;
         fSample += pBuffer[1U] << 16;
         fSample += pBuffer[2U] << 24;
-        fSample /= INT32_MAX;
+        // 2^31 is the full-scale divisor. INT32_MAX is not exact as a float.
+        fSample /= static_cast<T>(2147483648.0);
         break;
     case SampleFormat_32:
         fSample = (T)(*const_cast<std::int32_t *>(reinterpret_cast<const std::int32_t *>(pBuffer)));
-        fSample /= INT32_MAX;
+        fSample /= static_cast<T>(2147483648.0);
         break;
     case SampleFormat_FP32: fSample = (T) * const_cast<float *>(reinterpret_cast<const float *>(pBuffer)); break;
     }

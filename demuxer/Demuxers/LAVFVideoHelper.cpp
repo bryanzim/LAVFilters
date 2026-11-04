@@ -249,14 +249,14 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream *avstream, ULONG *si
 
     pvi->bmiHeader.biWidth = avstream->codecpar->width;
     pvi->bmiHeader.biHeight = avstream->codecpar->height;
-    pvi->bmiHeader.biBitCount = avstream->codecpar->bits_per_coded_sample;
+    pvi->bmiHeader.biBitCount = static_cast<WORD>(avstream->codecpar->bits_per_coded_sample);
     // Validate biBitCount is set to something useful
     if (((pvi->bmiHeader.biBitCount == 0) || (avstream->codecpar->codec_id == AV_CODEC_ID_RAWVIDEO)) &&
         (avstream->codecpar->format != AV_PIX_FMT_NONE))
     {
         const AVPixFmtDescriptor *pixdecs = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(avstream->codecpar->format));
         if (pixdecs) {
-            pvi->bmiHeader.biBitCount = av_get_bits_per_pixel(pixdecs);
+            pvi->bmiHeader.biBitCount = static_cast<WORD>(av_get_bits_per_pixel(pixdecs));
         }
     }
     pvi->bmiHeader.biSizeImage = DIBSIZE(pvi->bmiHeader); // Calculating this value doesn't really make alot of sense,
@@ -540,7 +540,7 @@ HRESULT CLAVFVideoHelper::ProcessH264MVCExtradata(BYTE *extradata, int extradata
     if (*reinterpret_cast<char *>(extradata) == 1)
     {
         // Find "mvcC" atom
-        std::uint32_t state = -1;
+        std::uint32_t state = static_cast<std::uint32_t>(-1);
         int i{ 0 };
         for (; i < extradata_size; ++i)
         {
@@ -576,7 +576,7 @@ HRESULT CLAVFVideoHelper::ProcessH264MVCExtradata(BYTE *extradata, int extradata
 
 HRESULT CLAVFVideoHelper::ProcessHEVCExtradata(BYTE *extradata, int extradata_size, MPEG2VIDEOINFO *mp2vi)
 {
-    if (extradata[0U] || extradata[1U] || (extradata[2U] > 1) && (extradata_size > 25))
+    if (extradata[0U] || extradata[1U] || ((extradata[2U] > 1) && (extradata_size > 25)))
     {
         mp2vi->dwFlags = (extradata[21U] & 3) + 1;
     }
@@ -585,7 +585,7 @@ HRESULT CLAVFVideoHelper::ProcessHEVCExtradata(BYTE *extradata, int extradata_si
 
 HRESULT CLAVFVideoHelper::ProcessVVCExtradata(BYTE *extradata, int extradata_size, MPEG2VIDEOINFO *mp2vi)
 {
-    if (extradata[0U] || extradata[1U] || (extradata[2U] > 1) && (extradata_size > 25))
+    if (extradata[0U] || extradata[1U] || ((extradata[2U] > 1) && (extradata_size > 25)))
     {
         mp2vi->dwFlags = (extradata[21U] & 3) + 1;
     }

@@ -64,12 +64,12 @@
  * possible, just not optimized (ugly and/or slow)
  */
 
-typedef struct
+struct LAV_INOUT_PIXFMT_MAP
 {
     LAVPixelFormat in_pix_fmt;
     int maxbpp{ 0 };
     LAVOutPixFmts lav_pix_fmts[LAVOutPixFmt_NB + 1];
-} LAV_INOUT_PIXFMT_MAP;
+};
 
 #define PIXOUT_420_8 LAVOutPixFmt_NV12, LAVOutPixFmt_YV12
 #define PIXOUT_422_8 LAVOutPixFmt_YUY2, LAVOutPixFmt_UYVY, LAVOutPixFmt_YV16
@@ -305,7 +305,7 @@ void CLAVPixFmtConverter::GetMediaType(CMediaType *mt, int index, LONG biWidth, 
     pBIH->biSize = sizeof(BITMAPINFOHEADER);
     pBIH->biWidth = biWidth;
     pBIH->biHeight = biHeight;
-    pBIH->biBitCount = lav_pixfmt_desc[pixFmt].bpp;
+    pBIH->biBitCount = static_cast<WORD>(lav_pixfmt_desc[pixFmt].bpp);
     pBIH->biPlanes = 1;
     pBIH->biSizeImage = GetImageSize(biWidth, (std::abs)(biHeight), pixFmt);
     pBIH->biCompression = guid.Data1;
@@ -763,10 +763,10 @@ const std::uint16_t *CLAVPixFmtConverter::GetRandomDitherCoeffs(int height, int 
             {
                 std::array<int, 4U> rnds{};
                 rand_sse(rnds.data());
-                ditherline[j + 0] = rnds[0U] % bits;
-                ditherline[j + 1] = rnds[1U] % bits;
-                ditherline[j + 2] = rnds[2U] % bits;
-                ditherline[j + 3] = rnds[3U] % bits;
+                ditherline[j + 0] = static_cast<std::uint16_t>(rnds[0U] % bits);
+                ditherline[j + 1] = static_cast<std::uint16_t>(rnds[1U] % bits);
+                ditherline[j + 2] = static_cast<std::uint16_t>(rnds[2U] % bits);
+                ditherline[j + 3] = static_cast<std::uint16_t>(rnds[3U] % bits);
             }
         }
 #ifdef DEBUG

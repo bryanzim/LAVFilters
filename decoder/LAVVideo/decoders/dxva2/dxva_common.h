@@ -27,14 +27,14 @@ DWORD dxva_align_dimensions(AVCodecID codec, DWORD dim);
 #define VEND_ID_INTEL 0x8086
 
 /* hardware mode description */
-typedef struct
+struct dxva_mode_t
 {
     const char *name{ nullptr };
     const GUID *guid;
     int codec{ 0 };
     const int *profiles{ nullptr };
     const int level{ 0 };
-} dxva_mode_t;
+};
 
 extern const dxva_mode_t dxva_modes[];
 

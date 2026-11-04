@@ -335,7 +335,6 @@ static int chroma_y(AVPixelFormat pix_fmt)
 
 STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStream *avstream)
 {
-    unsigned int const origCodecTag = avstream->codecpar->codec_tag;
     if ((avstream->codecpar->codec_tag == 0) && (avstream->codecpar->codec_id != AV_CODEC_ID_DVVIDEO))
     {
         avstream->codecpar->codec_tag = av_codec_get_tag(mp_bmp_taglists, avstream->codecpar->codec_id);
@@ -428,14 +427,14 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
             AV_WB32(extra, MKBETAG('v', 'p', 'c', 'C'));
             AV_WB8(extra + 4, 1);  // version
             AV_WB24(extra + 5, 0); // flags
-            AV_WB8(extra + 8, avstream->codecpar->profile);
-            AV_WB8(extra + 9, avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level);
-            AV_WB8(extra + 10, get_pixel_bitdepth(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 4 |
+            AV_WB8(extra + 8, static_cast<std::uint8_t>(avstream->codecpar->profile));
+            AV_WB8(extra + 9, static_cast<std::uint8_t>(avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level));
+            AV_WB8(extra + 10, static_cast<std::uint8_t>(get_pixel_bitdepth(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 4 |
                                    get_vpcC_chroma(avstream->codecpar) << 1 |
-                                   (avstream->codecpar->color_range == AVCOL_RANGE_JPEG));
-            AV_WB8(extra + 11, avstream->codecpar->color_primaries);
-            AV_WB8(extra + 12, avstream->codecpar->color_trc);
-            AV_WB8(extra + 13, avstream->codecpar->color_space);
+                                   (avstream->codecpar->color_range == AVCOL_RANGE_JPEG)));
+            AV_WB8(extra + 11, static_cast<std::uint8_t>(avstream->codecpar->color_primaries));
+            AV_WB8(extra + 12, static_cast<std::uint8_t>(avstream->codecpar->color_trc));
+            AV_WB8(extra + 13, static_cast<std::uint8_t>(avstream->codecpar->color_space));
             AV_WB16(extra + 14, 0); // no codec init data
         }
         else if (mtype.subtype == MEDIASUBTYPE_AV01)
@@ -452,18 +451,18 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
 
                 BYTE *extra = mtype.pbFormat + sizeof(VIDEOINFOHEADER2);
                 AV_WB8(extra, 0x81);  // version
-                AV_WB8(extra + 1, (avstream->codecpar->profile == AV_PROFILE_UNKNOWN ? 0 : avstream->codecpar->profile) << 5 |
-                                      (avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level));
+                AV_WB8(extra + 1, static_cast<std::uint8_t>((avstream->codecpar->profile == AV_PROFILE_UNKNOWN ? 0 : avstream->codecpar->profile) << 5 |
+                                      (avstream->codecpar->level == AV_LEVEL_UNKNOWN ? 0 : avstream->codecpar->level)));
 
                 int const bpp = get_pixel_bitdepth(static_cast<AVPixelFormat>(avstream->codecpar->format));
-                AV_WB8(extra + 2, (0 << 7) | // seq_tier
+                AV_WB8(extra + 2, static_cast<std::uint8_t>((0 << 7) | // seq_tier
                                   ((bpp > 8) << 6) | // high_bitdepth
                                   ((bpp == 12) << 5) | // twelve bit
                                   (is_monochrome(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 4) | // monochrome
                                   (chroma_x(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 3) |
                                   (chroma_y(static_cast<AVPixelFormat>(avstream->codecpar->format)) << 2) |
                                   (0 << 1) // chroma  sample position
-                    );
+                    ));
 
                 AV_WB8(extra + 3, 0); // reserved, unusued fields
             }
@@ -501,8 +500,8 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVFormatContext *avctx, AVStr
                 mtype.subtype = MEDIASUBTYPE_AVC1;
                 mtype.pbFormat =
                     reinterpret_cast<BYTE *>(g_VideoHelper.CreateMPEG2VI(avstream, &mtype.cbFormat, m_containerFormat, TRUE));
-                MPEG2VIDEOINFO *mp2vi = reinterpret_cast<MPEG2VIDEOINFO *>(mtype.pbFormat);
-                mp2vi->hdr.bmiHeader.biCompression = mtype.subtype.Data1;
+                MPEG2VIDEOINFO *avc1vi = reinterpret_cast<MPEG2VIDEOINFO *>(mtype.pbFormat);
+                avc1vi->hdr.bmiHeader.biCompression = mtype.subtype.Data1;
             }
         }
         else if (avstream->codecpar->codec_id == AV_CODEC_ID_HEVC)

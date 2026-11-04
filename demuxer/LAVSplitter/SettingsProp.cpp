@@ -388,7 +388,7 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
         {
             DWORD const dwVal = static_cast<DWORD>(SendDlgItemMessage(m_Dlg, IDC_SUBTITLE_MODE, CB_GETCURSEL, 0, 0));
             UpdateSubtitleMode(static_cast<LAVSubtitleMode>(dwVal));
-            if (dwVal != m_subtitleMode)
+            if (dwVal != static_cast<DWORD>(m_subtitleMode))
             {
                 SetDirty();
             }
@@ -489,7 +489,7 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_QUEUE_MEM, WM_SETTEXT, 0, (LPARAM)buffer.data());
                 }
-                if (maxMem != m_QueueMaxMem) {
+                if (static_cast<DWORD>(maxMem) != m_QueueMaxMem) {
                     SetDirty();
                 }
             }
@@ -510,7 +510,7 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_QUEUE_PACKETS, WM_SETTEXT, 0, (LPARAM)buffer.data());
                 }
-                if (maxMem != m_QueueMaxPackets) {
+                if (static_cast<DWORD>(maxMem) != m_QueueMaxPackets) {
                     SetDirty();
                 }
             }
@@ -531,7 +531,7 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
                 if (std::wcslen(buffer.data()) != len) {
                     SendDlgItemMessage(m_Dlg, IDC_STREAM_ANADUR, WM_SETTEXT, 0, (LPARAM)buffer.data());
                 }
-                if (duration != m_NetworkAnalysisDuration) {
+                if (static_cast<DWORD>(duration) != m_NetworkAnalysisDuration) {
                     SetDirty();
                 }
             }

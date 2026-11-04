@@ -196,11 +196,9 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
     CAutoLock const lock(m_pLock);
     HRESULT hr{ S_OK };
 
-    int ret; // return code from C functions
-
     // Convert the filename from wchar to char for libbluray
     std::array<char, 4096U> fileName{};
-    ret = SafeWideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, fileName.data(), 4096, nullptr, nullptr);
+    SafeWideCharToMultiByte(CP_UTF8, 0, pszFileName, -1, fileName.data(), 4096, nullptr, nullptr);
 
     int iPlaylist{ -1 };
 
@@ -275,7 +273,7 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName, LPCOLESTR pszUserAgent, LPC
                 DbgLog((LOG_TRACE, 20, L"Title %u, Playlist %u (%u clips, %u chapters), Duration %I64u (%I64u seconds)",
                         i, info->playlist, info->clip_count, info->chapter_count, info->duration,
                         Convert90KhzToDSTime(info->duration) / DSHOW_TIME_BASE));
-                if ((iPlaylist != -1) && (info->playlist == iPlaylist))
+                if ((iPlaylist != -1) && (info->playlist == static_cast<std::uint32_t>(iPlaylist)))
                 {
                     title_id = i;
                     found = true;
@@ -334,7 +332,7 @@ void CBDDemuxer::ProcessBDEvents()
             {
                 m_rtNewOffset = Convert90KhzToDSTime(clip_start - clip_in) + m_lavfDemuxer->GetStartTime();
                 m_bNewOffsetPos = bytepos - 4;
-                m_NewClip = event.param;
+                m_NewClip = static_cast<std::uint16_t>(event.param);
                 DbgLog((LOG_TRACE, 10, L"New clip! offset: %I64d bytepos: %I64u", m_rtNewOffset, bytepos));
             }
             m_EndOfStreamPacketFlushProtection = FALSE;
@@ -367,7 +365,7 @@ STDMETHODIMP CBDDemuxer::ProcessPacket(Packet *pPacket)
             m_StreamClip[pPacket->StreamId] = m_NewClip;
 
             // Flush MVC extensions on stream change, it'll re-fill automatically
-            if (m_MVCPlayback && (pPacket->StreamId == m_lavfDemuxer->m_nH264MVCBaseStream) &&
+            if (m_MVCPlayback && (pPacket->StreamId == static_cast<DWORD>(m_lavfDemuxer->m_nH264MVCBaseStream)) &&
                 (m_MVCExtensionClip != m_NewClip))
             {
                 m_lavfDemuxer->FlushMVCExtensionQueue();
@@ -892,8 +890,6 @@ void CBDDemuxer::ProcessClipInfo(CLPI_CL *clpi, bool overwrite)
 
 STDMETHODIMP CBDDemuxer::Seek(REFERENCE_TIME rTime)
 {
-    std::int64_t const prev = bd_tell(m_pBD);
-
     std::int64_t const target = bd_find_seek_point(m_pBD, ConvertDSTimeTo90Khz(rTime));
     m_EndOfStreamPacketFlushProtection = FALSE;
 

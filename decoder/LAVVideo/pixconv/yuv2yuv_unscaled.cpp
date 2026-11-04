@@ -72,7 +72,7 @@ template <int nv12> DECLARE_CONV_FUNC_IMPL(convert_yuv_yv_nv12_dither_le)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
@@ -428,7 +428,7 @@ template <int uyvy> DECLARE_CONV_FUNC_IMPL(convert_yuv422_yuy2_uyvy_dither_le)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
@@ -556,7 +556,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, ditherCoeffs);
             xmm3 = xmm2;
         }
 
@@ -589,7 +589,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_sse2)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm2, line, 8, ditherCoeffs);
             xmm3 = xmm2;
         }
 

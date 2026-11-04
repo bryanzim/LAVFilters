@@ -41,6 +41,14 @@ typedef enum
     NALU_TYPE_SPS_SUB = 15,
 } NALU_TYPE;
 
+// HEVC nal_unit_type is 6 bits. It does not fit in NALU_TYPE, whose enumerators stop at 15.
+enum HEVC_NALU_TYPE : unsigned char {
+    HEVC_NAL_VPS = 32,
+    HEVC_NAL_SPS = 33,
+    HEVC_NAL_PPS = 34,
+    HEVC_NAL_UNSPEC62 = 62,
+};
+
 class CH264Nalu
 {
   protected:
@@ -93,6 +101,10 @@ class CH265Nalu : public CH264Nalu
         m_nNALHeaderSize = 2U;
     }
     bool ReadNext();
+    [[nodiscard]] constexpr HEVC_NALU_TYPE GetType() const noexcept { return m_hevcType; }
+
+  private:
+    HEVC_NALU_TYPE m_hevcType{ static_cast<HEVC_NALU_TYPE>(0) };
 };
 
 class CH264NALUnescape

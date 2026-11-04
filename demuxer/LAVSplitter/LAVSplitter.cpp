@@ -386,21 +386,26 @@ STDMETHODIMP CLAVSplitter::CreatePage(const GUID &guid, IPropertyPage **ppPage)
     if (*ppPage != nullptr) { return E_INVALIDARG; }
 
     if (guid == CLSID_LAVSplitterSettingsProp) {
-        *ppPage = new CLAVSplitterSettingsProp(nullptr, &hr);
-    } else if (guid == CLSID_LAVSplitterFormatsProp) {
-        *ppPage = new CLAVSplitterFormatsProp(nullptr, &hr);
-    }
-
-    if (SUCCEEDED(hr) && *ppPage)
-    {
-        (*ppPage)->AddRef();
+        auto *pProp = new CLAVSplitterSettingsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
         return S_OK;
     }
-    else
-    {
-        SAFE_DELETE(*ppPage);
-        return E_FAIL;
+    if (guid == CLSID_LAVSplitterFormatsProp) {
+        auto *pProp = new CLAVSplitterFormatsProp(nullptr, &hr);
+        if (FAILED(hr) || (pProp == nullptr)) {
+            delete pProp;
+            return E_FAIL;
+        }
+        pProp->AddRef();
+        *ppPage = pProp;
+        return S_OK;
     }
+    return E_FAIL;
 }
 
 // IObjectWithSite
@@ -807,7 +812,7 @@ DWORD CLAVSplitter::ThreadProc()
         return 0;
     }
 
-    SetThreadName(-1, "CLAVSplitter Demux");
+    SetThreadName(static_cast<DWORD>(-1), "CLAVSplitter Demux");
 
     m_pDemuxer->Start();
 
@@ -1259,8 +1264,8 @@ STDMETHODIMP CLAVSplitter::SetPositionsInternal(void *caller, LONGLONG *pCurrent
     {
     CAutoLock const cAutoLock(this);
 
-    if (!pCurrent && !pStop || ((dwCurrentFlags & AM_SEEKING_PositioningBitsMask) == AM_SEEKING_NoPositioning) &&
-                                   ((dwStopFlags & AM_SEEKING_PositioningBitsMask) == AM_SEEKING_NoPositioning))
+    if ((!pCurrent && !pStop) || (((dwCurrentFlags & AM_SEEKING_PositioningBitsMask) == AM_SEEKING_NoPositioning) &&
+                                  ((dwStopFlags & AM_SEEKING_PositioningBitsMask) == AM_SEEKING_NoPositioning)))
     {
         return S_OK;
     }
@@ -1739,7 +1744,7 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
             if (s.pid == NO_SUBTITLE_PID)
             {
                 if (plcid) {
-                    *plcid = LCID_NOSUBTITLES;
+                    *plcid = static_cast<LCID>(LCID_NOSUBTITLES);
                 }
                 if (ppszName)
                 {

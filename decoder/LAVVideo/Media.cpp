@@ -1085,7 +1085,7 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
         }
         for (int j{ 0 }; j < AV_DOVI_MAX_PIECES; ++j)
         {
-            sd->Mapping.curves[i].mapping_idc[j] = mapping->curves[i].mapping_idc[j];
+            sd->Mapping.curves[i].mapping_idc[j] = static_cast<std::uint8_t>(mapping->curves[i].mapping_idc[j]);
 
             // poly
             sd->Mapping.curves[i].poly_order[j] = mapping->curves[i].poly_order[j];
@@ -1104,7 +1104,7 @@ void processFFDOVIData(MediaSideDataDOVIMetadata* sd, const AVDOVIMetadata* ff)
         }
     }
 
-    RPU_MAP(nlq_method_idc);
+    sd->Mapping.nlq_method_idc = static_cast<std::uint8_t>(mapping->nlq_method_idc);
     RPU_MAP(num_x_partitions);
     RPU_MAP(num_y_partitions);
 

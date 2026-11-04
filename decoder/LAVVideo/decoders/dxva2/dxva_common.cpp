@@ -199,7 +199,6 @@ int check_dxva_codec_profile(const AVCodecContext *ctx, int hwpixfmt)
     AVCodecID const codec = ctx->codec_id;
     AVPixelFormat const pix_fmt = ctx->pix_fmt;
     int const profile = ctx->profile;
-    int const level = ctx->level;
 
     // check mpeg2 pixfmt
     if ((codec == AV_CODEC_ID_MPEG2VIDEO) && (pix_fmt != AV_PIX_FMT_YUV420P) && (pix_fmt != AV_PIX_FMT_YUVJ420P) && (pix_fmt != hwpixfmt) && (pix_fmt != AV_PIX_FMT_NONE)) { return 1; }

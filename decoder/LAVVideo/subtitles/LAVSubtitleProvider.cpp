@@ -138,7 +138,7 @@ STDMETHODIMP CLAVSubtitleProvider::DisconnectConsumer(void)
 
 #define PTS2RT(pts) (10000i64 * pts / 90)
 
-STDMETHODIMP CLAVSubtitleProvider::RequestFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID context)
+STDMETHODIMP CLAVSubtitleProvider::RequestFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID frameContext)
 {
   ASSERT(m_pConsumer);
 
@@ -191,7 +191,7 @@ STDMETHODIMP CLAVSubtitleProvider::RequestFrame(REFERENCE_TIME start, REFERENCE_
   }
 
   // Deliver Frame
-  m_pConsumer->DeliverFrame(start, stop, context, subtitleFrame);
+  m_pConsumer->DeliverFrame(start, stop, frameContext, subtitleFrame);
   SafeRelease(&subtitleFrame);
 
   TimeoutSubtitleRects(stop);
@@ -717,7 +717,7 @@ void CLAVSubtitleProviderControlThread::SetConsumer2(ISubRenderConsumer2 * pCons
 
 DWORD CLAVSubtitleProviderControlThread::ThreadProc()
 {
-  SetThreadName(-1, "LAV Subtitle Control Thread");
+  SetThreadName(static_cast<DWORD>(-1), "LAV Subtitle Control Thread");
   DWORD cmd{ 0U };
   while (1) {
     cmd = GetRequest();

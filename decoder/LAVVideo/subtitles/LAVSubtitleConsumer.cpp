@@ -90,7 +90,7 @@ STDMETHODIMP CLAVSubtitleConsumer::Disconnect(void)
     return S_OK;
 }
 
-STDMETHODIMP CLAVSubtitleConsumer::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID context,
+STDMETHODIMP CLAVSubtitleConsumer::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID frameContext,
                                                 ISubRenderFrame *subtitleFrame)
 {
     ASSERT(m_SubtitleFrame == nullptr);

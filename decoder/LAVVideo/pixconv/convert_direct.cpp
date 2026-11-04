@@ -285,7 +285,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 
@@ -343,7 +343,7 @@ DECLARE_CONV_FUNC_IMPL(convert_p010_nv12_direct_sse4)
         }
         else
         {
-            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, dithers);
+            PIXCONV_LOAD_DITHER_COEFFS(xmm7, line, 8, ditherCoeffs);
             xmm4 = xmm5 = xmm6 = xmm7;
         }
 

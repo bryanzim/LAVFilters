@@ -41,8 +41,8 @@ static const LAV_TYPE_MAP lav_subtitle_codecs[] = {
 CLAVVideoSubtitleInputPin::CLAVVideoSubtitleInputPin(TCHAR *pObjectName, CLAVVideo *pFilter, CCritSec *pcsFilter,
                                                      HRESULT *phr, LPWSTR pName)
     : CBaseInputPin(pObjectName, pFilter, pcsFilter, phr, pName)
-    , m_pLAVVideo{pFilter}
     , CDeCSSPinHelper{}
+    , m_pLAVVideo{pFilter}
 {
 }
 

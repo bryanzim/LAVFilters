@@ -19,7 +19,7 @@
 
 #include "stdafx.h"
 
-#include "lavfutils.h"
+#include "LAVFUtils.h"
 
 #include <array>
 #include <cstddef>
@@ -275,9 +275,9 @@ const char *lavf_get_stream_title(const AVStream *pStream)
     {
         title = dictEntry->value;
     }
-    else if (AVDictionaryEntry *dictEntry = av_dict_get(pStream->metadata, "handler_name", nullptr, 0))
+    else if (AVDictionaryEntry *handlerEntry = av_dict_get(pStream->metadata, "handler_name", nullptr, 0))
     {
-        title = dictEntry->value;
+        title = handlerEntry->value;
         if (title && (std::strstr(title, "Handle") != nullptr)) {
             title = nullptr;
         }

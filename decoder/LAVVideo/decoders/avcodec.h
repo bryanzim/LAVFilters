@@ -27,11 +27,11 @@
 
 #define AVCODEC_MAX_THREADS 32
 
-typedef struct
+struct TimingCache
 {
     REFERENCE_TIME rtStart{ 0 };
     REFERENCE_TIME rtStop{ 0 };
-} TimingCache;
+};
 
 class CDecAvcodec : public CDecBase
 {
