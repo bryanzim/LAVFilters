@@ -2144,8 +2144,7 @@ HRESULT CLAVVideo::DeliverToRenderer(LAVFrame *pFrame)
             hdr = reinterpret_cast<MediaSideDataHDR *>(AddLAVFrameSideData(pFrame, IID_MediaSideDataHDR, sizeof(MediaSideDataHDR)));
 }
 
-        if (hdr)
-            processFFHDRData(hdr, &m_SideData.Mastering);
+        if (hdr) { processFFHDRData(hdr, &m_SideData.Mastering); }
     }
 
     if (m_SideData.ContentLight.MaxCLL && m_SideData.ContentLight.MaxFALL)

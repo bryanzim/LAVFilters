@@ -488,7 +488,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
 {
     HRESULT hr = S_OK;
     IMediaSample *pSample = nullptr;
-    bool bPacketOwnedBySample = false;
+    bool bPacketOwnedBySample{ false };
 
     long const nBytes = static_cast<long>(pPacket->GetDataSize());
 
@@ -600,8 +600,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
     CHECK_HR(hr = Deliver(pSample));
 
 done:
-    if (!bPacketOwnedBySample)
-        SAFE_DELETE(pPacket);
+    if (!bPacketOwnedBySample) { SAFE_DELETE(pPacket); }
     SafeRelease(&pSample);
     return hr;
 }

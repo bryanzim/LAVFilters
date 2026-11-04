@@ -554,8 +554,11 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
         }
     }
 
-    if ((codec == AV_CODEC_ID_V210 || codec == AV_CODEC_ID_RAWVIDEO) && m_pAVCtx->field_order > AV_FIELD_PROGRESSIVE)
+    if (((codec == AV_CODEC_ID_V210) || (codec == AV_CODEC_ID_RAWVIDEO)) &&
+        (m_pAVCtx->field_order > AV_FIELD_PROGRESSIVE))
+    {
         m_iInterlaced = 1;
+    }
 
     // Detect chroma and interlaced
     if ((m_pAVCtx->extradata) && (m_pAVCtx->extradata_size))

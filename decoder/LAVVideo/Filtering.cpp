@@ -50,13 +50,14 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
     BOOL const bFlush = pFrame->flags & LAV_FRAME_FLAG_FLUSH;
     if (m_Decoder.IsInterlaced(FALSE) && (m_settings.DeintMode != DeintMode_Disable) &&
         (m_settings.SWDeintMode != SWDeintMode_None) &&
-        ((bFlush && m_pFilterGraph) || pFrame->format == LAVPixFmt_YUV420 || pFrame->format == LAVPixFmt_YUV422 ||
-         pFrame->format == LAVPixFmt_NV12 || pFrame->format == LAVPixFmt_YUV422bX))
+        ((bFlush && m_pFilterGraph) || (pFrame->format == LAVPixFmt_YUV420) || (pFrame->format == LAVPixFmt_YUV422) ||
+         (pFrame->format == LAVPixFmt_NV12) || (pFrame->format == LAVPixFmt_YUV422bX)))
     {
         AVPixelFormat const ff_pixfmt = bFlush ? AV_PIX_FMT_NONE : getFFPixelFormatFromLAV(pFrame->format, pFrame->bpp);
 
-        if (!bFlush && (!m_pFilterGraph || pFrame->format != m_filterPixFmt || pFrame->width != m_filterWidth ||
-                        pFrame->height != m_filterHeight))
+        // the bit depth selects the FFmpeg pixel format of the 422bX frames, so it needs a new graph as well
+        if (!bFlush && (!m_pFilterGraph || (pFrame->format != m_filterPixFmt) || (pFrame->bpp != m_filterBpp) ||
+                        (pFrame->width != m_filterWidth) || (pFrame->height != m_filterHeight)))
         {
             DbgLog((LOG_TRACE, 10, L":Filter()(init) Initializing software deinterlacing filter..."));
             if (m_pFilterGraph)
@@ -67,6 +68,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             }
 
             m_filterPixFmt = pFrame->format;
+            m_filterBpp = pFrame->bpp;
             m_filterWidth = pFrame->width;
             m_filterHeight = pFrame->height;
 
@@ -241,12 +243,11 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 }
 
             // Copy most settings over
-            AVPixelFormatMapping map = getFFToLAVPixFmtMapping((AVPixelFormat)out_frame->format);
+            AVPixelFormatMapping const map = getFFToLAVPixFmtMapping(static_cast<AVPixelFormat>(out_frame->format));
             ASSERT(map.conversion == false);
             outFrame->format = map.lavpixfmt;
             outFrame->bpp = map.bpp;
             outFrame->sw_format = outFrame->format;
-            outFrame->bpp = pFrame->bpp;
             outFrame->ext_format = pFrame->ext_format;
             outFrame->avgFrameDuration = pFrame->avgFrameDuration;
             outFrame->flags = pFrame->flags;

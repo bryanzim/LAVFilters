@@ -38,7 +38,7 @@ int Packet::SetDataSize(int len)
 {
     if (len < 0) { return -1; }
 
-    if (m_Packet && len <= m_Packet->size)
+    if (m_Packet && (len <= m_Packet->size))
     {
         av_shrink_packet(m_Packet, len);
         return 0;

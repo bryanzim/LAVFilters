@@ -110,7 +110,7 @@ AVPixelFormat getFFPixelFormatFromLAV(LAVPixelFormat pixFmt, int bpp)
 
 // This mapping table should contain all pixel formats, except hardware formats (VDPAU, XVMC, DXVA, etc)
 // A format that is not listed will be converted to YUV420
-static AVPixelFormatMapping ff_pix_map[] = {
+static const AVPixelFormatMapping ff_pix_map[] = {
     {AV_PIX_FMT_YUV420P, LAVPixFmt_YUV420, FALSE},
     {AV_PIX_FMT_YUYV422, LAVPixFmt_YUY2, FALSE},
     {AV_PIX_FMT_BGR24, LAVPixFmt_RGB24, FALSE},
@@ -220,9 +220,9 @@ static AVPixelFormatMapping ff_pix_map[] = {
 
 AVPixelFormatMapping getFFToLAVPixFmtMapping(AVPixelFormat pixfmt)
 {
-    const AVPixelFormatMapping def = {pixfmt, LAVPixFmt_YUV420, TRUE, 8};
+    AVPixelFormatMapping const def = {pixfmt, LAVPixFmt_YUV420, TRUE, 8};
     AVPixelFormatMapping result = {AV_PIX_FMT_NONE};
-    for (int i = 0; i < countof(ff_pix_map); i++)
+    for (std::size_t i{ 0U }; i < countof(ff_pix_map); ++i)
     {
         if (ff_pix_map[i].ffpixfmt == pixfmt)
         {
@@ -244,43 +244,48 @@ AVPixelFormatMapping getFFToLAVPixFmtMapping(AVPixelFormat pixfmt)
             // RGB formats (or PAL)
             if (desc->flags & (AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_PAL))
             {
-                if (desc->comp[0].depth > 8)
+                if (desc->comp[0U].depth > 8) {
                     result = {pixfmt, LAVPixFmt_RGB48, TRUE};
-                else
+                } else {
                     result = {pixfmt, LAVPixFmt_RGB32, TRUE};
+                }
             }
             else
             {
                 // 420 and 410 (and gray)
-                if ((desc->log2_chroma_w && desc->log2_chroma_h) || desc->nb_components == 1)
+                if ((desc->log2_chroma_w && desc->log2_chroma_h) || (desc->nb_components == 1))
                 {
-                    if (desc->comp[0].depth > 8)
-                        result = {pixfmt, LAVPixFmt_YUV420bX, TRUE, desc->comp[0].depth};
-                    else
+                    if (desc->comp[0U].depth > 8) {
+                        result = {pixfmt, LAVPixFmt_YUV420bX, TRUE, desc->comp[0U].depth};
+                    } else {
                         result = {pixfmt, LAVPixFmt_YUV420, TRUE};
+                    }
                 }
                 else if (desc->log2_chroma_w) // 422 and 411
                 {
-                    if (desc->comp[0].depth > 8)
-                        result = {pixfmt, LAVPixFmt_YUV422bX, TRUE, desc->comp[0].depth};
-                    else
+                    if (desc->comp[0U].depth > 8) {
+                        result = {pixfmt, LAVPixFmt_YUV422bX, TRUE, desc->comp[0U].depth};
+                    } else {
                         result = {pixfmt, LAVPixFmt_YUV422, TRUE};
+                    }
                 }
                 else // 444 and others
                 {
-                    if (desc->comp[0].depth > 8)
-                        result = {pixfmt, LAVPixFmt_YUV444bX, TRUE, desc->comp[0].depth};
-                    else
+                    if (desc->comp[0U].depth > 8) {
+                        result = {pixfmt, LAVPixFmt_YUV444bX, TRUE, desc->comp[0U].depth};
+                    } else {
                         result = {pixfmt, LAVPixFmt_YUV444, TRUE};
+                    }
                 }
             }
         }
     }
 
-    if (result.lavpixfmt != LAVPixFmt_YUV420bX && result.lavpixfmt != LAVPixFmt_YUV422bX &&
-        result.lavpixfmt != LAVPixFmt_YUV444bX && result.lavpixfmt != LAVPixFmt_P016 &&
-        result.lavpixfmt != LAVPixFmt_Y216)
+    if ((result.lavpixfmt != LAVPixFmt_YUV420bX) && (result.lavpixfmt != LAVPixFmt_YUV422bX) &&
+        (result.lavpixfmt != LAVPixFmt_YUV444bX) && (result.lavpixfmt != LAVPixFmt_P016) &&
+        (result.lavpixfmt != LAVPixFmt_Y216)) {
         result.bpp = 8;
+    }
 
     return result;
 }

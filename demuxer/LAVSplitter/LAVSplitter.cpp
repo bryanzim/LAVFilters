@@ -407,8 +407,7 @@ STDMETHODIMP CLAVSplitter::CreatePage(const GUID &guid, IPropertyPage **ppPage)
 STDMETHODIMP CLAVSplitter::SetSite(IUnknown *pUnkSite)
 {
     // Retain the new site before releasing the old one, which may be the same object.
-    if (pUnkSite)
-        pUnkSite->AddRef();
+    if (pUnkSite) { pUnkSite->AddRef(); }
 
     // Release the old one
     SafeRelease(&m_pSite);

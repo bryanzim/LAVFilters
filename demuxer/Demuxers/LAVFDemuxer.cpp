@@ -39,7 +39,8 @@
 #include <cstring>
 #include <ctime>
 #include <cwchar>
-
+#include <string>
+#include <vector>
 
 extern "C"
 {
@@ -2819,16 +2820,19 @@ STDMETHODIMP CLAVFDemuxer::AddStream(int streamId, bool bIsVideoEnhancementLayer
     {
         for (unsigned int i{ 0U }; i < m_avFormat->nb_stream_groups; ++i)
         {
-            if ((m_avFormat->stream_groups[i]->type == AV_STREAM_GROUP_PARAMS_DOLBY_VISION) &&
-                (m_avFormat->stream_groups[i]->nb_streams == 2))
+            // A group entry can be a nested group, only a pair of plain streams forms a BL/EL pair.
+            AVStreamGroup const *const group = m_avFormat->stream_groups[i];
+            if ((group->type == AV_STREAM_GROUP_PARAMS_DOLBY_VISION) && (group->nb_entries == 2U) &&
+                (group->entries[0U]->type == AV_STREAM_GROUP_ENTRY_STREAM) &&
+                (group->entries[1U]->type == AV_STREAM_GROUP_ENTRY_STREAM))
             {
-                unsigned int const el_idx = m_avFormat->stream_groups[i]->params.layered_video->el_index;
+                unsigned int const el_idx = group->params.layered_video->el_index;
                 unsigned int const bl_idx = !el_idx;
-                if (m_avFormat->stream_groups[i]->streams[el_idx]->index == streamId)
+                if ((el_idx < 2U) && (group->entries[el_idx]->stream->index == streamId))
                 {
                     bIsVideoEnhancementLayer = true;
 
-                    m_DOVI.nBLStreamId = m_avFormat->stream_groups[i]->streams[bl_idx]->index;
+                    m_DOVI.nBLStreamId = group->entries[bl_idx]->stream->index;
                     m_DOVI.nELStreamId = streamId;
 
                     m_DOVI.nBLNALSize =

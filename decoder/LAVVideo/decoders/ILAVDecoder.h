@@ -105,7 +105,6 @@ typedef struct AVPixelFormatMapping
 } AVPixelFormatMapping;
 AVPixelFormatMapping getFFToLAVPixFmtMapping(AVPixelFormat pixfmt);
 
-
 typedef struct LAVDirectBuffer
 {
     BYTE *data[4U];       ///< pointer to the picture planes
