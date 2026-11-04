@@ -57,6 +57,8 @@ class CH264Nalu
     std::size_t m_nSize{ 0U };
     int m_nNALSize{ 0 };
 
+    std::size_t m_nNALHeaderSize{ 1U };
+
     bool MoveToNextAnnexBStartcode();
     bool MoveToNextRTPStartcode();
 
@@ -86,7 +88,10 @@ class CH265Nalu : public CH264Nalu
 {
   public:
     explicit CH265Nalu()
-        : CH264Nalu(){};
+        : CH264Nalu()
+    {
+        m_nNALHeaderSize = 2U;
+    }
     bool ReadNext();
 };
 

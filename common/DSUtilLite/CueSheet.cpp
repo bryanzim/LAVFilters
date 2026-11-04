@@ -90,13 +90,14 @@ static string GetCueParam(string line, bool firstWord = false)
     return param;
 }
 
-static REFERENCE_TIME ParseCueIndex(string line)
+static REFERENCE_TIME ParseCueIndex(string line, int &index)
 {
-    int index, m, s, f, ret;
-    ret = ::sscanf_s(line.c_str(), " INDEX %d %d:%d:%d", &index, &m, &s, &f);
-    if (ret == 4) { return (m * 60i64 + s) * 10000000i64 + (f * 10000000i64 / 75); } else {
-        return 0;
-}
+    int m{ 0 }, s{ 0 }, f{ 0 };
+    int const ret = ::sscanf_s(GetCueParam(line).c_str(), "%d %d:%d:%d", &index, &m, &s, &f);
+    if (ret == 4) { return (m * 60i64 + s) * 10000000i64 + (f * 10000000i64 / 75); }
+
+    index = -1;
+    return 0;
 }
 
 CCueSheet::CCueSheet()
@@ -111,6 +112,7 @@ HRESULT CCueSheet::Parse(string cueSheet)
 {
     DbgLog((LOG_TRACE, 10, L"CCueSheet::Parse(): Parsing Cue Sheet"));
     int trackCount{ 0 };
+    bool bTrackHasIndex1{ false };
     ParserState state(ParserState::GLOBAL);
     stringstream cueSheetStream(cueSheet);
     string line;
@@ -146,6 +148,7 @@ HRESULT CCueSheet::Parse(string cueSheet)
             {
                 state = ParserState::TRACK;
                 ++trackCount;
+                bTrackHasIndex1 = false;
 
                 string const id = GetCueParam(line, true);
                 Track const track{trackCount - 1, id, "Title " + id, 0, ""};
@@ -159,7 +162,15 @@ HRESULT CCueSheet::Parse(string cueSheet)
                 }
                 else if (word == "INDEX")
                 {
-                    m_Tracks.back().Time = ParseCueIndex(line);
+                    // INDEX 01 marks the start of the track, other indices (pregap, sub-indices) are only used
+                    // if no INDEX 01 is present
+                    int index{ -1 };
+                    REFERENCE_TIME const rtIndex = ParseCueIndex(line, index);
+                    if ((index == 1) || ((index >= 0) && !bTrackHasIndex1))
+                    {
+                        m_Tracks.back().Time = rtIndex;
+                        if (index == 1) { bTrackHasIndex1 = true; }
+                    }
                 }
                 else if (word == "PERFORMER")
                 {

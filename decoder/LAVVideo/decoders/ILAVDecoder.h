@@ -93,6 +93,19 @@ LAVPixFmtDesc getPixelFormatDesc(LAVPixelFormat pixFmt);
  */
 AVPixelFormat getFFPixelFormatFromLAV(LAVPixelFormat pixFmt, int bpp);
 
+/**
+ * Map the FFmpeg pixel format to LAV
+ */
+typedef struct AVPixelFormatMapping
+{
+    AVPixelFormat ffpixfmt;
+    LAVPixelFormat lavpixfmt;
+    BOOL conversion;
+    int bpp;
+} AVPixelFormatMapping;
+AVPixelFormatMapping getFFToLAVPixFmtMapping(AVPixelFormat pixfmt);
+
+
 typedef struct LAVDirectBuffer
 {
     BYTE *data[4U];       ///< pointer to the picture planes

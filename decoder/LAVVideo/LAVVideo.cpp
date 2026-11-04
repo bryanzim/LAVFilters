@@ -886,9 +886,10 @@ HRESULT CLAVVideo::CreateDecoder(const CMediaType *pmt)
         m_bForceFormatNegotiation = TRUE;
 }
 
-    if ((pix == LAVPixFmt_YUV420) || (pix == LAVPixFmt_YUV422) || (pix == LAVPixFmt_NV12)) {
+    if ((pix == LAVPixFmt_YUV420) || (pix == LAVPixFmt_YUV422) || (pix == LAVPixFmt_NV12) ||
+        (pix == LAVPixFmt_YUV422bX)) {
         m_filterPixFmt = pix;
-}
+    }
 
     if (m_settings.bCCOutputPinEnabled && !bDVDPlayback &&
         (codec == AV_CODEC_ID_MPEG2VIDEO || codec == AV_CODEC_ID_H264))
@@ -2143,7 +2144,8 @@ HRESULT CLAVVideo::DeliverToRenderer(LAVFrame *pFrame)
             hdr = reinterpret_cast<MediaSideDataHDR *>(AddLAVFrameSideData(pFrame, IID_MediaSideDataHDR, sizeof(MediaSideDataHDR)));
 }
 
-        processFFHDRData(hdr, &m_SideData.Mastering);
+        if (hdr)
+            processFFHDRData(hdr, &m_SideData.Mastering);
     }
 
     if (m_SideData.ContentLight.MaxCLL && m_SideData.ContentLight.MaxFALL)
@@ -2168,8 +2170,11 @@ HRESULT CLAVVideo::DeliverToRenderer(LAVFrame *pFrame)
                 pFrame, IID_MediaSideDataHDRContentLightLevel, sizeof(MediaSideDataHDRContentLightLevel)));
 }
 
-        hdr->MaxCLL = m_SideData.ContentLight.MaxCLL;
-        hdr->MaxFALL = m_SideData.ContentLight.MaxFALL;
+        if (hdr)
+        {
+            hdr->MaxCLL = m_SideData.ContentLight.MaxCLL;
+            hdr->MaxFALL = m_SideData.ContentLight.MaxFALL;
+        }
     }
 
     // Collect width/height

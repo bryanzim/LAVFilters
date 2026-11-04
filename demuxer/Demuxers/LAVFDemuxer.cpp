@@ -328,15 +328,17 @@ STDMETHODIMP CLAVFDemuxer::OpenInputStream(AVIOContext *byteContext, LPCOLESTR p
     // mms:// becomes mmsh://. That inserts one character, so the buffer has to grow.
     if (::_strnicmp("mms:", fileName, 4) == 0)
     {
-        std::size_t const oldLen = std::strlen(fileName);
-        char *rewritten = reinterpret_cast<char *>(CoTaskMemAlloc(oldLen + 2));
-        if (rewritten != nullptr)
+        // the string grows by one char, make room for it and the terminator
+        std::size_t const len = std::strlen(fileName);
+        char *newFileName = reinterpret_cast<char *>(CoTaskMemRealloc(fileName, len + 2));
+        if (newFileName == nullptr)
         {
-            std::memcpy(rewritten, "mmsh:", 5);
-            std::memcpy(rewritten + 5, fileName + 4, oldLen - 3);
-            CoTaskMemFree(fileName);
-            fileName = rewritten;
+            SAFE_CO_FREE(fileName);
+            return E_OUTOFMEMORY;
         }
+        fileName = newFileName;
+        std::memmove(fileName + 1, fileName, len + 1);
+        std::memcpy(fileName, "mmsh", 4);
     }
 
     // replace "icyx" protocol by http
@@ -501,11 +503,11 @@ trynoformat:
 
     if (rtmp_prameters != nullptr)
     {
-        std::array<char, 4100U> buff{};
+        // copy into a buffer sized to fit, the parameters can be of any length
+        std::vector<char> buff(rtmp_prameters + 1, rtmp_prameters + std::strlen(rtmp_prameters + 1) + 2);
         char *next_token = nullptr;
         bool bSwfVerify{ false };
 
-        ::strcpy_s(buff.data(), buff.size(),  rtmp_prameters + 1);
         const char *token = ::strtok_s(buff.data(), " ", &next_token);
         while (token)
         {
@@ -640,7 +642,11 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
     ::sprintf_s(path + std::strlen(path), a_len - std::strlen(path), "\\CLIPINF\\%S.clpi", basename.data());
 
     CLPI_CL *cl = bd_read_clpi(path);
-    if (!cl) { return E_FAIL; }
+    if (!cl)
+    {
+        CoTaskMemFree(path);
+        return E_FAIL;
+    }
 
     // Clip Info was found, add the language metadata to the AVStreams
     for (unsigned i{ 0U }; i < cl->program.num_prog; ++i)
@@ -676,7 +682,11 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
         PathRemoveFileSpecA(path);
 
         BLURAY *bd = bd_open(path, nullptr);
-        if (!bd) { return S_FALSE; }
+        if (!bd)
+        {
+            CoTaskMemFree(path);
+            return S_FALSE;
+        }
 
         std::uint32_t const nTitles = bd_get_titles(bd, TITLES_RELEVANT, 0);
         BOOL found{ FALSE };
@@ -715,6 +725,7 @@ HRESULT CLAVFDemuxer::CheckBDM2TSCPLI(LPCOLESTR pszFileName)
         bd_close(bd);
     }
 
+    CoTaskMemFree(path);
     return S_OK;
 }
 
@@ -3071,6 +3082,7 @@ STDMETHODIMP CLAVFDemuxer::CreateStreams()
             pg_sequences.sort();
             pg_sequences.unique();
 
+            // the values come from file metadata and can be of any length
             std::string offsets;
             for (auto it = pg_sequences.begin(); it != pg_sequences.end(); ++it)
             {
