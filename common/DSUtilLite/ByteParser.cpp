@@ -98,15 +98,18 @@ unsigned CByteParser::UExpGolombRead()
 
 int CByteParser::SExpGolombRead()
 {
-    int const k = UExpGolombRead() + 1;
+    // Keep the encoded value unsigned until its magnitude fits in an int.
+    unsigned int const k{ UExpGolombRead() + 1U };
     // Negative numbers are interleaved in the series
     // unsigned: 0, 1,  2, 3,  4, 5,  6, ...
     //   signed: 0, 1, -1, 2, -2, 3, -3, ....
     // So all even numbers are negative (last bit = 0)
     // Note that we added 1 to the unsigned value already, so the check is inverted
-    if (k & 1) { return -(k >> 1); } else {
-        return (k >> 1);
+    if ((k & 1U) != 0U)
+    {
+        return -static_cast<int>(k >> 1);
     }
+    return static_cast<int>(k >> 1);
 }
 
 void CByteParser::BitByteAlign()

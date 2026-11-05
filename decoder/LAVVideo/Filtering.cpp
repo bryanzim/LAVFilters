@@ -86,13 +86,14 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
 
             // 0/0 is not a valid value for avfilter, make sure it doesn't happen
             AVRational aspect_ratio = pFrame->aspect_ratio;
-            if ((aspect_ratio.num == 0) || (aspect_ratio.den == 0)) {
-                aspect_ratio = {0, 1};
+            if ((aspect_ratio.num == 0) || (aspect_ratio.den == 0))
+            {
+                aspect_ratio = { 0, 1 };
             }
 
             _snprintf_s(args.data(), args.size(), sizeof(args), "video_size=%dx%d:pix_fmt=%s:time_base=1/10000000:pixel_aspect=%d/%d",
-                        pFrame->width, pFrame->height, av_get_pix_fmt_name(ff_pixfmt), pFrame->aspect_ratio.num,
-                        pFrame->aspect_ratio.den);
+                        pFrame->width, pFrame->height, av_get_pix_fmt_name(ff_pixfmt), aspect_ratio.num,
+                        aspect_ratio.den);
             ret = avfilter_graph_create_filter(&m_pFilterBufferSrc, buffersrc, "in", args.data(), nullptr, m_pFilterGraph);
             if (ret < 0)
             {
