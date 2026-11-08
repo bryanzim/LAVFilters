@@ -21,13 +21,18 @@ make
 ----------------------------------------------
 dav1d
 
+Use the MinGW shell (MINGW32 or MINGW64) so Meson picks that architecture's gcc.
+MSYS Meson refuses to run in a MinGW shell.
+
 32-bit
 export CC=gcc
 export CXX=g++
-meson setup build32 --prefix .. --buildtype release --default-library static && ninja -C build32
+meson setup build32 --prefix .. --buildtype release --default-library static -Denable_tools=false -Denable_examples=false -Denable_tests=false && ninja -C build32
 
 64-bit
-meson setup build64 --prefix .. --buildtype release --default-library static --cross-file x86_64-mingw64-cross.txt
+export CC=gcc
+export CXX=g++
+meson setup build64 --prefix .. --buildtype release --default-library static -Denable_tools=false -Denable_examples=false -Denable_tests=false && ninja -C build64
 
 ----------------------------------------------
 gnutls & deps
@@ -43,26 +48,32 @@ GMP:
 
 
 NETTLE:
+Nettle 4 no longer accepts --with-include-path or --with-lib-path. Point the compiler at the GMP prefix instead.
+
 32-bit
-./configure --prefix=$PREFIX --disable-shared --build=i686-w64-mingw32 --host=i686-w64-mingw32 --with-include-path=$PREFIX/include --with-lib-path=$PREFIX/lib
+CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" ./configure --prefix=$PREFIX --disable-shared --enable-static --disable-documentation --build=i686-w64-mingw32 --host=i686-w64-mingw32
 
 64-bit
-./configure --prefix=$PREFIX --disable-shared --build=i686-w64-mingw32 --host=x86_64-w64-mingw32 --with-include-path=$PREFIX/include --with-lib-path=$PREFIX/lib
+CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib" ./configure --prefix=$PREFIX --disable-shared --enable-static --disable-documentation --build=i686-w64-mingw32 --host=x86_64-w64-mingw32
 
 GNUTLS:
+Rebuild GnuTLS when Nettle changes. 3.8.13 is the current release and it links Nettle 4.
+
 32-bit
-GMP_CFLAGS="-I$PREFIX/include" GMP_LIBS="-L$PREFIX/lib" PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig/ ZLIB_CFLAGS=" " ZLIB_LIBS="-lz" ./configure --prefix=$PREFIX --disable-shared --build=i686-w64-mingw32 --host=i686-w64-mingw32 --disable-cxx --with-included-libtasn1 --with-included-unistring --without-p11-kit --without-tpm
+GMP_CFLAGS="-I$PREFIX/include" GMP_LIBS="-L$PREFIX/lib -lgmp" PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig/ ZLIB_CFLAGS=" " ZLIB_LIBS="-lz" ./configure --prefix=$PREFIX --disable-shared --enable-static --build=i686-w64-mingw32 --host=i686-w64-mingw32 --disable-cxx --disable-doc --disable-tools --disable-tests --with-included-libtasn1 --with-included-unistring --without-p11-kit --without-tpm --without-tpm2 --without-idn --without-brotli --without-zstd
 
 64-bit
-GMP_CFLAGS="-I$PREFIX/include" GMP_LIBS="-L$PREFIX/lib" PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig/ ZLIB_CFLAGS=" " ZLIB_LIBS="-lz" ./configure --prefix=$PREFIX --disable-shared --build=i686-w64-mingw32 --host=x86_64-w64-mingw32 --disable-cxx --with-included-libtasn1 --with-included-unistring --without-p11-kit --without-tpm
+GMP_CFLAGS="-I$PREFIX/include" GMP_LIBS="-L$PREFIX/lib -lgmp" PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig/ ZLIB_CFLAGS=" " ZLIB_LIBS="-lz" ./configure --prefix=$PREFIX --disable-shared --enable-static --build=i686-w64-mingw32 --host=x86_64-w64-mingw32 --disable-cxx --disable-doc --disable-tools --disable-tests --with-included-libtasn1 --with-included-unistring --without-p11-kit --without-tpm --without-tpm2 --without-idn --without-brotli --without-zstd
 
 ----------------------------------------------
 libxml2
 
 PREFIX=/tmp/install
 
+FTP support is gone. Leave iconv and lzma out so the static library still needs only zlib.
+
 32-bit
-./configure --prefix=$PREFIX --disable-shared --build=i686-w64-mingw32 --host=i686-w64-mingw32 --without-threads --without-python --without-ftp --without-http
+./configure --prefix=$PREFIX --disable-shared --enable-static --build=i686-w64-mingw32 --host=i686-w64-mingw32 --without-threads --without-python --without-http --without-iconv --without-lzma --with-zlib
 
 64-bit
-./configure --prefix=$PREFIX --disable-shared -build=i686-w64-mingw32 --host=x86_64-w64-mingw32 --without-threads --without-python --without-ftp --without-http
+./configure --prefix=$PREFIX --disable-shared --enable-static --build=i686-w64-mingw32 --host=x86_64-w64-mingw32 --without-threads --without-python --without-http --without-iconv --without-lzma --with-zlib
