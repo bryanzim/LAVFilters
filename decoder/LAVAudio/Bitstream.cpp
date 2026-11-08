@@ -135,7 +135,8 @@ HRESULT CLAVAudio::CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe)
         m_DTSBitstreamMode = DTS_Core;
         av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate", 0, 0);
     }
-    av_opt_set_int(m_avBSContext->priv_data, "dtshd_fallback_time", -1, 0);
+    // Strip one overflowing HD frame, then try HD again. -1 would keep sending core for the rest of the stream.
+    av_opt_set_int(m_avBSContext->priv_data, "dtshd_fallback_time", 0, 0);
 
     AVStream *st = avformat_new_stream(m_avBSContext, nullptr);
     if (!st)
@@ -261,7 +262,15 @@ CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRa
         subtype = KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_DIGITAL_PLUS;
         break;
     case AV_CODEC_ID_TRUEHD:
-        wfe->nSamplesPerSec = 192000;
+        // 44.1 kHz family uses a 176.4 kHz carrier. An unknown rate stays on the 192 kHz carrier.
+        if ((dwSampleRate == 44100U) || (dwSampleRate == 88200U) || (dwSampleRate == 176400U))
+        {
+            wfe->nSamplesPerSec = 176400U;
+        }
+        else
+        {
+            wfe->nSamplesPerSec = 192000U;
+        }
         wfe->nChannels = 8;
         subtype = KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_MLP;
         break;
