@@ -294,6 +294,15 @@ static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebi
     return true;
 }
 
+// output_timing leads the input timing by one access unit. The delta is a signed
+// 16-bit sample count, the same conversion the FFmpeg TrueHD IEC 61937 muxer uses.
+[[nodiscard]] constexpr int TrueHDOutputInputOffset(std::uint16_t const outputTiming, std::uint16_t const frameSamples,
+                                                    std::uint16_t const frameTime) noexcept
+{
+    std::uint16_t const previousOutput = static_cast<std::uint16_t>(outputTiming - frameSamples);
+    return static_cast<std::int16_t>(static_cast<std::uint16_t>(previousOutput - frameTime));
+}
+
 HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliver)
 {
     // On a high level, a MAT frame consists of a sequence of padded TrueHD frames
@@ -327,62 +336,76 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     std::uint16_t const frame_time = AV_RB16(p + 2);
     std::uint32_t space_size{ 0U };
 
-    std::uint16_t const frame_samples = 40 << (m_TrueHDMATState.ratebits & 7);
+    int const rateShift = m_TrueHDMATState.ratebits & 7;
+    std::uint16_t const frame_samples = static_cast<std::uint16_t>(40U << rateShift);
+    int const bytesPerSample = 64 >> rateShift;
+    constexpr int kTrueHDMaxPadding{ 61424 * 2 };
+    bool discontinuity{ false };
+
     m_TrueHDMATState.output_timing += frame_samples;
     if (bOutputTimingPresent)
     {
         if (m_TrueHDMATState.output_timing_valid && (output_timing != m_TrueHDMATState.output_timing))
         {
-            DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Detected a stream discontinuity, reseting framesize cache")));
+            discontinuity = true;
             m_TrueHDMATState.prev_frametime_valid = false;
-            space_size = frame_samples * (64 >> (m_TrueHDMATState.ratebits & 7));
 
-            // the output timing is always one frame ahead for buffering reasons, so deduct one frame worth
-            std::uint32_t prev_output = static_cast<std::uint16_t>((output_timing - frame_samples));
-            if (prev_output < frame_time) { // wrap around, output is always in front of frame time
-                prev_output += 0x10000;   // unwrap 16-bit value
+            int const currentOffset = TrueHDOutputInputOffset(output_timing, frame_samples, frame_time);
+            int const nominalSpacing = static_cast<int>(frame_samples) * bytesPerSample;
+            int const previousPadding = (m_TrueHDMATState.prev_mat_framesize != 0U)
+                                             ? (nominalSpacing - static_cast<int>(m_TrueHDMATState.prev_mat_framesize))
+                                             : 0;
+            int const totalPadding =
+                previousPadding + ((m_TrueHDMATState.nOutputTimeOffset - currentOffset) * bytesPerSample);
+
+            // A negative or huge correction would insert seconds of silence, or wrap the DWORD pad.
+            if ((totalPadding < 0) || (totalPadding > kTrueHDMaxPadding))
+            {
+                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Ignoring discontinuity padding %d (offset %d -> %d)"),
+                        totalPadding, m_TrueHDMATState.nOutputTimeOffset, currentOffset));
             }
-
-            // get the offset of this frame, so we can compare to the previous frame, and determine the amount of padding that needs to be inserted
-            int const currentFrameOutputOffset = (prev_output - frame_time);
-
-            // the previous offset should never be smaller then the incoming offset, or we will lack the reserved space
-            ASSERT(m_TrueHDMATState.nOutputTimeOffset >= currentFrameOutputOffset);
-            if (m_TrueHDMATState.nOutputTimeOffset >= currentFrameOutputOffset) {
-                m_TrueHDMATState.padding += (m_TrueHDMATState.nOutputTimeOffset - currentFrameOutputOffset) * (64 >> (m_TrueHDMATState.ratebits & 7));
+            else
+            {
+                m_TrueHDMATState.padding += static_cast<DWORD>(totalPadding);
+                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Carrying forward %d padding (offset %d -> %d)"),
+                        totalPadding, m_TrueHDMATState.nOutputTimeOffset, currentOffset));
             }
-
-            DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Carrying forward %d padding (offset %d - %d)"),
-                    m_TrueHDMATState.padding, m_TrueHDMATState.nOutputTimeOffset, currentFrameOutputOffset));
         }
         m_TrueHDMATState.output_timing = output_timing;
         m_TrueHDMATState.output_timing_valid = true;
     }
 
-    // compute final padded size for the previous frame, if any
-    if (m_TrueHDMATState.prev_frametime_valid) {
-        space_size = std::uint16_t(frame_time - m_TrueHDMATState.prev_frametime) * (64 >> (m_TrueHDMATState.ratebits & 7));
-    }
-
-    // compute padding (ie. difference to the size of the previous frame)
-    ASSERT((!m_TrueHDMATState.prev_frametime_valid || (space_size >= m_TrueHDMATState.prev_mat_framesize)));
-
-    // if for some reason the space_size fails, align the actual frame size
-    if (space_size < m_TrueHDMATState.prev_mat_framesize) {
-        space_size = FFALIGN(m_TrueHDMATState.prev_mat_framesize, (64 >> (m_TrueHDMATState.ratebits & 7)));
-    }
-
-    m_TrueHDMATState.padding += (space_size - m_TrueHDMATState.prev_mat_framesize);
-
-    // record the offset of frame time to output time, which is used to verify the size of the padding on discontinuities
-    if (m_TrueHDMATState.output_timing_valid)
+    // The discontinuity path already includes the nominal gap. Adding it again would double the pad.
+    if (!discontinuity)
     {
-        std::uint32_t prev_output = static_cast<std::uint16_t>((m_TrueHDMATState.output_timing - frame_samples));
-        if (prev_output < frame_time) { // wrap around, output is always in front of frame time
-            prev_output += 0x10000;   // unwrap 16-bit value
+        // compute final padded size for the previous frame, if any
+        if (m_TrueHDMATState.prev_frametime_valid)
+        {
+            std::uint16_t const sampleDelta = static_cast<std::uint16_t>(frame_time - m_TrueHDMATState.prev_frametime);
+            space_size = static_cast<std::uint32_t>(sampleDelta) * static_cast<std::uint32_t>(bytesPerSample);
         }
 
-        m_TrueHDMATState.nOutputTimeOffset = (prev_output - frame_time);
+        // compute padding (ie. difference to the size of the previous frame)
+        ASSERT((!m_TrueHDMATState.prev_frametime_valid || (space_size >= m_TrueHDMATState.prev_mat_framesize)));
+
+        // if for some reason the space_size fails, align the actual frame size
+        if ((space_size < m_TrueHDMATState.prev_mat_framesize) && (bytesPerSample > 0))
+        {
+            space_size = FFALIGN(m_TrueHDMATState.prev_mat_framesize, bytesPerSample);
+        }
+
+        int const framePadding = static_cast<int>(space_size) - static_cast<int>(m_TrueHDMATState.prev_mat_framesize);
+        if ((framePadding > 0) && (framePadding <= kTrueHDMaxPadding))
+        {
+            m_TrueHDMATState.padding += static_cast<DWORD>(framePadding);
+        }
+    }
+
+    // Signed 16-bit output-minus-input delta, including a negative correction the next discontinuity can apply.
+    if (m_TrueHDMATState.output_timing_valid)
+    {
+        m_TrueHDMATState.nOutputTimeOffset =
+            TrueHDOutputInputOffset(m_TrueHDMATState.output_timing, frame_samples, frame_time);
     }
 
     // store frame time of the previous frame
