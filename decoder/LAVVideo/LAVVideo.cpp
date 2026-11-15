@@ -2030,10 +2030,16 @@ STDMETHODIMP CLAVVideo::Deliver(LAVFrame *pFrame)
         m_rtAvgTimePerFrame = pFrame->avgFrameDuration;
     }
 
+    // Preroll ends before time zero and is not displayed. A frame that crosses zero
+    // is shown from the start instead of being dropped.
     if (pFrame->rtStart < 0)
     {
-        ReleaseFrame(&pFrame);
-        return S_OK;
+        if (pFrame->rtStop <= 0)
+        {
+            ReleaseFrame(&pFrame);
+            return S_OK;
+        }
+        pFrame->rtStart = 0;
     }
 
     // Only perform filtering if we have to.
