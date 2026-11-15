@@ -232,6 +232,44 @@ HRESULT CLAVAudio::FreeBitstreamContext()
     return S_OK;
 }
 
+void CLAVAudio::ResetBitstreamGap()
+{
+    if (FAILED(m_bsOutput.SetSize(0)))
+    {
+        DbgLog((LOG_ERROR, 10, L"::ResetBitstreamGap() -- failed to clear the bitstream buffer"));
+    }
+    std::memset(&m_TrueHDMATState, 0, sizeof(m_TrueHDMATState));
+    m_rtBitstreamCache = AV_NOPTS_VALUE;
+
+    if (m_avBSContext == nullptr)
+    {
+        return;
+    }
+
+    // A new muxer clears dtshd_skip. Put the current HD rate back so a chapter
+    // does not drop to core and renegotiate the media type.
+    std::int64_t rate{ 0 };
+    std::int64_t fallback{ 0 };
+    av_opt_get_int(m_avBSContext->priv_data, "dtshd_rate", 0, &rate);
+    av_opt_get_int(m_avBSContext->priv_data, "dtshd_fallback_time", 0, &fallback);
+    DTSBitstreamMode const mode{ m_DTSBitstreamMode };
+
+    WAVEFORMATEX wfe{};
+    wfe.wFormatTag = WAVE_FORMAT_PCM;
+    wfe.nChannels = 2;
+    wfe.nSamplesPerSec = 48000;
+    wfe.wBitsPerSample = 16;
+    wfe.nBlockAlign = 4;
+    if (FAILED(CreateBitstreamContext(m_nCodecId, &wfe)))
+    {
+        return;
+    }
+
+    m_DTSBitstreamMode = mode;
+    av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate", rate, 0);
+    av_opt_set_int(m_avBSContext->priv_data, "dtshd_fallback_time", fallback, 0);
+}
+
 CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRate, BOOL bDTSHDOverride)
 {
     CMediaType mt;

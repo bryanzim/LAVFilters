@@ -197,25 +197,15 @@ void CLAVAudio::MATFlushPacket(HRESULT *hrDeliver)
     {
         ASSERT(m_bsOutput.GetCount() == 61440);
 
-        // normal number of samples per frame
-        std::uint16_t const frame_samples = 40 << (m_TrueHDMATState.ratebits & 7);
-        int const nMATSamples = (frame_samples * 24);
-
-        // Deliver MAT packet to the audio renderer
+        // A MAT burst is one HDMI frame. Its sample count varies when a spike crosses the boundary,
+        // and feeding that error into AutoAVSync rewrites the timestamp.
         *hrDeliver = DeliverBitstream(m_nCodecId, m_bsOutput.Ptr(), m_bsOutput.GetCount(), m_rtStartInputCache,
-                                      m_rtStopInputCache, true, m_TrueHDMATState.nSamplesOffset);
-
-        // we expect 24 frames per MAT frame, so calculate an offset from that
-        // this is done after delivery, because it modifies the duration of the frame, eg. the start of the next frame
-        if (static_cast<DWORD>(nMATSamples) != m_TrueHDMATState.nSamples) {
-            m_TrueHDMATState.nSamplesOffset += m_TrueHDMATState.nSamples - nMATSamples;
-        }
+                                      m_rtStopInputCache, true);
 
         if (FAILED(m_bsOutput.SetSize(0)) && SUCCEEDED(*hrDeliver))
         {
             *hrDeliver = E_OUTOFMEMORY;
         }
-        m_TrueHDMATState.nSamples = 0;
     }
 }
 
@@ -263,12 +253,21 @@ static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebi
     // substream directory
     for (int i{ 0 }; i < num_substreams; ++i)
     {
+        if (get_bits_left(&gb) < 16)
+        {
+            return true;
+        }
         int const extra_substream_word = get_bits1(&gb);
         skip_bits1(&gb);    // restart_nonexistent
         skip_bits1(&gb);    // crc_present
         skip_bits1(&gb);    // reserved
         skip_bits(&gb, 12); // substream_end_ptr
-        if (extra_substream_word) {
+        if (extra_substream_word)
+        {
+            if (get_bits_left(&gb) < 16)
+            {
+                return true;
+            }
             skip_bits(&gb, 16); // drc_gain_update, drc_time_update, reserved
         }
     }
@@ -276,14 +275,33 @@ static bool ParseTrueHDMajorSyncHeaders(const BYTE *p, int buffsize, int &ratebi
     // substream segments
     for (int i{ 0 }; i < num_substreams; ++i)
     {
+        if (get_bits_left(&gb) < 1)
+        {
+            break;
+        }
         if (get_bits1(&gb))
         { // block_header_exists
+            if (get_bits_left(&gb) < 1)
+            {
+                break;
+            }
             if (get_bits1(&gb))
-            {                       // restart_header_exists
-                skip_bits(&gb, 14); // restart_sync_word
-                output_timing = static_cast<std::uint16_t>(get_bits(&gb, 16));
-                output_timing_present = true;
-                // XXX: restart header
+            { // restart_header_exists
+                // 13-bit sync 0x18F5, then the noise-type bit. Anything else is not a timing word.
+                constexpr int kRestartSyncBits{ 13 };
+                constexpr int kRestartTimingBits{ 16 };
+                constexpr unsigned int kRestartSyncWord{ 0x31eaU >> 1U };
+                if (get_bits_left(&gb) < (kRestartSyncBits + 1 + kRestartTimingBits))
+                {
+                    break;
+                }
+                unsigned int const syncWord{ get_bits(&gb, kRestartSyncBits) };
+                if (syncWord == kRestartSyncWord)
+                {
+                    skip_bits1(&gb); // noise_type
+                    output_timing = static_cast<std::uint16_t>(get_bits(&gb, kRestartTimingBits));
+                    output_timing_present = true;
+                }
             }
             // XXX: Block header
         }
@@ -329,7 +347,6 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     {
         // only start streaming on a major sync frame
         m_rtBitstreamCache = AV_NOPTS_VALUE;
-        m_TrueHDMATState.nSamplesOffset = 0;
         return S_FALSE;
     }
 
@@ -441,9 +458,6 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
             MATWriteHeader();
         }
     }
-
-    // count the number of samples in this frame
-    m_TrueHDMATState.nSamples += frame_samples;
 
     // write actual audio data to the buffer
     int remaining = MATFillDataBuffer(p, buffsize);

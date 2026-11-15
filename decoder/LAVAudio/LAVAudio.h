@@ -232,6 +232,8 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     HRESULT CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe);
     HRESULT UpdateBitstreamContext();
     HRESULT FreeBitstreamContext();
+    // Drop a partial MAT frame and the DTS-HD overflow skip. The next burst starts clean.
+    void ResetBitstreamGap();
     HRESULT BitstreamFallbackToPCM();
 
     HRESULT Bitstream(const BYTE *p, int buffsize, int &consumed, HRESULT *hrDeliver);
@@ -379,8 +381,6 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
         std::uint32_t prev_mat_framesize{ 0U };
 
         DWORD padding{ 0U };
-        DWORD nSamples{ 0U };
-        int nSamplesOffset{ 0 };
 
         int nOutputTimeOffset{ 0 };
     } m_TrueHDMATState;
