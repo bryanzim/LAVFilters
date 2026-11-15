@@ -339,6 +339,13 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     if (m_vc1Header && (m_bManualReorder || m_bNeedKeyFrame))
     {
         AVPictureType const pictype = m_vc1Header->ParseVC1PictureType(buffer, buflen);
+        // Dropped frames never reach the decoder, so they must not enter the reorder buffer.
+        // Popping the queue here used to run on an empty queue and leave the dropped time on the next picture.
+        if (m_bNeedKeyFrame && (pictype != AV_PICTURE_TYPE_I))
+        {
+            return S_OK;
+        }
+
         if (m_bManualReorder)
         {
             if ((pictype == AV_PICTURE_TYPE_I) || (pictype == AV_PICTURE_TYPE_P))
@@ -357,18 +364,8 @@ STDMETHODIMP CDecWMV9MFT::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
 
         if (m_bNeedKeyFrame)
         {
-            if (pictype != AV_PICTURE_TYPE_I)
-            {
-                if (m_bManualReorder) {
-                    m_timestampQueue.pop();
-                }
-                return S_OK;
-            }
-            else
-            {
-                m_bNeedKeyFrame = FALSE;
-                bSyncPoint = TRUE;
-            }
+            m_bNeedKeyFrame = FALSE;
+            bSyncPoint = TRUE;
         }
     }
 
