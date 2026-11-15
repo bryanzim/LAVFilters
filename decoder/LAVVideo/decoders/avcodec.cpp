@@ -845,19 +845,20 @@ STDMETHODIMP CDecAvcodec::ParsePacket(const BYTE *buffer, int buflen, REFERENCE_
         // If more data was read then output, update the cache (incomplete frame)
         // If output is bigger, a frame was completed, update the actual rtStart with the cached value, and then
         // overwrite the cache
+        // Some broken MKV muxers append the 9-byte MPEG picture header (00 00 01 00 ...) to the previous access
+        // unit. That carry must not shift the timestamp. Any other size difference is a real split frame.
+        bool const mpegPictureCarry =
+            ((m_nCodecId == AV_CODEC_ID_MPEG1VIDEO) || (m_nCodecId == AV_CODEC_ID_MPEG2VIDEO)) && (used_bytes >= 0) &&
+            ((pOutLen - used_bytes) == 9) && (pOutBuffer != nullptr) &&
+            (pOutBuffer[0U] == 0x00) && (pOutBuffer[1U] == 0x00) && (pOutBuffer[2U] == 0x01) && (pOutBuffer[3U] == 0x00);
         if (used_bytes > pOutLen)
         {
             if (rtStartIn != AV_NOPTS_VALUE) {
                 m_rtStartCache = rtStartIn;
             }
         }
-        else if ((used_bytes == pOutLen) || ((used_bytes + 9) == pOutLen))
+        else if ((used_bytes == pOutLen) || mpegPictureCarry)
         {
-            // Why +9 above?
-            // Well, apparently there are some broken MKV muxers that like to mux the MPEG-2 PICTURE_START_CODE block
-            // (which is 9 bytes) in the package with the previous frame This would cause the frame timestamps to be
-            // delayed by one frame exactly, and cause timestamp reordering to go wrong. So instead of failing on those
-            // samples, lets just assume that 9 bytes are that case exactly.
             m_rtStartCache = rtStartIn = AV_NOPTS_VALUE;
         }
         else if (pOutLen > used_bytes)
