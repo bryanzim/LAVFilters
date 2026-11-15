@@ -1078,6 +1078,7 @@ HRESULT CLAVVideo::PerformFlush()
     if (m_pFilterGraph) {
         avfilter_graph_free(&m_pFilterGraph);
     }
+    m_bDeintFieldRate = FALSE;
 
     m_rtPrevStart = m_rtPrevStop = 0;
     std::memset(&m_FilterPrevFrame, 0, sizeof(m_FilterPrevFrame));
@@ -1140,6 +1141,7 @@ HRESULT CLAVVideo::BreakConnect(PIN_DIRECTION dir)
         if (m_pFilterGraph) {
             avfilter_graph_free(&m_pFilterGraph);
         }
+        m_bDeintFieldRate = FALSE;
 
         m_Decoder.Close();
         m_X264Build = -1;

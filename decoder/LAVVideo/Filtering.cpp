@@ -24,6 +24,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 
 static void lav_free_lavframe(void *opaque, std::uint8_t *data)
@@ -42,6 +43,15 @@ static void lav_unref_frame(void *opaque, std::uint8_t *data)
 static void avfilter_free_lav_buffer(LAVFrame *pFrame)
 {
     av_frame_free(reinterpret_cast<AVFrame **>(&pFrame->priv_data));
+}
+
+static void free_avframes(std::vector<AVFrame *> &frames)
+{
+    for (AVFrame *frame : frames)
+    {
+        av_frame_free(&frame);
+    }
+    frames.clear();
 }
 
 HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
@@ -65,6 +75,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
                 avfilter_graph_free(&m_pFilterGraph);
                 m_pFilterBufferSrc = nullptr;
                 m_pFilterBufferSink = nullptr;
+                m_bDeintFieldRate = FALSE;
             }
 
             m_filterPixFmt = pFrame->format;
@@ -231,14 +242,58 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
         BOOL const bFramePerField =
             ((m_settings.SWDeintMode != SWDeintMode_None) && (m_settings.SWDeintOutput == DeintOutput_FramePerField));
 
+        std::vector<AVFrame *> filteredFrames;
         AVFrame *out_frame = av_frame_alloc();
-        HRESULT hrDeliver{ S_OK };
-        while (SUCCEEDED(hrDeliver) && (av_buffersink_get_frame(m_pFilterBufferSink, out_frame) >= 0))
+        if (out_frame == nullptr)
         {
+            av_frame_free(&in_frame);
+            if (!refcountedFrame)
+            {
+                ReleaseFrame(&pFrame);
+            }
+            return E_OUTOFMEMORY;
+        }
+        while (av_buffersink_get_frame(m_pFilterBufferSink, out_frame) >= 0)
+        {
+            AVFrame *held = av_frame_alloc();
+            if (held == nullptr)
+            {
+                free_avframes(filteredFrames);
+                av_frame_free(&out_frame);
+                av_frame_free(&in_frame);
+                if (!refcountedFrame)
+                {
+                    ReleaseFrame(&pFrame);
+                }
+                return E_OUTOFMEMORY;
+            }
+            av_frame_move_ref(held, out_frame);
+            filteredFrames.push_back(held);
+        }
+
+        bool const split = (bFramePerField == TRUE) && (filteredFrames.size() > 1U);
+        if (split)
+        {
+            m_bDeintFieldRate = TRUE;
+        }
+
+        auto const toReferenceTime = [this](std::int64_t timestamp) -> REFERENCE_TIME
+        {
+            return av_rescale(timestamp, m_pFilterBufferSink->inputs[0U]->time_base.num * 10000000LL,
+                              m_pFilterBufferSink->inputs[0U]->time_base.den);
+        };
+
+        REFERENCE_TIME const inputDuration = pFrame->rtStop - pFrame->rtStart;
+        REFERENCE_TIME previousGap{ 0 };
+        HRESULT hrDeliver{ S_OK };
+        for (std::size_t index{ 0U }; (index < filteredFrames.size()) && SUCCEEDED(hrDeliver); ++index)
+        {
+            AVFrame *filtered = filteredFrames[index];
             LAVFrame *outFrame{ nullptr };
             HRESULT const hrFrame = AllocateFrame(&outFrame);
             if (FAILED(hrFrame))
             {
+                free_avframes(filteredFrames);
                 av_frame_free(&out_frame);
                 av_frame_free(&in_frame);
                 if (!refcountedFrame)
@@ -248,13 +303,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
                 return hrFrame;
             }
 
-            REFERENCE_TIME rtDuration = pFrame->rtStop - pFrame->rtStart;
-            if (bFramePerField) {
-                rtDuration >>= 1;
-            }
-
-            // Copy most settings over
-            AVPixelFormatMapping const map = getFFToLAVPixFmtMapping(static_cast<AVPixelFormat>(out_frame->format));
+            AVPixelFormatMapping const map = getFFToLAVPixFmtMapping(static_cast<AVPixelFormat>(filtered->format));
             ASSERT(map.conversion == false);
             outFrame->format = map.lavpixfmt;
             outFrame->bpp = map.bpp;
@@ -263,35 +312,70 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
             outFrame->avgFrameDuration = pFrame->avgFrameDuration;
             outFrame->flags = pFrame->flags;
 
-            outFrame->width = out_frame->width;
-            outFrame->height = out_frame->height;
-            outFrame->aspect_ratio = out_frame->sample_aspect_ratio;
-            outFrame->tff = !!(out_frame->flags & AV_FRAME_FLAG_TOP_FIELD_FIRST);
+            outFrame->width = filtered->width;
+            outFrame->height = filtered->height;
+            outFrame->aspect_ratio = filtered->sample_aspect_ratio;
+            outFrame->tff = !!(filtered->flags & AV_FRAME_FLAG_TOP_FIELD_FIRST);
 
-            REFERENCE_TIME const pts = av_rescale(out_frame->pts, m_pFilterBufferSink->inputs[0U]->time_base.num * 10000000LL,
-                                            m_pFilterBufferSink->inputs[0U]->time_base.den);
+            REFERENCE_TIME const pts = toReferenceTime(filtered->pts);
+            REFERENCE_TIME rtDuration = inputDuration;
+            if ((index + 1U) < filteredFrames.size())
+            {
+                REFERENCE_TIME const nextPts = toReferenceTime(filteredFrames[index + 1U]->pts);
+                if ((filtered->pts != AV_NOPTS_VALUE) && (filteredFrames[index + 1U]->pts != AV_NOPTS_VALUE) &&
+                    (nextPts > pts))
+                {
+                    rtDuration = nextPts - pts;
+                    previousGap = rtDuration;
+                }
+            }
+            else if (split)
+            {
+                if (previousGap > 0)
+                {
+                    rtDuration = previousGap;
+                }
+                else if (inputDuration > 0)
+                {
+                    rtDuration = inputDuration / static_cast<REFERENCE_TIME>(filteredFrames.size());
+                }
+            }
             outFrame->rtStart = pts;
             outFrame->rtStop = pts + rtDuration;
 
-            if (bFramePerField)
+            // Keep the media type at field rate once a frame has been split, including a progressive
+            // picture that the filter passed through as a single frame.
+            if (m_bDeintFieldRate && (outFrame->avgFrameDuration != AV_NOPTS_VALUE) && (outFrame->avgFrameDuration > 1))
             {
-                if (outFrame->avgFrameDuration != AV_NOPTS_VALUE) {
-                    outFrame->avgFrameDuration /= 2;
+                outFrame->avgFrameDuration /= 2;
+            }
+
+            for (int plane{ 0 }; plane < 4; ++plane)
+            {
+                outFrame->data[plane] = filtered->data[plane];
+                outFrame->stride[plane] = filtered->linesize[plane];
+            }
+
+            AVFrame *stored = av_frame_alloc();
+            if (stored == nullptr)
+            {
+                ReleaseFrame(&outFrame);
+                free_avframes(filteredFrames);
+                av_frame_free(&out_frame);
+                av_frame_free(&in_frame);
+                if (!refcountedFrame)
+                {
+                    ReleaseFrame(&pFrame);
                 }
+                return E_OUTOFMEMORY;
             }
-
-            for (int i{ 0 }; i < 4; ++i)
-            {
-                outFrame->data[i] = out_frame->data[i];
-                outFrame->stride[i] = out_frame->linesize[i];
-            }
-
             outFrame->destruct = avfilter_free_lav_buffer;
-            outFrame->priv_data = av_frame_alloc();
-            av_frame_move_ref(reinterpret_cast<AVFrame *>(outFrame->priv_data), out_frame);
+            outFrame->priv_data = stored;
+            av_frame_move_ref(stored, filtered);
 
             hrDeliver = DeliverToRenderer(outFrame);
         }
+        free_avframes(filteredFrames);
         if (!refcountedFrame)
         {
             HRESULT const hrRelease = ReleaseFrame(&pFrame);
@@ -313,6 +397,7 @@ HRESULT CLAVVideo::Filter(LAVFrame *pFrame)
                 avfilter_graph_free(&m_pFilterGraph);
                 m_pFilterBufferSrc = nullptr;
                 m_pFilterBufferSink = nullptr;
+                m_bDeintFieldRate = FALSE;
             }
         }
 
