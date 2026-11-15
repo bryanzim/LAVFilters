@@ -476,11 +476,6 @@ STDMETHODIMP CDecAvcodec::InitDecoder(AVCodecID codec, const CMediaType *pmt, co
         {
             DbgLog((LOG_TRACE, 10, L"-> Setting has_b_frames to %d", lavPinInfo.has_b_frames));
             m_pAVCtx->has_b_frames = lavPinInfo.has_b_frames;
-
-            // Set H264 to at least 2 B-Frames, which is the most common for broadcasts
-            if ((codec == AV_CODEC_ID_H264) && (m_pAVCtx->has_b_frames == 1)) {
-                m_pAVCtx->has_b_frames = 2;
-            }
         }
     }
 
