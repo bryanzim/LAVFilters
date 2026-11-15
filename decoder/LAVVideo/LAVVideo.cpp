@@ -1078,6 +1078,7 @@ HRESULT CLAVVideo::PerformFlush()
     if (m_pFilterGraph) {
         avfilter_graph_free(&m_pFilterGraph);
     }
+    m_bDeintFieldRate = FALSE;
 
     m_rtPrevStart = m_rtPrevStop = 0;
     std::memset(&m_FilterPrevFrame, 0, sizeof(m_FilterPrevFrame));
@@ -1140,6 +1141,7 @@ HRESULT CLAVVideo::BreakConnect(PIN_DIRECTION dir)
         if (m_pFilterGraph) {
             avfilter_graph_free(&m_pFilterGraph);
         }
+        m_bDeintFieldRate = FALSE;
 
         m_Decoder.Close();
         m_X264Build = -1;
@@ -2001,7 +2003,17 @@ STDMETHODIMP CLAVVideo::Deliver(LAVFrame *pFrame)
             duration = 1;
         }
 
-        pFrame->rtStop = pFrame->rtStart + (duration * (pFrame->repeat ? 3 : 2) / 2);
+        // repeat_pict is the number of extra fields: 1 = 3:2 pulldown, 2 = frame doubling, 4 = frame tripling.
+        // A negative value is an unpaired field and lasts half a frame.
+        if (pFrame->repeat < 0)
+        {
+            pFrame->rtStop = pFrame->rtStart + (duration / 2);
+        }
+        else
+        {
+            int const repeat = pFrame->repeat;
+            pFrame->rtStop = pFrame->rtStart + ((duration * (2 + repeat)) / 2);
+        }
     }
 
 #if defined(DEBUG) && DEBUG_FRAME_TIMINGS
@@ -2020,10 +2032,16 @@ STDMETHODIMP CLAVVideo::Deliver(LAVFrame *pFrame)
         m_rtAvgTimePerFrame = pFrame->avgFrameDuration;
     }
 
+    // Preroll ends before time zero and is not displayed. A frame that crosses zero
+    // is shown from the start instead of being dropped.
     if (pFrame->rtStart < 0)
     {
-        ReleaseFrame(&pFrame);
-        return S_OK;
+        if (pFrame->rtStop <= 0)
+        {
+            ReleaseFrame(&pFrame);
+            return S_OK;
+        }
+        pFrame->rtStart = 0;
     }
 
     // Only perform filtering if we have to.
@@ -2616,7 +2634,9 @@ HRESULT CLAVVideo::SetFrameFlags(IMediaSample *pMS, LAVFrame *pFrame)
                 props.dwTypeSpecificFlags |= AM_VIDEO_FLAG_FIELD1FIRST;
             }
 
-            if (pFrame->repeat) {
+            // REPEAT_FIELD is the 3:2 pulldown flag. Frame doubling and tripling are carried by the sample duration.
+            if (pFrame->repeat == 1)
+            {
                 props.dwTypeSpecificFlags |= AM_VIDEO_FLAG_REPEAT_FIELD;
             }
 

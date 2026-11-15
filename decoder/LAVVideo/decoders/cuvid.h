@@ -166,6 +166,7 @@ class CDecCuvid : public CDecBase
     BOOL m_bNeedSequenceCheck{ FALSE };
 
     BOOL m_bUseTimestampQueue{ FALSE };
+    BOOL m_bVP9{ FALSE };
     std::queue<REFERENCE_TIME> m_timestampQueue;
 
     int m_nSoftTelecine{ 0 };
