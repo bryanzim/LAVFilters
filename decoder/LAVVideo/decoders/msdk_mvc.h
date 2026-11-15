@@ -102,6 +102,8 @@ class CDecMSDKMVC : public CDecBase
     HRESULT ParseOffsetMetadata(const BYTE *buffer, std::size_t size, mfxU64 timestamp);
 
     void AddFrameToGOP(mfxU64 timestamp);
+    void RememberTimestamp(mfxU64 timestamp);
+    [[nodiscard]] bool TakeSubmittedTimestamp(mfxU64 timestamp);
     BOOL RemoveFrameFromGOP(MVCGOP *pGOP, mfxU64 timestamp);
     void GetOffsetSideData(LAVFrame *pFrame, mfxU64 timestamp);
 
@@ -128,5 +130,6 @@ class CDecMSDKMVC : public CDecBase
     int m_nOutputQueuePosition{ 0 };
 
     std::deque<MVCGOP> m_GOPs;
+    std::deque<mfxU64> m_SubmittedTimestamps;
     MediaSideData3DOffset m_PrevOffset;
 };

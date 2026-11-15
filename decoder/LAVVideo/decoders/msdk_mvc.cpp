@@ -25,6 +25,7 @@
 #include "H264Nalu.h"
 #include "moreuuids.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -371,6 +372,7 @@ STDMETHODIMP CDecMSDKMVC::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME 
     } else {
         bs.TimeStamp = static_cast<mfxU64>(MFX_TIMESTAMP_UNKNOWN);
     }
+    RememberTimestamp(bs.TimeStamp);
 
     bs.DecodeTimeStamp = MFX_TIMESTAMP_UNKNOWN;
 
@@ -691,6 +693,32 @@ void CDecMSDKMVC::AddFrameToGOP(mfxU64 timestamp)
     }
 }
 
+void CDecMSDKMVC::RememberTimestamp(mfxU64 timestamp)
+{
+    if (timestamp == static_cast<mfxU64>(MFX_TIMESTAMP_UNKNOWN))
+    {
+        return;
+    }
+
+    m_SubmittedTimestamps.push_back(timestamp);
+    while (m_SubmittedTimestamps.size() > 64U)
+    {
+        m_SubmittedTimestamps.pop_front();
+    }
+}
+
+bool CDecMSDKMVC::TakeSubmittedTimestamp(mfxU64 timestamp)
+{
+    auto const found = std::find(m_SubmittedTimestamps.begin(), m_SubmittedTimestamps.end(), timestamp);
+    if (found == m_SubmittedTimestamps.end())
+    {
+        return false;
+    }
+
+    m_SubmittedTimestamps.erase(found);
+    return true;
+}
+
 BOOL CDecMSDKMVC::RemoveFrameFromGOP(MVCGOP *pGOP, mfxU64 timestamp)
 {
     if ((pGOP->timestamps.empty()) || (pGOP->offsets.empty())) {
@@ -833,14 +861,14 @@ HRESULT CDecMSDKMVC::DeliverOutput(MVCBuffer *pBaseView, MVCBuffer *pExtraView)
     pFrame->bpp = 8;
     pFrame->flags |= LAV_FRAME_FLAG_MVC;
 
-    if (!(pBaseView->surface.Data.DataFlag & MFX_FRAMEDATA_ORIGINAL_TIMESTAMP)) {
-        pBaseView->surface.Data.TimeStamp = static_cast<mfxU64>(MFX_TIMESTAMP_UNKNOWN);
-    }
-
-    if (pBaseView->surface.Data.TimeStamp != MFX_TIMESTAMP_UNKNOWN)
+    // The SDK clears MFX_FRAMEDATA_ORIGINAL_TIMESTAMP when it replaces the time. A value we
+    // submitted is still that picture's time, and discarding it makes the next frame run early.
+    mfxU64 const timestamp = pBaseView->surface.Data.TimeStamp;
+    bool const original = (pBaseView->surface.Data.DataFlag & MFX_FRAMEDATA_ORIGINAL_TIMESTAMP) != 0;
+    bool const submitted = TakeSubmittedTimestamp(timestamp);
+    if ((original || submitted) && (timestamp != static_cast<mfxU64>(MFX_TIMESTAMP_UNKNOWN)))
     {
-        pFrame->rtStart = pBaseView->surface.Data.TimeStamp;
-        pFrame->rtStart -= TIMESTAMP_OFFSET;
+        pFrame->rtStart = static_cast<REFERENCE_TIME>(timestamp) - TIMESTAMP_OFFSET;
     }
     else
     {
@@ -911,6 +939,7 @@ STDMETHODIMP CDecMSDKMVC::Flush()
     }
 
     m_GOPs.clear();
+    m_SubmittedTimestamps.clear();
     std::memset(&m_PrevOffset, 0, sizeof(m_PrevOffset));
 
     return __super::Flush();
