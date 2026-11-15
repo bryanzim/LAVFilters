@@ -1948,6 +1948,7 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
         m_buff.Clear();
         FlushOutput(FALSE);
         FlushDecoder();
+        ResetBitstreamGap();
         m_bQueueResync = TRUE;
         m_bDiscontinuity = TRUE;
         if (FAILED(hr))
@@ -1975,6 +1976,7 @@ HRESULT CLAVAudio::Receive(IMediaSample *pIn)
         m_rtStartInputCache = AV_NOPTS_VALUE;
         m_rtBitstreamCache = AV_NOPTS_VALUE;
         m_dStartOffset = 0.0;
+        ResetBitstreamGap();
         m_bQueueResync = FALSE;
         m_bResyncTimestamp = TRUE;
     }

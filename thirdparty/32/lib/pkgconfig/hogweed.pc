@@ -10,10 +10,10 @@ includedir=${prefix}/include
 Name: Hogweed
 Description: Nettle low-level cryptographic library (public-key algorithms)
 URL: http://www.lysator.liu.se/~nisse/nettle
-Version: 3.10.2
+Version: 4.0
 Requires:  nettle
 Requires.private: # nettle
-Libs: -L${libdir} -lhogweed  -lgmp -lnettle
-Libs.private: # -lgmp
+Libs: -L${libdir} -lhogweed  -lgmp 
+Libs.private: # -lgmp 
 Cflags: -I${includedir}
 
