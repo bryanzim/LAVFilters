@@ -1035,28 +1035,31 @@ send_packet:
 
         // Judge frame usability
         // This determines if a frame is artifact free and can be delivered.
-        if (m_bResumeAtKeyFrame && m_bWaitingForKeyFrame && (ret >= 0))
+        bool const discardUntilKey = (m_bResumeAtKeyFrame && m_bWaitingForKeyFrame && (ret >= 0) &&
+                                      ((m_pFrame->flags & AV_FRAME_FLAG_KEY) == 0));
+        if (m_bResumeAtKeyFrame && m_bWaitingForKeyFrame && (ret >= 0) && (m_pFrame->flags & AV_FRAME_FLAG_KEY))
         {
-            if (m_pFrame->flags & AV_FRAME_FLAG_KEY)
-            {
-                DbgLog((LOG_TRACE, 50, L"::Decode() - Found Key-Frame, resuming decoding at %I64d", m_pFrame->pts));
-                m_bWaitingForKeyFrame = FALSE;
-            }
-            else
-            {
-                ret = AVERROR(EAGAIN);
-            }
+            DbgLog((LOG_TRACE, 50, L"::Decode() - Found Key-Frame, resuming decoding at %I64d", m_pFrame->pts));
+            m_bWaitingForKeyFrame = FALSE;
         }
 
-        // Handle B-frame delay for frame threading codecs
+        // EAGAIN means the decoder produced nothing. Advancing the delay line here
+        // steals a timestamp from the next picture.
+        if ((ret < 0) || (m_pFrame->data[0U] == nullptr))
+        {
+            av_frame_unref(m_pFrame);
+            break;
+        }
+
+        // Handle B-frame delay for frame threading codecs. A discarded non-key frame
+        // still consumes the timestamp that arrived with it.
         if ((m_pAVCtx->active_thread_type & FF_THREAD_FRAME) && m_bBFrameDelay)
         {
             m_tcBFrameDelay[m_nBFramePos] = m_tcThreadBuffer[m_CurrentThread];
             m_nBFramePos = !m_nBFramePos;
         }
 
-        // no frame was decoded, bail out here
-        if ((ret < 0) || (!m_pFrame->data[0U]))
+        if (discardUntilKey)
         {
             av_frame_unref(m_pFrame);
             break;
