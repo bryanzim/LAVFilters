@@ -1249,9 +1249,18 @@ STDMETHODIMP CDecCuvid::Deliver(CUVIDPARSERDISPINFO *cuviddisp, int field)
             m_rtPrevDiff = next->timestamp - cuviddisp->timestamp;
         }
 
-        if (m_rtPrevDiff != AV_NOPTS_VALUE)
+        // The first and last pictures have no neighbour yet. Without a duration, both
+        // fields of a deinterlaced frame are stamped with the same start time.
+        REFERENCE_TIME rtDiff = m_rtPrevDiff;
+        if (((rtDiff == AV_NOPTS_VALUE) || (rtDiff <= 0)) && (m_rtAvgTimePerFrame != AV_NOPTS_VALUE) &&
+            (m_rtAvgTimePerFrame > 0))
         {
-            REFERENCE_TIME const rtHalfDiff = m_rtPrevDiff >> 1;
+            rtDiff = m_bDoubleRateDeint ? (m_rtAvgTimePerFrame * 2) : m_rtAvgTimePerFrame;
+        }
+
+        if ((rtDiff != AV_NOPTS_VALUE) && (rtDiff > 0))
+        {
+            REFERENCE_TIME const rtHalfDiff = rtDiff >> 1;
             if (field == 1) {
                 rtStart += rtHalfDiff;
             }
