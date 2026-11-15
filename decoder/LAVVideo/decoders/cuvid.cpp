@@ -21,6 +21,7 @@
 
 #include "cuvid.h"
 
+#include "ByteParser.h"
 #include "Media.h"
 #include "moreuuids.h"
 #include "parsers/H264SequenceParser.h"
@@ -688,9 +689,10 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt, cons
         return E_FAIL;
     }
 
+    m_bVP9 = (cudaCodec == cudaVideoCodec_VP9);
     m_bUseTimestampQueue = (m_pCallback->GetDecodeFlags() & LAV_VIDEO_DEC_FLAG_ONLY_DTS) ||
                            (cudaCodec == cudaVideoCodec_MPEG4 && pmt->formattype != FORMAT_MPEG2Video) ||
-                           (cudaCodec == cudaVideoCodec_VP9);
+                           m_bVP9;
     m_bWaitForKeyframe = m_bUseTimestampQueue;
     m_bInterlaced = TRUE;
     m_bFormatIncompatible = FALSE;
@@ -1013,8 +1015,10 @@ int CUDAAPI CDecCuvid::HandlePictureDecode(void *obj, CUVIDPICPARAMS *cuvidpic)
             filter->m_bWaitForKeyframe = FALSE;
         } else
         {
-            // Pop timestamp from the queue, drop frame
-            if (!filter->m_timestampQueue.empty())
+            // Pop the timestamp of a shown frame that we are dropping. An invisible VP9
+            // alt-ref was never queued, so popping here would steal the next picture's time.
+            bool const shown = (!filter->m_bVP9) || (cuvidpic->CodecSpecific.vp9.showFrame != 0);
+            if (shown && (!filter->m_timestampQueue.empty()))
             {
                 filter->m_timestampQueue.pop();
             }
@@ -1363,6 +1367,50 @@ STDMETHODIMP CDecCuvid::CheckHEVCSequence(const BYTE *buffer, int buflen, int *b
     return S_FALSE;
 }
 
+// VP9 packets are in decode order and already carry presentation times. Invisible alt-ref
+// frames are not displayed, so their timestamps must not be given to the next shown frame.
+[[nodiscard]] static bool VP9FrameIsShown(const unsigned char *buffer, unsigned long buflen)
+{
+    if ((buffer == nullptr) || (buflen == 0U))
+    {
+        return true;
+    }
+
+    CByteParser header(buffer, static_cast<std::size_t>(buflen));
+    if (header.RemainingBits() < 4U)
+    {
+        return true;
+    }
+    if (header.BitRead(2) != 2U)
+    {
+        return true;
+    }
+
+    unsigned int const profile = header.BitRead(1) | (header.BitRead(1) << 1);
+    if (profile == 3U)
+    {
+        if (header.RemainingBits() < 1U)
+        {
+            return true;
+        }
+        header.BitRead(1);
+    }
+    if (header.RemainingBits() < 1U)
+    {
+        return true;
+    }
+    if (header.BitRead(1) != 0U)
+    {
+        return true;
+    }
+    if (header.RemainingBits() < 2U)
+    {
+        return true;
+    }
+    header.BitRead(1);
+    return header.BitRead(1) != 0U;
+}
+
 STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rtStart, REFERENCE_TIME rtStop,
                                BOOL bSyncPoint, BOOL bDiscontinuity, IMediaSample *pSample)
 {
@@ -1441,7 +1489,7 @@ STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rt
         pCuvidPacket.flags |= CUVID_PKT_DISCONTINUITY;
     }
 
-    if (m_bUseTimestampQueue)
+    if (m_bUseTimestampQueue && ((!m_bVP9) || VP9FrameIsShown(pCuvidPacket.payload, pCuvidPacket.payload_size)))
     {
         m_timestampQueue.push(rtStart);
     }
