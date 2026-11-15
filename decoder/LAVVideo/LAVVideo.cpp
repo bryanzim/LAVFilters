@@ -2001,7 +2001,17 @@ STDMETHODIMP CLAVVideo::Deliver(LAVFrame *pFrame)
             duration = 1;
         }
 
-        pFrame->rtStop = pFrame->rtStart + (duration * (pFrame->repeat ? 3 : 2) / 2);
+        // repeat_pict is the number of extra fields: 1 = 3:2 pulldown, 2 = frame doubling, 4 = frame tripling.
+        // A negative value is an unpaired field and lasts half a frame.
+        if (pFrame->repeat < 0)
+        {
+            pFrame->rtStop = pFrame->rtStart + (duration / 2);
+        }
+        else
+        {
+            int const repeat = pFrame->repeat;
+            pFrame->rtStop = pFrame->rtStart + ((duration * (2 + repeat)) / 2);
+        }
     }
 
 #if defined(DEBUG) && DEBUG_FRAME_TIMINGS
@@ -2616,7 +2626,9 @@ HRESULT CLAVVideo::SetFrameFlags(IMediaSample *pMS, LAVFrame *pFrame)
                 props.dwTypeSpecificFlags |= AM_VIDEO_FLAG_FIELD1FIRST;
             }
 
-            if (pFrame->repeat) {
+            // REPEAT_FIELD is the 3:2 pulldown flag. Frame doubling and tripling are carried by the sample duration.
+            if (pFrame->repeat == 1)
+            {
                 props.dwTypeSpecificFlags |= AM_VIDEO_FLAG_REPEAT_FIELD;
             }
 
