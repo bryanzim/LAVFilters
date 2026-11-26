@@ -382,6 +382,10 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
 
         DWORD padding{ 0U };
 
+        // Bytes a previous access unit ran past its timing slot. Later spare padding repays this
+        // so a tight Atmos frame does not leave the HDMI timeline permanently late.
+        int paddingDebt{ 0 };
+
         int nOutputTimeOffset{ 0 };
     } m_TrueHDMATState;
 

@@ -80,7 +80,10 @@ HRESULT CBitstreamParser::ParseDTS(BYTE *pBuffer, DWORD dwSize)
     m_dwBlocks = m_DTSHeader.Blocks;
     m_dwSampleRate = m_DTSHeader.SampleRate;
     m_dwFrameSize = m_DTSHeader.FrameSize;
-    m_dwSamples = m_DTSHeader.SamplesPerBlock * m_dwBlocks;
+    // The IEC repetition period is block count times 32 PCM samples. The 5-bit core field stored in
+    // SamplesPerBlock is a deficit count, not a block length. A valid frame sets it to 32; any other
+    // value would walk the renderer clock off the HDMI period.
+    m_dwSamples = 32U * m_dwBlocks;
 
     return S_OK;
 }

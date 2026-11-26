@@ -331,6 +331,9 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     // case they'll be preceded by smaller frames to keep the average bitrate constant.
     // A constant padding to 2560 bytes can work (this is how the ffmpeg spdifenc module works), however
     // high-bitrate streams can overshoot this size and therefor require proper handling of dynamic padding.
+    // A MAT marker can still push one Atmos access unit past the slot its timing word reserved. That
+    // overrun is carried forward and repaid from later spare padding, instead of leaving every following
+    // sample late on the HDMI clock.
 
     std::uint16_t output_timing{ 0U };
     bool bOutputTimingPresent{ false };
@@ -351,7 +354,6 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     }
 
     std::uint16_t const frame_time = AV_RB16(p + 2);
-    std::uint32_t space_size{ 0U };
 
     int const rateShift = m_TrueHDMATState.ratebits & 7;
     std::uint16_t const frame_samples = static_cast<std::uint16_t>(40U << rateShift);
@@ -372,19 +374,31 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
             int const previousPadding = (m_TrueHDMATState.prev_mat_framesize != 0U)
                                              ? (nominalSpacing - static_cast<int>(m_TrueHDMATState.prev_mat_framesize))
                                              : 0;
-            int const totalPadding =
+            int const timingPadding =
                 previousPadding + ((m_TrueHDMATState.nOutputTimeOffset - currentOffset) * bytesPerSample);
+            int const totalPadding = timingPadding - m_TrueHDMATState.paddingDebt;
 
-            // A negative or huge correction would insert seconds of silence, or wrap the DWORD pad.
-            if ((totalPadding < 0) || (totalPadding > kTrueHDMaxPadding))
+            // A negative result is time we could not pull forward. Keep it as debt when it is only an
+            // overrun, so later spare padding can repay it. A multi-frame timing word is not a real gap.
+            if ((totalPadding >= 0) && (totalPadding <= kTrueHDMaxPadding))
             {
-                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Ignoring discontinuity padding %d (offset %d -> %d)"),
+                m_TrueHDMATState.paddingDebt = 0;
+                if (totalPadding > 0)
+                {
+                    m_TrueHDMATState.padding += static_cast<DWORD>(totalPadding);
+                }
+                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Carrying forward %d padding (offset %d -> %d)"),
                         totalPadding, m_TrueHDMATState.nOutputTimeOffset, currentOffset));
+            }
+            else if ((totalPadding < 0) && ((-totalPadding) <= kTrueHDMaxPadding))
+            {
+                m_TrueHDMATState.paddingDebt = -totalPadding;
+                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Discontinuity overrun of %d bytes (offset %d -> %d)"),
+                        m_TrueHDMATState.paddingDebt, m_TrueHDMATState.nOutputTimeOffset, currentOffset));
             }
             else
             {
-                m_TrueHDMATState.padding += static_cast<DWORD>(totalPadding);
-                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Carrying forward %d padding (offset %d -> %d)"),
+                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Ignoring discontinuity padding %d (offset %d -> %d)"),
                         totalPadding, m_TrueHDMATState.nOutputTimeOffset, currentOffset));
             }
         }
@@ -395,26 +409,43 @@ HRESULT CLAVAudio::BitstreamTrueHD(const BYTE *p, int buffsize, HRESULT *hrDeliv
     // The discontinuity path already includes the nominal gap. Adding it again would double the pad.
     if (!discontinuity)
     {
-        // compute final padded size for the previous frame, if any
-        if (m_TrueHDMATState.prev_frametime_valid)
+        // The slot for the previous frame is the input-timing gap. A MAT marker or a bitrate spike can
+        // make that frame larger than the slot. Repay the extra from later gaps instead of padding up
+        // to the next sample and leaving the HDMI stream late.
+        if (m_TrueHDMATState.prev_frametime_valid && (bytesPerSample > 0))
         {
             std::uint16_t const sampleDelta = static_cast<std::uint16_t>(frame_time - m_TrueHDMATState.prev_frametime);
-            space_size = static_cast<std::uint32_t>(sampleDelta) * static_cast<std::uint32_t>(bytesPerSample);
-        }
+            int const slotBytes = static_cast<int>(sampleDelta) * bytesPerSample;
+            int slotPadding = slotBytes - static_cast<int>(m_TrueHDMATState.prev_mat_framesize);
+            if (slotPadding > kTrueHDMaxPadding)
+            {
+                slotPadding = 0;
+            }
 
-        // compute padding (ie. difference to the size of the previous frame)
-        ASSERT((!m_TrueHDMATState.prev_frametime_valid || (space_size >= m_TrueHDMATState.prev_mat_framesize)));
+            int framePadding = slotPadding - m_TrueHDMATState.paddingDebt;
+            if (framePadding < 0)
+            {
+                // Cap the carry at two MAT frames. Beyond that the timing word is not a real overrun,
+                // and repaying it would pull later audio forward by a noticeable amount.
+                int unpaid = -framePadding;
+                if (unpaid > kTrueHDMaxPadding)
+                {
+                    unpaid = kTrueHDMaxPadding;
+                }
+                m_TrueHDMATState.paddingDebt = unpaid;
+                DbgLog((LOG_TRACE, 10, _T("BitstreamTrueHD(): Carrying %d bytes of slot overrun"),
+                        m_TrueHDMATState.paddingDebt));
+                framePadding = 0;
+            }
+            else
+            {
+                m_TrueHDMATState.paddingDebt = 0;
+            }
 
-        // if for some reason the space_size fails, align the actual frame size
-        if ((space_size < m_TrueHDMATState.prev_mat_framesize) && (bytesPerSample > 0))
-        {
-            space_size = FFALIGN(m_TrueHDMATState.prev_mat_framesize, bytesPerSample);
-        }
-
-        int const framePadding = static_cast<int>(space_size) - static_cast<int>(m_TrueHDMATState.prev_mat_framesize);
-        if ((framePadding > 0) && (framePadding <= kTrueHDMaxPadding))
-        {
-            m_TrueHDMATState.padding += static_cast<DWORD>(framePadding);
+            if (framePadding > 0)
+            {
+                m_TrueHDMATState.padding += static_cast<DWORD>(framePadding);
+            }
         }
     }
 
