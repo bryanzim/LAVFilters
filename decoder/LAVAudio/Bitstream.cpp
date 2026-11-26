@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 
 #ifdef _WIN32
@@ -36,6 +37,28 @@
 #define LAV_BITSTREAM_BUFFER_SIZE 4096
 #define LAV_BITSTREAM_DTS_HD_HR_RATE 192000
 #define LAV_BITSTREAM_DTS_HD_MA_RATE 768000
+
+// Little-endian storage of the big-endian core sync 0x7FFE8001.
+constexpr std::uint32_t kDTSSyncCoreLE{ 0xFE7F0180U };
+// 176.4 kHz HDMI carrier. Master Audio transmits it as four stereo IEC 60958 frames.
+constexpr int kDTSCarrier441{ 176400 };
+constexpr int kDTSHDMasterRate441{ kDTSCarrier441 * 4 };
+
+[[nodiscard]] static bool CarrierIs441Family(DWORD sampleRate) noexcept
+{
+    return (sampleRate == 44100U) || (sampleRate == 88200U) || (sampleRate == 176400U);
+}
+
+// The repetition period is dtshd_rate * samples / sample_rate, and it has to be one of
+// the IEC 61937-5 lengths. 768 kHz does not divide a 44.1 kHz frame into one of those.
+[[nodiscard]] static int DTSHDTransmissionRate(DWORD sampleRate, bool masterAudio) noexcept
+{
+    if (CarrierIs441Family(sampleRate))
+    {
+        return masterAudio ? kDTSHDMasterRate441 : kDTSCarrier441;
+    }
+    return masterAudio ? LAV_BITSTREAM_DTS_HD_MA_RATE : LAV_BITSTREAM_DTS_HD_HR_RATE;
+}
 
 static struct
 {
@@ -301,7 +324,7 @@ CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRa
         break;
     case AV_CODEC_ID_TRUEHD:
         // 44.1 kHz family uses a 176.4 kHz carrier. An unknown rate stays on the 192 kHz carrier.
-        if ((dwSampleRate == 44100U) || (dwSampleRate == 88200U) || (dwSampleRate == 176400U))
+        if (CarrierIs441Family(dwSampleRate))
         {
             wfe->nSamplesPerSec = 176400U;
         }
@@ -315,7 +338,9 @@ CMediaType CLAVAudio::CreateBitstreamMediaType(AVCodecID codec, DWORD dwSampleRa
     case AV_CODEC_ID_DTS:
         if (m_settings.bBitstream[Bitstream_DTSHD] && !bDTSHDOverride && (m_DTSBitstreamMode != DTS_Core))
         {
-            wfe->nSamplesPerSec = 192000;
+            // Same carrier split as TrueHD. A 44.1 kHz frame on the 192 kHz carrier is not a legal
+            // DTS type IV period, so the muxer drops it and the HDMI clock loses that burst.
+            wfe->nSamplesPerSec = CarrierIs441Family(dwSampleRate) ? 176400U : 192000U;
             wfe->nChannels = (m_DTSBitstreamMode == DTS_HDHR) ? 2 : 8;
             subtype = KSDATAFORMAT_SUBTYPE_IEC61937_DTS_HD;
         }
@@ -376,8 +401,7 @@ void CLAVAudio::ActivateDTSHDMuxing()
     else
     {
         av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate",
-                       (m_DTSBitstreamMode == DTS_HDHR) ? LAV_BITSTREAM_DTS_HD_HR_RATE : LAV_BITSTREAM_DTS_HD_MA_RATE,
-                       0);
+                       DTSHDTransmissionRate(m_bsParser.m_dwSampleRate, m_DTSBitstreamMode == DTS_HDMA), 0);
     }
 }
 
@@ -434,7 +458,30 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
 
         if (pOut_size > 0)
         {
-            hr = m_bsParser.Parse(m_nCodecId, pOut, pOut_size);
+            BYTE *frame{ pOut };
+            int frameSize{ pOut_size };
+            // WAV and some Matroska files store DTS as little-endian 16-bit words. The IEC burst
+            // and the HD muxer both want the native big-endian bitstream. Left as little-endian,
+            // the muxer never reads the core size or sample rate and the frame is dropped.
+            std::vector<BYTE> dtsBe;
+            if ((m_nCodecId == AV_CODEC_ID_DTS) && (pOut != nullptr) && (pOut_size >= 4) &&
+                (AV_RB32(pOut) == kDTSSyncCoreLE))
+            {
+                dtsBe.assign(static_cast<std::size_t>(pOut_size) + static_cast<std::size_t>(AV_INPUT_BUFFER_PADDING_SIZE),
+                             BYTE{ 0 });
+                for (int i{ 0 }; (i + 1) < pOut_size; i += 2)
+                {
+                    dtsBe[static_cast<std::size_t>(i)] = pOut[i + 1];
+                    dtsBe[static_cast<std::size_t>(i) + 1U] = pOut[i];
+                }
+                if ((pOut_size & 1) != 0)
+                {
+                    dtsBe[static_cast<std::size_t>(pOut_size) - 1U] = pOut[pOut_size - 1];
+                }
+                frame = dtsBe.data();
+            }
+
+            hr = m_bsParser.Parse(m_nCodecId, frame, frameSize);
             if (FAILED(hr))
             {
                 continue;
@@ -461,10 +508,18 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                     if ((mode != DTS_Core) && (mode != m_DTSBitstreamMode)) {
                         ActivateDTSHDMuxing();
                     }
+                    // Framing mode never calls ActivateDTSHDMuxing, and a 44.1 kHz stream is not
+                    // known when the muxer is created at 768 kHz. Set the rate from this frame.
+                    if (m_DTSBitstreamMode != DTS_Core)
+                    {
+                        av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate",
+                                       DTSHDTransmissionRate(m_bsParser.m_dwSampleRate, m_DTSBitstreamMode == DTS_HDMA),
+                                       0);
+                    }
                 }
 
-                m_pBitstreamPacket->data = pOut;
-                m_pBitstreamPacket->size = pOut_size;
+                m_pBitstreamPacket->data = frame;
+                m_pBitstreamPacket->size = frameSize;
 
                 // Write SPDIF muxed frame
                 ret = av_write_frame(m_avBSContext, m_pBitstreamPacket);
