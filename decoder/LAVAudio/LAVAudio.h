@@ -237,6 +237,8 @@ class __declspec(uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")) CLAVAudio
     HRESULT BitstreamFallbackToPCM();
 
     HRESULT Bitstream(const BYTE *p, int buffsize, int &consumed, HRESULT *hrDeliver);
+    // The muxer dropped a real DTS frame. Write one silent IEC period so the HDMI clock does not skip it.
+    [[nodiscard]] HRESULT HoldDroppedDTSPeriod();
     HRESULT DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD dwSize, REFERENCE_TIME rtStartInput,
                              REFERENCE_TIME rtStopInput, BOOL bSwap = false, int nSamplesOffset = 0);
 

@@ -46,11 +46,47 @@ constexpr int kDTSHDMasterRate441{ kDTSCarrier441 * 4 };
 
 [[nodiscard]] static bool CarrierIs441Family(DWORD sampleRate) noexcept
 {
-    return (sampleRate == 44100U) || (sampleRate == 88200U) || (sampleRate == 176400U);
+    return (sampleRate == 11025U) || (sampleRate == 22050U) || (sampleRate == 44100U) || (sampleRate == 88200U) ||
+           (sampleRate == 176400U);
+}
+
+[[nodiscard]] static bool IsLegalDTSRepetitionPeriod(std::int64_t period) noexcept
+{
+    return (period == 512) || (period == 1024) || (period == 2048) || (period == 4096) || (period == 8192) ||
+           (period == 16384);
+}
+
+// Byte length of one IEC 61937 type IV burst, or 0 when that rate cannot land on a legal period.
+[[nodiscard]] static int LegalDTSHDPeriodBytes(int transmissionRate, DWORD sampleCount, DWORD sampleRate) noexcept
+{
+    if ((transmissionRate <= 0) || (sampleCount == 0U) || (sampleRate == 0U))
+    {
+        return 0;
+    }
+
+    const std::int64_t period{ (static_cast<std::int64_t>(transmissionRate) * static_cast<std::int64_t>(sampleCount)) /
+                               static_cast<std::int64_t>(sampleRate) };
+    if (!IsLegalDTSRepetitionPeriod(period))
+    {
+        return 0;
+    }
+
+    return static_cast<int>(period * 4);
+}
+
+// Core DTS packs blocks << 7 bytes. That is sampleCount * 4 on a carrier at or below 48 kHz.
+[[nodiscard]] static int DTSCorePeriodBytes(DWORD sampleCount, DWORD sampleRate) noexcept
+{
+    if ((sampleCount == 0U) || (sampleRate == 0U) || (sampleRate > 48000U) || ((sampleCount % 32U) != 0U))
+    {
+        return 0;
+    }
+
+    return static_cast<int>(sampleCount * 4U);
 }
 
 // The repetition period is dtshd_rate * samples / sample_rate, and it has to be one of
-// the IEC 61937-5 lengths. 768 kHz does not divide a 44.1 kHz frame into one of those.
+// the IEC 61937-5 lengths. 768 kHz does not divide an 11.025, 22.05, or 44.1 kHz frame into one of those.
 [[nodiscard]] static int DTSHDTransmissionRate(DWORD sampleRate, bool masterAudio) noexcept
 {
     if (CarrierIs441Family(sampleRate))
@@ -405,6 +441,37 @@ void CLAVAudio::ActivateDTSHDMuxing()
     }
 }
 
+[[nodiscard]] HRESULT CLAVAudio::HoldDroppedDTSPeriod()
+{
+    if ((m_nCodecId != AV_CODEC_ID_DTS) || (m_bsParser.m_DTSHeader.HasCore == 0U))
+    {
+        return S_FALSE;
+    }
+
+    const DWORD sampleCount{ 32U * m_bsParser.m_DTSHeader.Blocks };
+    const DWORD sampleRate{ m_bsParser.m_DTSHeader.SampleRate };
+    const int periodBytes{ (m_DTSBitstreamMode == DTS_Core)
+                               ? DTSCorePeriodBytes(sampleCount, sampleRate)
+                               : LegalDTSHDPeriodBytes(DTSHDTransmissionRate(sampleRate, m_DTSBitstreamMode == DTS_HDMA),
+                                                       sampleCount, sampleRate) };
+    if (periodBytes <= 0)
+    {
+        return S_FALSE;
+    }
+
+    if (FAILED(m_bsOutput.SetSize(static_cast<DWORD>(periodBytes))))
+    {
+        return E_OUTOFMEMORY;
+    }
+
+    std::memset(m_bsOutput.Ptr(), 0, static_cast<std::size_t>(periodBytes));
+    m_bsParser.m_dwBlocks = m_bsParser.m_DTSHeader.Blocks;
+    m_bsParser.m_dwSampleRate = sampleRate;
+    m_bsParser.m_dwSamples = sampleCount;
+    DbgLog((LOG_TRACE, 10, L"::HoldDroppedDTSPeriod(): inserted %d silent bytes to keep the HDMI period", periodBytes));
+    return S_OK;
+}
+
 HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consumed, HRESULT *hrDeliver)
 {
     HRESULT hr{ S_OK };
@@ -530,9 +597,22 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                     {
                         return E_OUTOFMEMORY;
                     }
-                    continue;
+                    // Nothing was written. A missing period leaves every later burst early, and the
+                    // DTS sync threshold will not correct a single frame.
+                    hr = HoldDroppedDTSPeriod();
+                    if (FAILED(hr))
+                    {
+                        return hr;
+                    }
+                    if (hr != S_OK)
+                    {
+                        continue;
+                    }
                 }
+            }
 
+            if (m_nCodecId != AV_CODEC_ID_TRUEHD)
+            {
                 m_bUpdateTimeCache = TRUE;
 
                 // Set long-time cache to the first timestamp encountered, used by TrueHD and E-AC3 because the S/PDIF
