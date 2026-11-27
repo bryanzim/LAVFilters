@@ -851,7 +851,9 @@ STDMETHODIMP CDecD3D11::FlushDisplayQueue(BOOL bDeliver)
 
 STDMETHODIMP CDecD3D11::Flush()
 {
-    ReleasePresentedFrame();
+    // Keep the presented sample held across flush/NewSegment. Releasing it here
+    // returns it to the free pool, so the next file can decode into the texture
+    // still on screen and flash pink until the first good frame arrives.
     CDecAvcodec::Flush();
 
     // Flush display queue
@@ -1488,8 +1490,9 @@ HRESULT CDecD3D11::DeliverD3D11Frame(LAVFrame *pFrame)
         return FAILED(hrRelease) ? hrRelease : E_POINTER;
     }
 
-    // Keep this texture out of the free pool until the next frame. The drain at the
-    // end of the stream would otherwise decode into it and clear the picture on screen.
+    // Keep this texture out of the free pool until the next frame is delivered
+    // (including across flush/NewSegment). Otherwise EOS drain or the next file
+    // can decode into the texture still on screen and flash pink.
     pSample->AddRef();
     HRESULT const hr = Deliver(pFrame);
     if (hr != S_OK)
