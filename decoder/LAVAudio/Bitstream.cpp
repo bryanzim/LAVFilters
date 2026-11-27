@@ -187,7 +187,8 @@ HRESULT CLAVAudio::CreateBitstreamContext(AVCodecID codec, WAVEFORMATEX *wfe)
     if (m_settings.DTSHDFraming && m_settings.bBitstream[Bitstream_DTSHD] && !m_bForceDTSCore)
     {
         m_DTSBitstreamMode = DTS_HDMA;
-        av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate", LAV_BITSTREAM_DTS_HD_MA_RATE, 0);
+        av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate",
+                       DTSHDTransmissionRate(wfe->nSamplesPerSec, true), 0);
     }
     else
     {
@@ -256,7 +257,8 @@ HRESULT CLAVAudio::UpdateBitstreamContext()
         if (m_settings.bBitstream[Bitstream_DTSHD] && m_settings.DTSHDFraming && !m_bForceDTSCore)
         {
             m_DTSBitstreamMode = DTS_HDMA;
-            av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate", LAV_BITSTREAM_DTS_HD_MA_RATE, 0);
+            const DWORD sampleRate{ (m_bsParser.m_dwSampleRate != 0U) ? m_bsParser.m_dwSampleRate : 48000U };
+            av_opt_set_int(m_avBSContext->priv_data, "dtshd_rate", DTSHDTransmissionRate(sampleRate, true), 0);
         }
         else
         {
@@ -549,12 +551,24 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
             }
 
             hr = m_bsParser.Parse(m_nCodecId, frame, frameSize);
+            BOOL skipMux{ FALSE };
             if (FAILED(hr))
             {
-                continue;
+                // Parse fails after a real core header when the buffer is short of FrameSize. That still
+                // consumed one IEC period. Holding silence keeps the HDMI clock; skipping it sticks.
+                hr = HoldDroppedDTSPeriod();
+                if (FAILED(hr))
+                {
+                    return hr;
+                }
+                if (hr != S_OK)
+                {
+                    continue;
+                }
+                skipMux = TRUE;
             }
 
-            if (m_nCodecId == AV_CODEC_ID_TRUEHD)
+            if ((!skipMux) && (m_nCodecId == AV_CODEC_ID_TRUEHD))
             {
                 m_bUpdateTimeCache = TRUE;
 
@@ -567,7 +581,7 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
 
                 BitstreamTrueHD(pOut, pOut_size, hrDeliver);
             }
-            else
+            else if (!skipMux)
             {
                 if (m_nCodecId == AV_CODEC_ID_DTS)
                 {
@@ -630,6 +644,24 @@ HRESULT CLAVAudio::Bitstream(const BYTE *pDataBuffer, int buffsize, int &consume
                     if (FAILED(m_bsOutput.SetSize(0)))
                     {
                         return E_OUTOFMEMORY;
+                    }
+                    // Downstream rejected DTS-HD and the burst was not sent. Fill that period in core mode.
+                    if ((*hrDeliver == VFW_E_TYPE_NOT_ACCEPTED) && (m_nCodecId == AV_CODEC_ID_DTS))
+                    {
+                        hr = HoldDroppedDTSPeriod();
+                        if (FAILED(hr))
+                        {
+                            return hr;
+                        }
+                        if (hr == S_OK)
+                        {
+                            *hrDeliver = DeliverBitstream(m_nCodecId, m_bsOutput.Ptr(), m_bsOutput.GetCount(),
+                                                          m_rtStartInputCache, m_rtStopInputCache);
+                            if (FAILED(m_bsOutput.SetSize(0)))
+                            {
+                                return E_OUTOFMEMORY;
+                            }
+                        }
                     }
                 }
             }
@@ -754,7 +786,9 @@ HRESULT CLAVAudio::DeliverBitstream(AVCodecID codec, const BYTE *buffer, DWORD d
             DbgLog((LOG_TRACE, 1, L"DTS-HD Media Type failed with %0#.8x, trying fallback to DTS core", hr));
             m_bForceDTSCore = TRUE;
             UpdateBitstreamContext();
-            goto done;
+            SafeRelease(&pOut);
+            // The HD burst was never sent. Caller will hold one silent period in core mode.
+            return VFW_E_TYPE_NOT_ACCEPTED;
         }
         else if ((hr == S_FALSE) && m_settings.bBitstreamingFallback)
         {
