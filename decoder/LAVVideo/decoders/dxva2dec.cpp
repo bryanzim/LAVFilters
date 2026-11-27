@@ -1586,7 +1586,9 @@ STDMETHODIMP CDecDXVA2::FlushFromAllocator()
 
 STDMETHODIMP CDecDXVA2::Flush()
 {
-    ReleasePresentedFrame();
+    // Keep the presented surface held across flush/NewSegment. Releasing it here
+    // returns it to the free pool, so the next file can decode into the surface
+    // still on screen and flash pink until the first good frame arrives.
     CDecAvcodec::Flush();
     FlushDisplayQueue(FALSE);
 
@@ -1720,8 +1722,9 @@ HRESULT CDecDXVA2::DeliverDXVA2Frame(LAVFrame *pFrame)
             WaitForGPU(reinterpret_cast<IDirect3DSurface9 *>(pFrame->data[3U]));
         }
 
-        // Keep this surface out of the free pool until the next frame. The drain at the
-        // end of the stream would otherwise decode into it and clear the picture on screen.
+        // Keep this surface out of the free pool until the next frame is delivered
+        // (including across flush/NewSegment). Otherwise EOS drain or the next file
+        // can decode into the surface still on screen and flash pink.
         IMediaSample *pSample = reinterpret_cast<IMediaSample *>(pFrame->data[0U]);
         IDirect3DSurface9 *pSurface = reinterpret_cast<IDirect3DSurface9 *>(pFrame->data[3U]);
         pSample->AddRef();
