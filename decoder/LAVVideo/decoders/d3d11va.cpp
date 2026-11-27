@@ -188,6 +188,49 @@ CDecD3D11::CDecD3D11(void)
     ZeroMemory(&m_FrameQueue, sizeof(m_FrameQueue));
 }
 
+void CDecD3D11::ReleasePresentedFrame()
+{
+    SafeRelease(&m_pPresentedSample);
+}
+
+void CDecD3D11::WaitForGPU()
+{
+    if (m_pDevCtx == nullptr)
+    {
+        return;
+    }
+
+    AVD3D11VADeviceContext *pDeviceContext =
+        reinterpret_cast<AVD3D11VADeviceContext *>(reinterpret_cast<AVHWDeviceContext *>(m_pDevCtx->data)->hwctx);
+    if ((pDeviceContext->device == nullptr) || (pDeviceContext->device_context == nullptr))
+    {
+        return;
+    }
+
+    D3D11_QUERY_DESC queryDesc{};
+    queryDesc.Query = D3D11_QUERY_EVENT;
+
+    ID3D11Query *pQuery{ nullptr };
+    if (FAILED(pDeviceContext->device->CreateQuery(&queryDesc, &pQuery)) || (pQuery == nullptr))
+    {
+        return;
+    }
+
+    pDeviceContext->lock(pDeviceContext->lock_ctx);
+    pDeviceContext->device_context->End(pQuery);
+    for (int attempt{ 0 }; attempt < 1000; ++attempt)
+    {
+        HRESULT const hr = pDeviceContext->device_context->GetData(pQuery, nullptr, 0, 0);
+        if (hr != S_FALSE)
+        {
+            break;
+        }
+        ::Sleep(1);
+    }
+    pDeviceContext->unlock(pDeviceContext->lock_ctx);
+    SafeRelease(&pQuery);
+}
+
 CDecD3D11::~CDecD3D11(void)
 {
     DestroyDecoder(true);
@@ -200,6 +243,8 @@ CDecD3D11::~CDecD3D11(void)
 
 STDMETHODIMP CDecD3D11::DestroyDecoder(bool bFull)
 {
+    ReleasePresentedFrame();
+
     HRESULT hrRelease{ S_OK };
     for (int i{ 0 }; i < D3D11_QUEUE_SURFACES; ++i)
     {
@@ -806,6 +851,7 @@ STDMETHODIMP CDecD3D11::FlushDisplayQueue(BOOL bDeliver)
 
 STDMETHODIMP CDecD3D11::Flush()
 {
+    ReleasePresentedFrame();
     CDecAvcodec::Flush();
 
     // Flush display queue
@@ -816,10 +862,12 @@ STDMETHODIMP CDecD3D11::Flush()
 
 STDMETHODIMP CDecD3D11::EndOfStream()
 {
+    m_bDraining = TRUE;
     CDecAvcodec::EndOfStream();
 
     // Flush display queue
     FlushDisplayQueue(TRUE);
+    m_bDraining = FALSE;
 
     return S_OK;
 }
@@ -1414,6 +1462,11 @@ HRESULT CDecD3D11::HandleDXVA2Frame(LAVFrame *pFrame)
 
 HRESULT CDecD3D11::DeliverD3D11Frame(LAVFrame *pFrame)
 {
+    if (m_bDraining && ((pFrame->flags & LAV_FRAME_FLAG_FLUSH) == 0))
+    {
+        WaitForGPU();
+    }
+
     if (m_bReadBackFallback)
     {
         if (m_bDirect) {
@@ -1428,7 +1481,26 @@ HRESULT CDecD3D11::DeliverD3D11Frame(LAVFrame *pFrame)
 
     GetPixelFormat(&pFrame->format, &pFrame->bpp, &pFrame->sw_format);
 
-    return Deliver(pFrame);
+    IMediaSample *pSample = reinterpret_cast<IMediaSample *>(pFrame->data[0U]);
+    if (pSample == nullptr)
+    {
+        HRESULT const hrRelease = ReleaseFrame(&pFrame);
+        return FAILED(hrRelease) ? hrRelease : E_POINTER;
+    }
+
+    // Keep this texture out of the free pool until the next frame. The drain at the
+    // end of the stream would otherwise decode into it and clear the picture on screen.
+    pSample->AddRef();
+    HRESULT const hr = Deliver(pFrame);
+    if (hr != S_OK)
+    {
+        SafeRelease(&pSample);
+        return hr;
+    }
+
+    ReleasePresentedFrame();
+    m_pPresentedSample = pSample;
+    return hr;
 }
 
 HRESULT CDecD3D11::DeliverD3D11Readback(LAVFrame *pFrame)

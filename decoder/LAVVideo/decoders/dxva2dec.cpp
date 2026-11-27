@@ -161,8 +161,52 @@ CDecDXVA2::~CDecDXVA2(void)
     }
 }
 
+void CDecDXVA2::ReleasePresentedFrame()
+{
+    SafeRelease(&m_pPresentedSample);
+    SafeRelease(&m_pPresentedSurface);
+}
+
+void CDecDXVA2::WaitForGPU(IDirect3DSurface9 *pSurface)
+{
+    if (pSurface == nullptr)
+    {
+        return;
+    }
+
+    IDirect3DDevice9 *pDevice{ nullptr };
+    if (FAILED(pSurface->GetDevice(&pDevice)) || (pDevice == nullptr))
+    {
+        return;
+    }
+
+    IDirect3DQuery9 *pQuery{ nullptr };
+    if (FAILED(pDevice->CreateQuery(D3DQUERYTYPE_EVENT, &pQuery)) || (pQuery == nullptr))
+    {
+        SafeRelease(&pDevice);
+        return;
+    }
+
+    if (SUCCEEDED(pQuery->Issue(D3DISSUE_END)))
+    {
+        for (int attempt{ 0 }; attempt < 1000; ++attempt)
+        {
+            if (pQuery->GetData(nullptr, 0, D3DGETDATA_FLUSH) != S_FALSE)
+            {
+                break;
+            }
+            ::Sleep(1);
+        }
+    }
+
+    SafeRelease(&pQuery);
+    SafeRelease(&pDevice);
+}
+
 STDMETHODIMP CDecDXVA2::DestroyDecoder(bool bFull, bool bNoAVCodec)
 {
+    ReleasePresentedFrame();
+
     HRESULT hrRelease{ S_OK };
     for (int i{ 0 }; i < DXVA2_QUEUE_SURFACES; ++i)
     {
@@ -1542,6 +1586,7 @@ STDMETHODIMP CDecDXVA2::FlushFromAllocator()
 
 STDMETHODIMP CDecDXVA2::Flush()
 {
+    ReleasePresentedFrame();
     CDecAvcodec::Flush();
     FlushDisplayQueue(FALSE);
 
@@ -1614,10 +1659,12 @@ STDMETHODIMP CDecDXVA2::FlushDisplayQueue(BOOL bDeliver)
 
 STDMETHODIMP CDecDXVA2::EndOfStream()
 {
+    m_bDraining = TRUE;
     CDecAvcodec::EndOfStream();
 
     // Flush display queue
     FlushDisplayQueue(TRUE);
+    m_bDraining = FALSE;
 
     return S_OK;
 }
@@ -1667,7 +1714,36 @@ HRESULT CDecDXVA2::DeliverDXVA2Frame(LAVFrame *pFrame)
         }
 
         GetPixelFormat(&pFrame->format, &pFrame->bpp, &pFrame->sw_format);
-        return Deliver(pFrame);
+
+        if (m_bDraining)
+        {
+            WaitForGPU(reinterpret_cast<IDirect3DSurface9 *>(pFrame->data[3U]));
+        }
+
+        // Keep this surface out of the free pool until the next frame. The drain at the
+        // end of the stream would otherwise decode into it and clear the picture on screen.
+        IMediaSample *pSample = reinterpret_cast<IMediaSample *>(pFrame->data[0U]);
+        IDirect3DSurface9 *pSurface = reinterpret_cast<IDirect3DSurface9 *>(pFrame->data[3U]);
+        pSample->AddRef();
+        pSurface->AddRef();
+
+        HRESULT const hr = Deliver(pFrame);
+        if (hr != S_OK)
+        {
+            SafeRelease(&pSample);
+            SafeRelease(&pSurface);
+            return hr;
+        }
+
+        ReleasePresentedFrame();
+        m_pPresentedSample = pSample;
+        m_pPresentedSurface = pSurface;
+        return hr;
+    }
+
+    if (m_bDraining)
+    {
+        WaitForGPU(reinterpret_cast<IDirect3DSurface9 *>(pFrame->data[3U]));
     }
 
     if (m_bDirect)

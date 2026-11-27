@@ -1047,6 +1047,20 @@ send_packet:
             break;
         }
 
+        // A concealed frame from the end-of-stream drain is what replaces the last
+        // picture with an empty hardware surface. Keep the previous picture instead.
+        if ((avpkt == nullptr) &&
+            (((m_pFrame->flags & AV_FRAME_FLAG_CORRUPT) != 0) || (m_pFrame->decode_error_flags != 0)))
+        {
+            DbgLog((LOG_TRACE, 10, L"::Decode(): dropping corrupt frame produced while draining"));
+            if (m_pAVCtx->thread_count > 0)
+            {
+                m_CurrentThread = (m_CurrentThread + 1) % m_pAVCtx->thread_count;
+            }
+            av_frame_unref(m_pFrame);
+            continue;
+        }
+
         // Handle B-frame delay for frame threading codecs. A discarded non-key frame
         // still consumes the timestamp that arrived with it.
         if ((m_pAVCtx->active_thread_type & FF_THREAD_FRAME) && m_bBFrameDelay)

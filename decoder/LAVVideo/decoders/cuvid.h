@@ -142,6 +142,9 @@ class CDecCuvid : public CDecBase
     int m_DisplayPos{ 0 };
 
     std::array<CUVIDPICPARAMS, MAX_PIC_INDEX> m_PicParams{};
+    // True only after cuvidDecodePicture succeeded. Stops an end-of-stream callback from
+    // presenting a picture the decoder never wrote.
+    std::array<bool, MAX_PIC_INDEX> m_PictureReady{};
 
     BOOL m_bVDPAULevelC{ FALSE };
     std::array<char, 256U> m_cudaDeviceName{0};

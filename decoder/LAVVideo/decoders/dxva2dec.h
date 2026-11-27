@@ -122,6 +122,9 @@ class CDecDXVA2 : public CDecAvcodec
     STDMETHODIMP FlushDisplayQueue(BOOL bDeliver);
     STDMETHODIMP FlushFromAllocator();
 
+    void ReleasePresentedFrame();
+    void WaitForGPU(IDirect3DSurface9 *pSurface);
+
   private:
     friend class CDXVA2SurfaceAllocator;
     BOOL m_bNative{ FALSE };
@@ -154,6 +157,11 @@ class CDecDXVA2 : public CDecAvcodec
     std::array<LPDIRECT3DSURFACE9, DXVA2_MAX_SURFACES> m_pRawSurface{};
 
     BOOL m_bFailHWDecode{ FALSE };
+    // Set while the decoder is drained at the end of the stream.
+    BOOL m_bDraining{ FALSE };
+    // The native surface currently on screen. Held so a trailing decode cannot clear it.
+    IMediaSample *m_pPresentedSample{ nullptr };
+    IDirect3DSurface9 *m_pPresentedSurface{ nullptr };
 
     LAVFrame *m_FrameQueue[DXVA2_QUEUE_SURFACES];
     int m_FrameQueuePosition{ 0 };

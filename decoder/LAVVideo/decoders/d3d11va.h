@@ -102,6 +102,9 @@ class CDecD3D11 : public CDecAvcodec
 
     STDMETHODIMP FlushDisplayQueue(BOOL bDeliver);
 
+    void ReleasePresentedFrame();
+    void WaitForGPU();
+
     static enum AVPixelFormat get_d3d11_format(struct AVCodecContext *s, const enum AVPixelFormat *pix_fmts);
     static int get_d3d11_buffer(struct AVCodecContext *c, AVFrame *pic, int flags);
 
@@ -125,6 +128,10 @@ class CDecD3D11 : public CDecAvcodec
     BOOL m_bReadBackFallback{ FALSE };
     BOOL m_bDirect{ FALSE };
     BOOL m_bFailHWDecode{ FALSE };
+    // Set while the decoder is drained at the end of the stream.
+    BOOL m_bDraining{ FALSE };
+    // The native sample currently on screen. Held so a trailing decode cannot clear its texture.
+    IMediaSample *m_pPresentedSample{ nullptr };
 
     BOOL m_bP016ToP010Fallback{ FALSE };
 
