@@ -1055,22 +1055,27 @@ int CUDAAPI CDecCuvid::HandlePictureDecode(void *obj, CUVIDPICPARAMS *cuvidpic)
 
     filter->cuda.cuvidCtxLock(filter->m_cudaCtxLock, 0);
     filter->m_PicParams[cuvidpic->CurrPicIdx] = *cuvidpic;
+    bool decoded{ false };
     __try
     {
         CUresult const cuStatus = filter->cuda.cuvidDecodePicture(filter->m_hDecoder, cuvidpic);
+        decoded = (cuStatus == CUDA_SUCCESS);
 #ifdef DEBUG
         if (cuStatus != CUDA_SUCCESS)
         {
             DbgLog((LOG_ERROR, 10, L"CDecCuvid::HandlePictureDecode(): cuvidDecodePicture returned error code %d",
                     cuStatus));
         }
-#else
-        (void)cuStatus;
 #endif
     }
     __except (1)
     {
         DbgLog((LOG_ERROR, 10, L"CDecCuvid::HandlePictureDecode(): cuvidDecodePicture threw an exception"));
+        decoded = false;
+    }
+    if ((cuvidpic->CurrPicIdx >= 0) && (cuvidpic->CurrPicIdx < MAX_PIC_INDEX))
+    {
+        filter->m_PictureReady[static_cast<std::size_t>(cuvidpic->CurrPicIdx)] = decoded;
     }
     filter->cuda.cuvidCtxUnlock(filter->m_cudaCtxLock, 0);
 
@@ -1109,6 +1114,15 @@ int CUDAAPI CDecCuvid::HandlePictureDisplay(void *obj, CUVIDPARSERDISPINFO *cuvi
 
 STDMETHODIMP CDecCuvid::Display(CUVIDPARSERDISPINFO *cuviddisp)
 {
+    if ((cuviddisp->picture_index < 0) || (cuviddisp->picture_index >= MAX_PIC_INDEX) ||
+        (m_PictureReady[static_cast<std::size_t>(cuviddisp->picture_index)] == false))
+    {
+        DbgLog((LOG_TRACE, 10, L"CDecCuvid::Display(): skipping picture %d, decode did not finish",
+                cuviddisp->picture_index));
+        return S_FALSE;
+    }
+    m_PictureReady[static_cast<std::size_t>(cuviddisp->picture_index)] = false;
+
     BOOL bTreatAsProgressive = m_pSettings->GetDeinterlacingMode() == DeintMode_Disable;
 
     if (bTreatAsProgressive)
@@ -1556,6 +1570,7 @@ STDMETHODIMP CDecCuvid::Flush()
     }
 
     m_bFlushing = FALSE;
+    m_PictureReady.fill(false);
     m_bWaitForKeyframe = m_bUseTimestampQueue;
 
     // Re-init decoder after flush
